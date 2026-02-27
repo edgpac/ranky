@@ -71,6 +71,10 @@ export default function SignupPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Something went wrong'); return; }
+      // Save JWT as a browser cookie — sent automatically on every request, survives proxy/session issues
+      if (data.token) {
+        document.cookie = `ranky_token=${data.token}; path=/; max-age=${30 * 24 * 3600}; SameSite=Strict`;
+      }
       navigate('/dashboard');
     } catch {
       setError('Something went wrong. Please try again.');

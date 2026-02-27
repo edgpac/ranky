@@ -8,6 +8,7 @@ import { google } from 'googleapis';
 import Anthropic from '@anthropic-ai/sdk';
 import Stripe from 'stripe';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import pg from 'pg';
 import cron from 'node-cron';
 import { mkdir } from 'fs/promises';
@@ -240,8 +241,10 @@ app.post('/auth/signup', async (req, res) => {
       name, businessName, whatsapp || '', tone || 'Friendly',
       businessType || 'general', postsPerWeek || 1, hash,
     ]);
-    req.session.clientId = result.rows[0].id;
-    res.json({ ok: true });
+    const clientId = result.rows[0].id;
+    req.session.clientId = clientId;
+    const token = jwt.sign({ clientId }, process.env.SESSION_SECRET, { expiresIn: '30d' });
+    res.json({ ok: true, token });
   } catch (err) {
     console.error('Signup error:', err);
     res.status(500).json({ error: err.message });
@@ -259,8 +262,10 @@ app.post('/auth/login', async (req, res) => {
     if (!rows.length) return res.status(401).json({ error: 'No account found with that email' });
     const valid = await bcrypt.compare(password, rows[0].password_hash);
     if (!valid) return res.status(401).json({ error: 'Incorrect password' });
-    req.session.clientId = rows[0].id;
-    res.json({ ok: true });
+    const clientId = rows[0].id;
+    req.session.clientId = clientId;
+    const token = jwt.sign({ clientId }, process.env.SESSION_SECRET, { expiresIn: '30d' });
+    res.json({ ok: true, token });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: err.message });
@@ -268,14 +273,24 @@ app.post('/auth/login', async (req, res) => {
 });
 
 app.post('/auth/logout', (req, res) => {
-  req.session.destroy();
+  req.session.destroy(() => {});
+  res.setHeader('Set-Cookie', 'ranky_token=; path=/; max-age=0; SameSite=Strict');
   res.json({ ok: true });
 });
 
 // ─── Auth middleware ──────────────────────────────────────────
 function requireAuth(req, res, next) {
-  if (!req.session.clientId) return res.status(401).json({ error: 'Not authenticated' });
-  next();
+  if (req.session.clientId) return next();
+  // Fallback: verify JWT from browser-set cookie (survives proxy/MemoryStore issues)
+  const cookieHeader = req.headers.cookie || '';
+  const match = cookieHeader.match(/(?:^|;\s*)ranky_token=([^;]+)/);
+  if (match) {
+    try {
+      const decoded = jwt.verify(decodeURIComponent(match[1]), process.env.SESSION_SECRET);
+      if (decoded.clientId) { req.session.clientId = decoded.clientId; return next(); }
+    } catch { /* invalid token — fall through to 401 */ }
+  }
+  return res.status(401).json({ error: 'Not authenticated' });
 }
 
 // ─── Permission check (also seeds the location name into DB + memory cache) ───
