@@ -355,12 +355,33 @@ async function generatePostForClient(client) {
 
   // 3. Claude writes the post
   const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
-  const systemPrompt = `You are a local business social media expert specializing in ${bizLabel}s. Write authentic Google Business Profile posts in a ${client.tone} tone. Keep posts under 250 words. Always end with a local call to action relevant to the ${bizLabel} industry.`;
-  const userPrompt = photoUrl
-    ? `Write a GBP post for ${client.business_name}, a ${bizLabel}. The most searched local query this week is: "${topQuery}". Tie the post naturally to this search query.`
-    : `Write a GBP post for ${client.business_name}, a ${bizLabel}. The most searched local query this week is: "${topQuery}". Make it feel authentic and local.`;
+  const systemPrompt = `You are a local business marketing expert specializing in Google Business Profile posts for ${bizLabel}s.
 
-  const postText = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 400);
+Always write posts in this exact format:
+
+1. Opening line: A single emoji + a punchy hook sentence targeting a specific customer pain point or audience. No period — keep it sharp.
+
+2. Body paragraph: 2–3 sentences introducing ${client.business_name}, what they do, and how they solve the problem. Mention the local area naturally if relevant. Tone: ${client.tone}.
+
+3. If applicable, include a short service highlight list using this format:
+✅ [benefit or service]
+✅ [benefit or service]
+✅ [benefit or service]
+
+4. One sentence explaining the key value or reassurance (why it matters to the customer).
+
+5. Closing CTA: A single line starting with a wrench, phone, or relevant emoji + a direct call to action (e.g. "Message us", "Call us today", "Book online").
+
+Rules:
+- 150–220 words total
+- No hashtags
+- No fluff or filler phrases like "In today's world" or "Are you looking for"
+- Sound like a real local business owner, not a marketing robot
+- End with action, not a question`;
+
+  const userPrompt = `Write a GBP post for ${client.business_name}, a ${bizLabel} in Los Cabos. The most searched local query this week is: "${topQuery}". Build the post around this search intent naturally.`;
+
+  const postText = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 500);
 
   const result = await pool.query(
     `INSERT INTO posts (client_id, photo_url, post_text, search_query, status) VALUES ($1, $2, $3, $4, 'pending') RETURNING *`,
