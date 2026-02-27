@@ -160,9 +160,6 @@ async function callClaude(systemPrompt, messages, maxTokens = 400) {
 
 app.get('/auth/google', (req, res) => {
   const url = oauth2Client.generateAuthUrl({ access_type: 'offline', prompt: 'consent', scope: SCOPES });
-  console.log('🔑 OAuth redirect_uri:', process.env.GOOGLE_REDIRECT_URI);
-  console.log('🔑 OAuth client_id:', process.env.GOOGLE_CLIENT_ID?.slice(0, 20) + '...');
-  console.log('🔑 OAuth URL:', url.slice(0, 120) + '...');
   res.redirect(url);
 });
 
@@ -176,9 +173,14 @@ app.get('/auth/google/callback', async (req, res) => {
   const { code } = req.query;
   if (!code) return res.redirect(`${process.env.FRONTEND_URL}/auth/callback?error=no_code`);
   try {
-    const { tokens } = await oauth2Client.getToken(code);
-    oauth2Client.setCredentials(tokens);
-    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+    const callbackClient = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+    const { tokens } = await callbackClient.getToken(code);
+    callbackClient.setCredentials(tokens);
+    const oauth2 = google.oauth2({ version: 'v2', auth: callbackClient });
     const { data: profile } = await oauth2.userinfo.get();
     const signup = req.session.pendingSignup || {};
     const result = await pool.query(`
