@@ -26,6 +26,7 @@ const STORAGE_KEY = 'ranky_signup_form';
 
 const defaultForm = {
   name: '',
+  email: '',
   businessName: '',
   businessType: 'general',
   whatsapp: '',
@@ -35,6 +36,7 @@ const defaultForm = {
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const [mode, setMode] = useState<'signup' | 'login'>('signup');
   const [form, setForm] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -43,6 +45,9 @@ export default function SignupPage() {
       return defaultForm;
     }
   });
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const updateForm = (patch: Partial<typeof defaultForm>) => {
     setForm((prev: typeof defaultForm) => {
@@ -52,15 +57,29 @@ export default function SignupPage() {
     });
   };
 
-  const handleGoogleConnect = async () => {
-    await fetch('/auth/presignup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(form),
-    });
-    window.location.href = '/auth/google';
+  const handleSubmit = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const url = mode === 'signup' ? '/auth/signup' : '/auth/login';
+      const body = mode === 'signup' ? { ...form, password } : { email: form.email, password };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Something went wrong'); return; }
+      navigate('/dashboard');
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const isDisabled = loading || !form.email || !password || (mode === 'signup' && (!form.name || !form.businessName));
 
   return (
     <div
@@ -73,15 +92,12 @@ export default function SignupPage() {
         <div style={{ position: 'absolute', bottom: '0%', right: '10%', width: 400, height: 400, borderRadius: '50%', background: 'radial-gradient(circle, rgba(124,90,247,0.08) 0%, transparent 65%)', filter: 'blur(48px)' }} />
       </div>
 
-      {/* ── Left branding panel ─────────────────────────────────────── */}
+      {/* Left branding panel */}
       <div
         className="w-[420px] shrink-0 flex flex-col gap-8 p-14 relative"
         style={{ background: 'rgba(255,255,255,0.025)', borderRight: '1px solid rgba(255,255,255,0.07)' }}
       >
-        <div
-          className="flex items-center gap-2.5 cursor-pointer"
-          onClick={() => navigate('/')}
-        >
+        <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate('/')}>
           <div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', flexShrink: 0 }} />
           <span className="font-bold text-xl">Ranky</span>
         </div>
@@ -111,7 +127,6 @@ export default function SignupPage() {
           ))}
         </div>
 
-        {/* Mini stat row */}
         <div className="mt-auto flex gap-6 pt-8" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           {[{ v: '2 min', l: 'setup' }, { v: '0', l: 'posts you write' }, { v: '4×', l: 'more visibility' }].map((s) => (
             <div key={s.l}>
@@ -122,127 +137,175 @@ export default function SignupPage() {
         </div>
       </div>
 
-      {/* ── Right form panel ────────────────────────────────────────── */}
+      {/* Right form panel */}
       <div className="flex-1 flex flex-col justify-center px-12 py-12 gap-6 overflow-y-auto relative">
         <div>
-          <h1 className="text-2xl font-extrabold">Get started</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Takes 2 minutes. No credit card required.</p>
+          <h1 className="text-2xl font-extrabold">{mode === 'signup' ? 'Get started' : 'Welcome back'}</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+            {mode === 'signup' ? 'Takes 2 minutes. No credit card required.' : 'Sign in to your Ranky account.'}
+          </p>
         </div>
 
-        {/* Name + Business */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Your name</label>
-            <input
-              className="h-11 px-3 rounded-lg text-sm outline-none"
-              style={inputStyle}
-              placeholder="Edgar"
-              value={form.name}
-              onChange={(e) => updateForm({ name: e.target.value })}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Business name</label>
-            <input
-              className="h-11 px-3 rounded-lg text-sm outline-none"
-              style={inputStyle}
-              placeholder="Cabos Handyman"
-              value={form.businessName}
-              onChange={(e) => updateForm({ businessName: e.target.value })}
-            />
-          </div>
-        </div>
+        {mode === 'signup' && (
+          <>
+            {/* Name + Business */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Your name</label>
+                <input
+                  className="h-11 px-3 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                  placeholder="Edgar"
+                  value={form.name}
+                  onChange={(e) => updateForm({ name: e.target.value })}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Business name</label>
+                <input
+                  className="h-11 px-3 rounded-lg text-sm outline-none"
+                  style={inputStyle}
+                  placeholder="Cabos Handyman"
+                  value={form.businessName}
+                  onChange={(e) => updateForm({ businessName: e.target.value })}
+                />
+              </div>
+            </div>
 
-        {/* Business Type */}
+            {/* Business Type */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Business type</label>
+              <select
+                className="h-11 px-3 rounded-lg text-sm outline-none"
+                style={inputStyle}
+                value={form.businessType}
+                onChange={(e) => updateForm({ businessType: e.target.value })}
+              >
+                {BUSINESS_TYPES.map((bt) => (
+                  <option key={bt.value} value={bt.value} style={{ background: '#0d1424' }}>{bt.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* WhatsApp */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                WhatsApp number <span style={{ color: 'rgba(240,244,255,0.3)', fontWeight: 400 }}>(for weekly post updates)</span>
+              </label>
+              <input
+                className="h-11 px-3 rounded-lg text-sm outline-none"
+                style={inputStyle}
+                placeholder="+52 624 000 0000"
+                value={form.whatsapp}
+                onChange={(e) => updateForm({ whatsapp: e.target.value })}
+              />
+            </div>
+
+            {/* Tone */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Post tone</label>
+              <div className="flex gap-2">
+                {TONE_OPTIONS.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => updateForm({ tone: t })}
+                    className="px-5 py-2 rounded-lg text-sm font-medium transition-all"
+                    style={form.tone === t
+                      ? { background: 'var(--accent)', color: '#fff' }
+                      : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-muted)' }
+                    }
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Posting frequency */}
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                How often do you want to post?
+              </label>
+              <div className="grid grid-cols-4 gap-2 mt-1">
+                {FREQ_OPTIONS.map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => updateForm({ postsPerWeek: n })}
+                    className="flex flex-col items-center justify-center py-3 rounded-xl text-sm transition-all"
+                    style={form.postsPerWeek === n
+                      ? { background: 'rgba(79,142,247,0.12)', border: '2px solid var(--accent)', color: 'var(--accent)' }
+                      : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-muted)' }
+                    }
+                  >
+                    <span className="text-xl font-extrabold" style={{ color: form.postsPerWeek === n ? 'var(--accent)' : 'var(--text-muted)' }}>{n}×</span>
+                    <span className="text-[11px] mt-0.5">per week</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Email */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Business type</label>
-          <select
-            className="h-11 px-3 rounded-lg text-sm outline-none"
-            style={inputStyle}
-            value={form.businessType}
-            onChange={(e) => updateForm({ businessType: e.target.value })}
-          >
-            {BUSINESS_TYPES.map((bt) => (
-              <option key={bt.value} value={bt.value} style={{ background: '#0d1424' }}>{bt.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* WhatsApp */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
-            WhatsApp number <span style={{ color: 'rgba(240,244,255,0.3)', fontWeight: 400 }}>(for weekly post updates)</span>
-          </label>
+          <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Email</label>
           <input
+            type="email"
             className="h-11 px-3 rounded-lg text-sm outline-none"
             style={inputStyle}
-            placeholder="+52 624 000 0000"
-            value={form.whatsapp}
-            onChange={(e) => updateForm({ whatsapp: e.target.value })}
+            placeholder="you@example.com"
+            value={form.email}
+            onChange={(e) => updateForm({ email: e.target.value })}
           />
         </div>
 
-        {/* Tone */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Post tone</label>
-          <div className="flex gap-2">
-            {TONE_OPTIONS.map((t) => (
-              <button
-                key={t}
-                onClick={() => updateForm({ tone: t })}
-                className="px-5 py-2 rounded-lg text-sm font-medium transition-all"
-                style={form.tone === t
-                  ? { background: 'var(--accent)', color: '#fff' }
-                  : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-muted)' }
-                }
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+        {/* Password */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Password</label>
+          <input
+            type="password"
+            className="h-11 px-3 rounded-lg text-sm outline-none"
+            style={inputStyle}
+            placeholder={mode === 'signup' ? 'Create a password' : 'Your password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && !isDisabled) handleSubmit(); }}
+          />
         </div>
 
-        {/* Posting frequency */}
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
-            How often do you want to post?
-          </label>
-          <p className="text-xs" style={{ color: 'rgba(240,244,255,0.3)' }}>New clients with many photos can post more frequently to build momentum.</p>
-          <div className="grid grid-cols-4 gap-2 mt-1">
-            {FREQ_OPTIONS.map((n) => (
-              <button
-                key={n}
-                onClick={() => updateForm({ postsPerWeek: n })}
-                className="flex flex-col items-center justify-center py-3 rounded-xl text-sm transition-all"
-                style={form.postsPerWeek === n
-                  ? { background: 'rgba(79,142,247,0.12)', border: '2px solid var(--accent)', color: 'var(--accent)' }
-                  : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-muted)' }
-                }
-              >
-                <span className="text-xl font-extrabold" style={{ color: form.postsPerWeek === n ? 'var(--accent)' : 'var(--text-muted)' }}>{n}×</span>
-                <span className="text-[11px] mt-0.5">per week</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Error */}
+        {error && (
+          <p className="text-sm px-3 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
+            {error}
+          </p>
+        )}
 
-        {/* Google Connect */}
+        {/* Submit */}
         <button
-          onClick={handleGoogleConnect}
-          disabled={!form.name || !form.businessName}
+          onClick={handleSubmit}
+          disabled={isDisabled}
           className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl font-semibold text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text)' }}
-          onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+          style={{ background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', color: '#fff' }}
         >
-          <svg width="20" height="20" viewBox="0 0 48 48">
-            <path fill="#4285F4" d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z"/>
-            <path fill="#34A853" d="M6.3 14.7l7 5.1C15 16.1 19.1 13 24 13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 16.3 2 9.7 7.4 6.3 14.7z"/>
-            <path fill="#FBBC05" d="M24 46c5.5 0 10.4-1.8 14.3-4.9l-6.6-5.4C29.8 37.6 27 38.5 24 38.5c-6.1 0-11.2-4.1-13-9.7l-7 5.4C7.5 41.8 15.2 46 24 46z"/>
-            <path fill="#EA4335" d="M44.5 20H24v8.5h11.8c-1 2.7-2.8 5-5.1 6.6l6.6 5.4c3.8-3.6 6.2-8.9 6.2-15.5 0-1.3-.2-2.7-.5-4z"/>
-          </svg>
-          Continue with Google
+          {loading ? 'Please wait...' : mode === 'signup' ? 'Create Account' : 'Sign In'}
         </button>
+
+        {/* Mode toggle */}
+        <p className="text-sm text-center" style={{ color: 'rgba(240,244,255,0.4)' }}>
+          {mode === 'signup' ? (
+            <>Already have an account?{' '}
+              <button onClick={() => { setMode('login'); setError(''); }} className="underline" style={{ color: 'var(--accent)' }}>
+                Sign in
+              </button>
+            </>
+          ) : (
+            <>Don't have an account?{' '}
+              <button onClick={() => { setMode('signup'); setError(''); }} className="underline" style={{ color: 'var(--accent)' }}>
+                Get started
+              </button>
+            </>
+          )}
+        </p>
 
         <p className="text-xs text-center" style={{ color: 'rgba(240,244,255,0.3)' }}>
           By continuing you agree to our Terms of Service and Privacy Policy.

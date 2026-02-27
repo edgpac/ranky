@@ -7,6 +7,7 @@ import sharp from 'sharp';
 import { google } from 'googleapis';
 import Anthropic from '@anthropic-ai/sdk';
 import Stripe from 'stripe';
+import bcrypt from 'bcryptjs';
 import pg from 'pg';
 import cron from 'node-cron';
 import { mkdir } from 'fs/promises';
@@ -98,6 +99,7 @@ async function initDB() {
   `);
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS business_type TEXT DEFAULT 'general'`);
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_gbp_check TIMESTAMPTZ`);
+  await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT`);
   console.log('✅ DB ready');
 }
 
@@ -216,6 +218,53 @@ app.get('/auth/google/callback', async (req, res) => {
 app.post('/auth/presignup', (req, res) => {
   req.session.pendingSignup = req.body;
   res.json({ ok: true });
+});
+
+app.post('/auth/signup', async (req, res) => {
+  const { email, password, name, businessName, businessType, whatsapp, tone, postsPerWeek } = req.body;
+  if (!email || !password || !name || !businessName) {
+    return res.status(400).json({ error: 'Email, password, name and business name are required' });
+  }
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    const result = await pool.query(`
+      INSERT INTO clients (google_id, email, name, business_name, whatsapp, tone, business_type, posts_per_week, password_hash)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (google_id) DO UPDATE SET
+        name = COALESCE(EXCLUDED.name, clients.name),
+        business_name = COALESCE(EXCLUDED.business_name, clients.business_name),
+        password_hash = EXCLUDED.password_hash
+      RETURNING id
+    `, [
+      `email:${email.toLowerCase()}`, email.toLowerCase(),
+      name, businessName, whatsapp || '', tone || 'Friendly',
+      businessType || 'general', postsPerWeek || 1, hash,
+    ]);
+    req.session.clientId = result.rows[0].id;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Signup error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM clients WHERE google_id = $1',
+      [`email:${email.toLowerCase()}`]
+    );
+    if (!rows.length) return res.status(401).json({ error: 'No account found with that email' });
+    const valid = await bcrypt.compare(password, rows[0].password_hash);
+    if (!valid) return res.status(401).json({ error: 'Incorrect password' });
+    req.session.clientId = rows[0].id;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/auth/logout', (req, res) => {
