@@ -22,16 +22,35 @@ const inputStyle: React.CSSProperties = {
   color: 'var(--text)',
 };
 
+const STORAGE_KEY = 'ranky_signup_form';
+
+const defaultForm = {
+  name: '',
+  businessName: '',
+  businessType: 'general',
+  whatsapp: '',
+  tone: 'Friendly',
+  postsPerWeek: 3,
+};
+
 export default function SignupPage() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({
-    name: '',
-    businessName: '',
-    businessType: 'general',
-    whatsapp: '',
-    tone: 'Friendly',
-    postsPerWeek: 3,
+  const [form, setForm] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? { ...defaultForm, ...JSON.parse(saved) } : defaultForm;
+    } catch {
+      return defaultForm;
+    }
   });
+
+  const updateForm = (patch: Partial<typeof defaultForm>) => {
+    setForm((prev: typeof defaultForm) => {
+      const next = { ...prev, ...patch };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   const handleGoogleConnect = async () => {
     await fetch('/auth/presignup', {
@@ -119,7 +138,7 @@ export default function SignupPage() {
               style={inputStyle}
               placeholder="Edgar"
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => updateForm({ name: e.target.value })}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -129,7 +148,7 @@ export default function SignupPage() {
               style={inputStyle}
               placeholder="Cabos Handyman"
               value={form.businessName}
-              onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+              onChange={(e) => updateForm({ businessName: e.target.value })}
             />
           </div>
         </div>
@@ -141,7 +160,7 @@ export default function SignupPage() {
             className="h-11 px-3 rounded-lg text-sm outline-none"
             style={inputStyle}
             value={form.businessType}
-            onChange={(e) => setForm({ ...form, businessType: e.target.value })}
+            onChange={(e) => updateForm({ businessType: e.target.value })}
           >
             {BUSINESS_TYPES.map((bt) => (
               <option key={bt.value} value={bt.value} style={{ background: '#0d1424' }}>{bt.label}</option>
@@ -159,7 +178,7 @@ export default function SignupPage() {
             style={inputStyle}
             placeholder="+52 624 000 0000"
             value={form.whatsapp}
-            onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+            onChange={(e) => updateForm({ whatsapp: e.target.value })}
           />
         </div>
 
@@ -170,7 +189,7 @@ export default function SignupPage() {
             {TONE_OPTIONS.map((t) => (
               <button
                 key={t}
-                onClick={() => setForm({ ...form, tone: t })}
+                onClick={() => updateForm({ tone: t })}
                 className="px-5 py-2 rounded-lg text-sm font-medium transition-all"
                 style={form.tone === t
                   ? { background: 'var(--accent)', color: '#fff' }
@@ -193,7 +212,7 @@ export default function SignupPage() {
             {FREQ_OPTIONS.map((n) => (
               <button
                 key={n}
-                onClick={() => setForm({ ...form, postsPerWeek: n })}
+                onClick={() => updateForm({ postsPerWeek: n })}
                 className="flex flex-col items-center justify-center py-3 rounded-xl text-sm transition-all"
                 style={form.postsPerWeek === n
                   ? { background: 'rgba(79,142,247,0.12)', border: '2px solid var(--accent)', color: 'var(--accent)' }
