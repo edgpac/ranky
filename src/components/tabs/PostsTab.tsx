@@ -15,18 +15,24 @@ interface Props {
   onPostUpdated: (post: Post) => void;
 }
 
-const STATUS_STYLE: Record<string, string> = {
-  posted:   'bg-green-100 text-green-700',
-  approved: 'bg-blue-100 text-blue-700',
-  pending:  'bg-yellow-100 text-yellow-700',
+const STATUS_STYLE: Record<string, React.CSSProperties> = {
+  posted:   { background: 'rgba(52,211,153,0.1)',  color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' },
+  approved: { background: 'rgba(79,142,247,0.1)',  color: '#4f8ef7', border: '1px solid rgba(79,142,247,0.2)' },
+  pending:  { background: 'rgba(251,191,36,0.1)',  color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' },
 };
 
 const DATA_SOURCES = [
-  { icon: '📸', title: 'Your GBP photos',           desc: 'Real photos from your Google Business Profile — no stock images.' },
-  { icon: '🔍', title: 'What locals search',         desc: 'GSC shows the exact queries people type. Posts match those searches.' },
-  { icon: '✍️', title: 'Your tone & business type',  desc: 'Claude writes in your chosen voice, tailored to your industry.' },
-  { icon: '📅', title: 'Auto-schedule',               desc: 'Posts go live every week without you touching anything.' },
+  { icon: '📸', title: 'Your GBP photos',          desc: 'Real photos from your Google Business Profile — no stock images.' },
+  { icon: '🔍', title: 'What locals search',        desc: 'GSC shows the exact queries people type. Posts match those searches.' },
+  { icon: '✍️', title: 'Your tone & business type', desc: 'Claude writes in your chosen voice, tailored to your industry.' },
+  { icon: '📅', title: 'Auto-schedule',              desc: 'Posts go live every week without you touching anything.' },
 ];
+
+const card: React.CSSProperties = {
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border)',
+  boxShadow: 'var(--shadow-glass)',
+};
 
 function PostCard({ post, onUpdated }: { post: Post; onUpdated: (p: Post) => void }) {
   const [editing, setEditing] = useState(false);
@@ -36,86 +42,67 @@ function PostCard({ post, onUpdated }: { post: Post; onUpdated: (p: Post) => voi
 
   const save = async () => {
     if (draft.trim() === post.post_text) { setEditing(false); return; }
-    setSaving(true);
-    setSaveError('');
+    setSaving(true); setSaveError('');
     try {
       const res = await fetch(`/api/posts/${post.id}`, {
-        method: 'PATCH',
-        credentials: 'include',
+        method: 'PATCH', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: draft }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      onUpdated(data.post);
-      setEditing(false);
-    } catch (e: any) {
-      setSaveError(e.message);
-    } finally {
-      setSaving(false);
-    }
+      onUpdated(data.post); setEditing(false);
+    } catch (e: any) { setSaveError(e.message); }
+    finally { setSaving(false); }
   };
 
-  const cancel = () => {
-    setDraft(post.post_text);
-    setEditing(false);
-    setSaveError('');
-  };
+  const cancel = () => { setDraft(post.post_text); setEditing(false); setSaveError(''); };
 
   return (
-    <div className="bg-white rounded-2xl p-6 flex gap-5 shadow-sm">
-      {post.photo_url && (
-        <img src={post.photo_url} alt="" className="w-20 h-20 rounded-xl object-cover shrink-0" />
-      )}
+    <div className="rounded-2xl p-5 flex gap-4" style={card}>
+      {post.photo_url && <img src={post.photo_url} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0" />}
       <div className="flex flex-col gap-2 flex-1">
-        {/* Header row */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_STYLE[post.status] || STATUS_STYLE.pending}`}>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={STATUS_STYLE[post.status] || STATUS_STYLE.pending}>
               {post.status}
             </span>
-            <span className="text-xs text-slate-400">{new Date(post.posted_at).toLocaleDateString()}</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{new Date(post.posted_at).toLocaleDateString()}</span>
             {post.search_query && (
-              <span className="text-xs text-slate-400">· matched: <span className="text-brand">{post.search_query}</span></span>
+              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                · matched: <span style={{ color: 'var(--accent)' }}>{post.search_query}</span>
+              </span>
             )}
           </div>
           {!editing && (
             <button
               onClick={() => { setDraft(post.post_text); setEditing(true); }}
-              className="shrink-0 text-xs text-slate-400 hover:text-slate-700 border border-gray-200 hover:border-gray-300 px-3 py-1 rounded-lg transition-colors"
+              className="text-[11px] px-3 py-1 rounded-lg transition-colors"
+              style={{ color: 'var(--text-muted)', border: '1px solid var(--border)', background: 'none' }}
             >
               Edit
             </button>
           )}
         </div>
 
-        {/* Text / editor */}
         {editing ? (
           <>
             <textarea
-              className="w-full rounded-xl border border-brand/40 bg-gray-50 text-sm p-3 focus:outline-none focus:ring-2 focus:ring-brand/30 resize-none leading-relaxed"
-              rows={5}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              autoFocus
+              className="w-full rounded-xl text-sm p-3 focus:outline-none resize-none leading-relaxed"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--accent)', color: 'var(--text)' }}
+              rows={5} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus
             />
-            {saveError && <p className="text-xs text-red-500">{saveError}</p>}
+            {saveError && <p className="text-xs" style={{ color: 'var(--danger)' }}>{saveError}</p>}
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 mr-auto">{draft.length} chars</span>
-              <button onClick={cancel} className="text-xs text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg border border-gray-200 transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={save}
-                disabled={saving || !draft.trim()}
-                className="text-xs font-semibold bg-brand text-white px-4 py-1.5 rounded-lg hover:bg-brand-dark transition-colors disabled:opacity-50"
-              >
+              <span className="text-xs mr-auto" style={{ color: 'var(--text-muted)' }}>{draft.length} chars</span>
+              <button onClick={cancel} className="text-xs px-3 py-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)', background: 'none' }}>Cancel</button>
+              <button onClick={save} disabled={saving || !draft.trim()} className="text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50" style={{ background: 'var(--accent)', color: '#fff' }}>
                 {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
           </>
         ) : (
-          <p className="text-sm text-slate-700 leading-relaxed">{post.post_text}</p>
+          <p className="text-sm leading-relaxed" style={{ color: 'rgba(240,244,255,0.85)' }}>{post.post_text}</p>
         )}
       </div>
     </div>
@@ -128,89 +115,74 @@ export default function PostsTab({ posts, onPostGenerated, onPostUpdated }: Prop
   const [newPost, setNewPost] = useState<Post | null>(null);
 
   const generate = async () => {
-    setGenerating(true);
-    setError('');
-    setNewPost(null);
+    setGenerating(true); setError(''); setNewPost(null);
     try {
       const res = await fetch('/api/generate-post', { method: 'POST', credentials: 'include' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed');
-      setNewPost(data.post);
-      onPostGenerated(data.post);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setGenerating(false);
-    }
+      setNewPost(data.post); onPostGenerated(data.post);
+    } catch (e: any) { setError(e.message); }
+    finally { setGenerating(false); }
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       {/* Top action */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">Posts are generated from your GBP photos + top local search queries.</p>
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Posts are generated from your GBP photos + top local search queries.</p>
         <button
-          onClick={generate}
-          disabled={generating}
-          className="shrink-0 bg-brand text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-brand-dark transition-colors disabled:opacity-50 flex items-center gap-2"
+          onClick={generate} disabled={generating}
+          className="shrink-0 text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+          style={{ background: 'var(--accent)', color: '#fff' }}
         >
           {generating ? (
             <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Generating…</>
-          ) : '+ Generate Post Now'}
+          ) : '+ Generate Post'}
         </button>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-5 py-3">{error}</div>
+        <div className="rounded-xl px-5 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--danger)' }}>{error}</div>
       )}
 
-      {/* New post highlight */}
       {newPost && (
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-6 flex gap-5">
-          {newPost.photo_url && <img src={newPost.photo_url} alt="" className="w-24 h-24 rounded-xl object-cover shrink-0" />}
+        <div className="rounded-2xl p-5 flex gap-4" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)' }}>
+          {newPost.photo_url && <img src={newPost.photo_url} alt="" className="w-20 h-20 rounded-xl object-cover shrink-0" />}
           <div className="flex flex-col gap-2 flex-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Just generated</span>
-              {newPost.search_query && <span className="text-xs text-slate-400">Matched: <span className="text-brand">{newPost.search_query}</span></span>}
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}>Just generated</span>
+              {newPost.search_query && <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Matched: <span style={{ color: 'var(--accent)' }}>{newPost.search_query}</span></span>}
             </div>
-            <p className="text-sm text-slate-700 leading-relaxed">{newPost.post_text}</p>
+            <p className="text-sm leading-relaxed" style={{ color: 'rgba(240,244,255,0.85)' }}>{newPost.post_text}</p>
           </div>
         </div>
       )}
 
-      {/* Empty state */}
       {posts.length === 0 && !newPost && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-8">
-          <p className="text-slate-500 text-sm mb-6">No posts yet. Here's what Ranky does automatically every week:</p>
+        <div className="rounded-2xl p-8" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>No posts yet. Here's what Ranky does automatically every week:</p>
           <div className="grid grid-cols-2 gap-5">
             {DATA_SOURCES.map((s) => (
               <div key={s.title} className="flex gap-3">
                 <span className="text-2xl">{s.icon}</span>
                 <div>
-                  <p className="text-sm font-semibold text-slate-800">{s.title}</p>
-                  <p className="text-xs text-slate-400 leading-relaxed mt-0.5">{s.desc}</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{s.title}</p>
+                  <p className="text-xs leading-relaxed mt-0.5" style={{ color: 'var(--text-muted)' }}>{s.desc}</p>
                 </div>
               </div>
             ))}
           </div>
           <div className="mt-6 text-center">
-            <button
-              onClick={generate}
-              disabled={generating}
-              className="bg-brand text-white text-sm font-semibold px-6 py-2.5 rounded-lg hover:bg-brand-dark transition-colors disabled:opacity-50"
-            >
+            <button onClick={generate} disabled={generating} className="text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-50" style={{ background: 'var(--accent)', color: '#fff' }}>
               {generating ? 'Generating…' : 'Generate my first post'}
             </button>
           </div>
         </div>
       )}
 
-      {/* Post history */}
       {posts.length > 0 && (
         <div className="flex flex-col gap-3">
-          {posts.map((p) => (
-            <PostCard key={p.id} post={p} onUpdated={onPostUpdated} />
-          ))}
+          {posts.map((p) => <PostCard key={p.id} post={p} onUpdated={onPostUpdated} />)}
         </div>
       )}
     </div>
