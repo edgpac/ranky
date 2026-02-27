@@ -38,8 +38,9 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_REDIRECT_URI
 );
 
+// NOTE: business.manage is a restricted GBP scope that requires Google API access approval.
+// Re-add it once case 7-9537000040761 is approved: 'https://www.googleapis.com/auth/business.manage'
 const SCOPES = [
-  'https://www.googleapis.com/auth/business.manage',
   'https://www.googleapis.com/auth/webmasters.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/userinfo.profile',
