@@ -160,6 +160,9 @@ async function callClaude(systemPrompt, messages, maxTokens = 400) {
 
 app.get('/auth/google', (req, res) => {
   const url = oauth2Client.generateAuthUrl({ access_type: 'offline', prompt: 'consent', scope: SCOPES });
+  console.log('🔑 OAuth redirect_uri:', process.env.GOOGLE_REDIRECT_URI);
+  console.log('🔑 OAuth client_id:', process.env.GOOGLE_CLIENT_ID?.slice(0, 20) + '...');
+  console.log('🔑 OAuth URL:', url.slice(0, 120) + '...');
   res.redirect(url);
 });
 
