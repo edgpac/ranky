@@ -102,6 +102,7 @@ async function initDB() {
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_gbp_check TIMESTAMPTZ`);
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT`);
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS review_link TEXT`);
+  await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS city TEXT DEFAULT ''`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
       id SERIAL PRIMARY KEY,
@@ -476,7 +477,7 @@ Rules:
 
 app.patch('/api/profile', requireAuth, async (req, res) => {
   try {
-    const { business_name, business_type, tone, posts_per_week, whatsapp, review_link } = req.body;
+    const { business_name, business_type, tone, posts_per_week, whatsapp, review_link, city } = req.body;
     const { rows } = await pool.query(
       `UPDATE clients SET
         business_name  = COALESCE($1, business_name),
@@ -484,8 +485,9 @@ app.patch('/api/profile', requireAuth, async (req, res) => {
         tone           = COALESCE($3, tone),
         posts_per_week = COALESCE($4, posts_per_week),
         whatsapp       = COALESCE($5, whatsapp),
-        review_link    = COALESCE($6, review_link)
-       WHERE id = $7 RETURNING *`,
+        review_link    = COALESCE($6, review_link),
+        city           = COALESCE($7, city)
+       WHERE id = $8 RETURNING *`,
       [
         business_name ?? null,
         business_type ?? null,
@@ -493,6 +495,7 @@ app.patch('/api/profile', requireAuth, async (req, res) => {
         posts_per_week ?? null,
         whatsapp ?? null,
         review_link ?? null,
+        city ?? null,
         req.session.clientId,
       ]
     );
@@ -593,16 +596,33 @@ app.post('/api/reviews/generate-reply', requireAuth, async (req, res) => {
     const client = rows[0];
     const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
 
-    const systemPrompt = `You are the owner of ${client.business_name}, a ${bizLabel}. Write a genuine, personalized response to a Google review.
+    const city = client.city || '';
+    const locationLine = city ? ` serving ${city}` : '';
+    const systemPrompt = `You are the owner of ${client.business_name}, a ${bizLabel}${locationLine}. Write a genuine, reputation-protecting, SEO-aware reply to a Google review.
 
-Rules:
-- Carefully read the reviewer's language. If they use industry terms or show expertise (e.g. a foodie mentioning wine pairings, a chef discussing technique), acknowledge specifics and match their sophistication.
-- For a general/casual reviewer: keep it warm, simple, and grateful.
-- For negative reviews: stay calm and professional, acknowledge their specific concern, offer a concrete resolution or invite them to contact you.
-- NEVER start with "Thank you for your review" — it's generic. Start by engaging with what they actually said.
-- Keep under 80 words.
-- Write in ${client.tone} tone.
-- No hashtags or emojis.`;
+Follow these three steps:
+
+STEP 1 — DETECT REVIEWER TONE: Casual | Formal | Technical | Emotional | Angry | Enthusiastic
+Mirror it exactly. A casual reviewer gets a warm, conversational reply. A technical reviewer (contractor noting materials, chef discussing technique, foodie mentioning pairings) gets a reply that matches their vocabulary and knowledge level.
+
+STEP 2 — DETECT REVIEWER INTENT and respond accordingly:
+- Praise → Reinforce the specific detail they mentioned, express genuine gratitude, invite them back.
+- Complaint → Acknowledge their specific frustration calmly, take ownership, offer a concrete resolution, invite direct contact.
+- Mixed → Validate the positive, address the concern directly, show commitment to improving.
+- Question → Answer clearly and invite them to reach out for more detail.
+- Technical critique → Respond with equal expertise; show you understand the issue at a professional level.
+
+STEP 3 — WEAVE IN ONE SUBTLE LOCAL SIGNAL:
+Mention the specific service performed${city ? ` and the location (${city})` : ''} naturally in the reply — never as a keyword dump.
+✓ Right: "We're glad the electrical panel upgrade${city ? ` in ${city}` : ''} went smoothly."
+✗ Wrong: "Thank you for choosing the best electrician in ${city || 'your area'}!"
+
+Hard rules:
+- NEVER start with "Thank you for your review" — engage with what they actually said.
+- Under 80 words.
+- Tone: ${client.tone}.
+- No hashtags, no emojis.
+- Never be defensive, never argue, never dismiss.`;
 
     const stars = { ONE: '1/5', TWO: '2/5', THREE: '3/5', FOUR: '4/5', FIVE: '5/5' }[review.starRating] || review.starRating;
     const userPrompt = `Rating: ${stars} stars\nReview: "${review.comment || '(no written comment, just a star rating)'}"`;

@@ -9,6 +9,7 @@ interface Client {
   subscription_status: string;
   whatsapp?: string;
   review_link?: string;
+  city?: string;
 }
 
 interface HourRow {
@@ -113,6 +114,7 @@ export default function EditProfileTab({ client, onClientUpdated }: Props) {
   const [tone, setTone] = useState(client?.tone || 'Friendly');
   const [postsPerWeek, setPostsPerWeek] = useState(client?.posts_per_week || 1);
   const [whatsapp, setWhatsapp] = useState(client?.whatsapp || '');
+  const [city, setCity] = useState(client?.city || '');
   const [description, setDescription] = useState('');
   const [hours] = useState<Hours>(defaultHours());
 
@@ -125,7 +127,8 @@ export default function EditProfileTab({ client, onClientUpdated }: Props) {
     setTone(client.tone || 'Friendly');
     setPostsPerWeek(client.posts_per_week || 1);
     setWhatsapp(client.whatsapp || '');
-  }, [client?.business_name, client?.business_type, client?.tone, client?.posts_per_week, client?.whatsapp]);
+    setCity(client.city || '');
+  }, [client?.business_name, client?.business_type, client?.tone, client?.posts_per_week, client?.whatsapp, client?.city]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -141,6 +144,7 @@ export default function EditProfileTab({ client, onClientUpdated }: Props) {
           tone,
           posts_per_week: postsPerWeek,
           whatsapp,
+          city,
         }),
       });
       const data = await res.json();
@@ -188,6 +192,10 @@ export default function EditProfileTab({ client, onClientUpdated }: Props) {
           <div>
             <span style={labelStyle}>WhatsApp</span>
             <span style={valueStyle}>{whatsapp || '—'}</span>
+          </div>
+          <div>
+            <span style={labelStyle}>City / Service Area</span>
+            <span style={valueStyle}>{city || '—'}</span>
           </div>
           <div>
             <span style={labelStyle}>Posts Per Week</span>
@@ -250,6 +258,15 @@ export default function EditProfileTab({ client, onClientUpdated }: Props) {
                 onChange={(e) => setWhatsapp(e.target.value)}
                 placeholder="+52 624 000 0000"
                 type="tel"
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>City / Service Area</label>
+              <input
+                style={inputStyle}
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Cabo San Lucas"
               />
             </div>
           </div>
