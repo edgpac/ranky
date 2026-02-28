@@ -159,6 +159,15 @@ export default function SignupPage() {
 
       {/* Right panel */}
       <div className="flex-1 flex flex-col justify-center px-12 py-12 gap-6 overflow-y-auto relative">
+        <button
+          onClick={() => navigate('/')}
+          className="absolute top-6 right-8 text-xs flex items-center gap-1.5 transition-all"
+          style={{ color: 'rgba(240,244,255,0.4)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(240,244,255,0.4)'; }}
+        >
+          ← Back to home
+        </button>
 
         {/* ── Step 0: Feature selection ── */}
         {step === 0 && (
