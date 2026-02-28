@@ -1,5 +1,66 @@
 import { useRef, useState } from 'react';
 
+// ─── AI capability bullets ─────────────────────────────────────────────────────
+const AI_POST_BULLETS = [
+  { icon: '◎', text: 'Reads your top local Google search queries — post copy targets what people nearby are already searching' },
+  { icon: '◇', text: 'Selects a real photo from your GBP gallery that matches the post topic' },
+  { icon: '◈', text: 'Writes in your configured tone (Friendly / Professional / Bilingual) and keeps it under 1,500 characters' },
+  { icon: '✦', text: 'Includes a call-to-action matched to your service type — no generic filler text' },
+  { icon: '⊞', text: 'Publishes on your set schedule (1–4× per week) so your listing stays active without manual work' },
+];
+
+function AiBanner() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div
+      style={{
+        background: 'rgba(79,142,247,0.07)',
+        border: '1px solid rgba(79,142,247,0.20)',
+        backdropFilter: 'blur(12px)',
+        borderRadius: '0.875rem',
+        padding: '0.875rem 1.125rem',
+      }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span style={{ fontSize: '1rem' }}>🤖</span>
+          <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'rgba(232,238,255,0.88)' }}>
+            AI Post Generator — powered by Claude
+          </p>
+        </div>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          style={{
+            fontSize: '0.75rem',
+            color: '#4f8ef7',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            flexShrink: 0,
+            fontWeight: 600,
+          }}
+        >
+          {open ? 'Hide' : 'How it works'}
+        </button>
+      </div>
+
+      {open && (
+        <div className="flex flex-col gap-2 mt-3 pt-3" style={{ borderTop: '1px solid rgba(79,142,247,0.15)' }}>
+          {AI_POST_BULLETS.map((b) => (
+            <div key={b.icon} className="flex items-start gap-2.5">
+              <span style={{ fontSize: '0.625rem', color: '#4f8ef7', marginTop: '0.2rem', flexShrink: 0 }}>{b.icon}</span>
+              <p style={{ fontSize: '0.8125rem', color: 'rgba(232,238,255,0.70)', lineHeight: 1.5 }}>{b.text}</p>
+            </div>
+          ))}
+          <p style={{ fontSize: '0.75rem', color: 'rgba(232,238,255,0.38)', marginTop: '0.25rem' }}>
+            Posts are generated automatically on your schedule. You can edit any draft before it goes live.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface Post {
   id: number;
   photo_url: string;
@@ -267,6 +328,8 @@ export default function PostsTab({ posts, onPostGenerated, onPostUpdated }: Prop
 
   return (
     <div className="flex flex-col gap-5">
+      <AiBanner />
+
       {/* Top action row */}
       <div className="flex items-center justify-between">
         <p style={{ fontSize: '0.875rem', color: 'rgba(240,244,255,0.5)' }}>
