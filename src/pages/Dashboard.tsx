@@ -307,7 +307,6 @@ export default function Dashboard() {
     );
   }
 
-  const bizInitial = (client?.business_name?.[0] || 'R').toUpperCase();
   const bizType = client?.business_type && client.business_type !== 'general' ? client.business_type : 'Business';
 
   const freeTabIds: TabId[] = ['profile', 'posts', 'products', 'bookings', 'getreviews'];
@@ -337,15 +336,11 @@ export default function Dashboard() {
           className="flex items-center gap-3.5"
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
-            style={{
-              background: 'linear-gradient(135deg, #4f8ef7 0%, #7c5af7 100%)',
-              boxShadow: '0 0 18px rgba(79,142,247,0.40), inset 0 1px 0 rgba(255,255,255,0.22)',
-            }}
-          >
-            {bizInitial}
-          </div>
+          <img
+            src="/Ranky.png"
+            alt="Ranky"
+            style={{ width: '38px', height: '38px', objectFit: 'contain', flexShrink: 0 }}
+          />
           <div style={{ textAlign: 'left' }}>
             <div className="text-[15px] font-bold" style={{ color: 'rgba(232,238,255,0.96)' }}>
               {client?.business_name}
