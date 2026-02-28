@@ -180,7 +180,8 @@ NODE_ENV=production
 - **Sitemap:** https://hayvista.com/sitemap.xml (submitted to GSC, status: Success, 5 pages)
 - **robots.txt:** https://hayvista.com/robots.txt
 - **Verification tag:** `aUdXm81wc2h6sDHytOQNfY3qfDPfVpxnH0qZ1AUTUW8`
-- **GSC property:** `hayvista.com` (domain property — verified)
+- **GSC property:** `sc-domain:hayvista.com` (domain property — verified ✅ via DNS TXT record)
+- **Previous property:** `https://www.hayvista.com/` (URL prefix — keep but ignore, non-www canonical means it misses most traffic)
 - **GSC MCP note:** MCP tool is connected to a different Google account (only sees `caboshandyman.com`). Reconnect with hayvista.com account for full analytics once data accumulates (2–4 weeks).
 - **OG image needed:** `public/og-image.png` (1200×630) — not yet created
 
