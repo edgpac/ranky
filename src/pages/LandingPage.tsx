@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const STEPS = [
@@ -45,6 +46,7 @@ const glass: React.CSSProperties = {
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [pricingOpen, setPricingOpen] = useState(false);
 
   return (
     <div
@@ -61,12 +63,23 @@ export default function LandingPage() {
       {/* ── Navbar ──────────────────────────────────────────────────── */}
       <nav
         className="sticky top-0 z-50 flex items-center justify-between px-8 md:px-16 h-[68px]"
-        style={{ background: 'rgba(8,13,26,0.75)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+        style={{ background: 'rgba(8,13,26,0.75)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.07)', position: 'relative' }}
       >
         <div className="flex items-center gap-2.5">
           <img src="/hayvista-logo.png" alt="HayVista" style={{ width: 80, height: 80, objectFit: 'contain', flexShrink: 0 }} />
         </div>
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => setPricingOpen((v) => !v)}
+            className="text-sm font-medium px-4 py-2 rounded-xl transition-all"
+            style={{
+              background: pricingOpen ? 'rgba(79,142,247,0.12)' : 'transparent',
+              border: `1px solid ${pricingOpen ? 'rgba(79,142,247,0.35)' : 'rgba(255,255,255,0.10)'}`,
+              color: pricingOpen ? '#4f8ef7' : 'rgba(240,244,255,0.65)',
+            }}
+          >
+            Pricing
+          </button>
           <button
             onClick={() => navigate('/dashboard')}
             className="text-sm font-semibold px-5 py-2.5 rounded-xl transition-all"
@@ -77,6 +90,80 @@ export default function LandingPage() {
             Get Started Free
           </button>
         </div>
+
+        {/* Pricing dropdown */}
+        {pricingOpen && (
+          <>
+            {/* Backdrop */}
+            <div
+              className="fixed inset-0"
+              style={{ zIndex: 40 }}
+              onClick={() => setPricingOpen(false)}
+            />
+            {/* Card */}
+            <div
+              className="absolute right-8 top-[calc(100%+8px)] w-[380px] rounded-2xl p-8 flex flex-col gap-5"
+              style={{
+                zIndex: 50,
+                background: 'linear-gradient(145deg, rgba(10,16,35,0.98), rgba(14,20,42,0.98))',
+                border: '1px solid rgba(79,142,247,0.4)',
+                boxShadow: '0 0 60px rgba(79,142,247,0.18), 0 24px 64px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(24px)',
+              }}
+            >
+              <div className="text-center mb-1">
+                <p className="text-xs font-bold tracking-widest mb-1" style={{ color: 'var(--accent)' }}>PRICING</p>
+                <h3 className="text-lg font-extrabold">Simple pricing. No surprises.</h3>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>One plan. Every feature. Less than a meal out.</p>
+              </div>
+
+              <span
+                className="self-center text-xs font-bold px-4 py-1 rounded-full"
+                style={{ background: 'var(--accent)', color: '#fff' }}
+              >
+                Everything included
+              </span>
+
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent)' }}>Starter Plan</p>
+                  <div className="flex items-end gap-1">
+                    <span className="text-4xl font-extrabold">$17</span>
+                    <span className="text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>/month</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs" style={{ color: 'rgba(240,244,255,0.45)' }}>capped at</p>
+                  <p className="text-2xl font-extrabold" style={{ color: '#a5c4fd' }}>4×</p>
+                  <p className="text-xs" style={{ color: 'rgba(240,244,255,0.45)' }}>posts / week</p>
+                </div>
+              </div>
+
+              <p className="text-xs leading-relaxed" style={{ color: 'rgba(240,244,255,0.45)', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '0.75rem' }}>
+                Capped at 4/week to respect Google's publishing guidelines — no spam, no penalties.
+              </p>
+
+              <ul className="flex flex-col gap-2">
+                {PLAN_FEATURES.map((f) => (
+                  <li key={f} className="flex items-center gap-2 text-sm" style={{ color: 'rgba(240,244,255,0.8)' }}>
+                    <span style={{ color: 'var(--success)', flexShrink: 0 }}>✓</span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={() => { setPricingOpen(false); navigate('/dashboard'); }}
+                className="w-full py-3 rounded-xl text-sm font-bold transition-all"
+                style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 0 24px rgba(79,142,247,0.3)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+              >
+                Hire HayVista — Get Started Free
+              </button>
+            </div>
+          </>
+        )}
       </nav>
 
       {/* ── Main content ─────────────────────────────────────────── */}
@@ -244,75 +331,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Pricing ─────────────────────────────────────────────────── */}
-      <section className="relative px-6 py-24">
-        <div className="max-w-lg mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-xs font-bold tracking-widest mb-3" style={{ color: 'var(--accent)' }}>PRICING</p>
-            <h2 className="text-4xl font-extrabold">Simple pricing. No surprises.</h2>
-            <p className="text-base mt-3" style={{ color: 'var(--text-muted)' }}>
-              One plan. Every feature. Less than a meal out.
-            </p>
-          </div>
-
-          {/* Single plan card */}
-          <div
-            className="rounded-2xl p-10 flex flex-col gap-6 relative"
-            style={{
-              background: 'linear-gradient(145deg, rgba(79,142,247,0.16), rgba(124,90,247,0.12))',
-              border: '1px solid rgba(79,142,247,0.4)',
-              boxShadow: '0 0 60px rgba(79,142,247,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
-            }}
-          >
-            <span
-              className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-xs font-bold px-4 py-1 rounded-full whitespace-nowrap"
-              style={{ background: 'var(--accent)', color: '#fff' }}
-            >
-              Everything included
-            </span>
-
-            <div className="flex items-end justify-between">
-              <div>
-                <p className="text-sm font-semibold mb-1" style={{ color: 'var(--accent)' }}>Starter Plan</p>
-                <div className="flex items-end gap-1">
-                  <span className="text-5xl font-extrabold">$17</span>
-                  <span className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>/month</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-semibold" style={{ color: 'rgba(240,244,255,0.45)' }}>capped at</p>
-                <p className="text-2xl font-extrabold" style={{ color: '#a5c4fd' }}>4×</p>
-                <p className="text-xs" style={{ color: 'rgba(240,244,255,0.45)' }}>posts / week</p>
-              </div>
-            </div>
-
-            <p className="text-xs leading-relaxed" style={{ color: 'rgba(240,244,255,0.5)', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
-              Posts are capped at 4 per week to respect Google's publishing guidelines and keep your profile healthy — no spam, no penalties.
-            </p>
-
-            <ul className="flex flex-col gap-3">
-              {PLAN_FEATURES.map((f) => (
-                <li key={f} className="flex items-center gap-3 text-sm" style={{ color: 'rgba(240,244,255,0.82)' }}>
-                  <span style={{ color: 'var(--success)', flexShrink: 0 }}>✓</span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="w-full py-4 rounded-xl text-base font-bold transition-all"
-              style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 0 30px rgba(79,142,247,0.35)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
-            >
-              Hire HayVista — Get Started Free
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Final CTA ───────────────────────────────────────────────── */}
+{/* ── Final CTA ───────────────────────────────────────────────── */}
       <section className="relative px-6 py-28 text-center">
         <div
           className="max-w-3xl mx-auto rounded-3xl px-8 py-20 flex flex-col items-center gap-6"
