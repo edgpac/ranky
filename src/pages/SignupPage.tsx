@@ -117,9 +117,8 @@ export default function SignupPage() {
         className="w-[420px] shrink-0 flex flex-col gap-8 p-14 relative"
         style={{ background: 'rgba(255,255,255,0.025)', borderRight: '1px solid rgba(255,255,255,0.07)' }}
       >
-        <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate('/')}>
-          <div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', flexShrink: 0 }} />
-          <span className="font-bold text-xl">HayVista</span>
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+          <img src="/hayvista-logo.png" alt="HayVista" style={{ width: 72, height: 72, objectFit: 'contain', flexShrink: 0 }} />
         </div>
 
         <div className="mt-4">
