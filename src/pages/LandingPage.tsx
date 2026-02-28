@@ -23,11 +23,38 @@ function LangToggle() {
   );
 }
 
+const PRICE_ID = import.meta.env.VITE_STRIPE_PRICE_ID as string | undefined;
+const API = import.meta.env.VITE_API_URL ?? '';
+
+async function startCheckout(navigate: ReturnType<typeof useNavigate>) {
+  if (!PRICE_ID) { navigate('/signup'); return; }
+  try {
+    const res = await fetch(`${API}/api/stripe/create-checkout`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priceId: PRICE_ID }),
+    });
+    if (res.status === 401) { navigate('/signup'); return; }
+    const { url } = await res.json();
+    window.location.href = url;
+  } catch {
+    navigate('/signup');
+  }
+}
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const t = landing[language];
   const [pricingOpen, setPricingOpen] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  async function handleCheckout() {
+    setCheckoutLoading(true);
+    await startCheckout(navigate);
+    setCheckoutLoading(false);
+  }
 
   return (
     <div
@@ -71,13 +98,14 @@ export default function LandingPage() {
             {t.nav.pricing}
           </button>
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={handleCheckout}
+            disabled={checkoutLoading}
             className="font-semibold rounded-xl transition-all"
-            style={{ height: '2.1em', fontSize: 15, paddingLeft: '1.1em', paddingRight: '1.1em', background: 'var(--accent)', color: '#fff' }}
-            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+            style={{ height: '2.1em', fontSize: 15, paddingLeft: '1.1em', paddingRight: '1.1em', background: 'var(--accent)', color: '#fff', opacity: checkoutLoading ? 0.65 : 1 }}
+            onMouseEnter={(e) => { if (!checkoutLoading) e.currentTarget.style.opacity = '0.85'; }}
+            onMouseLeave={(e) => { if (!checkoutLoading) e.currentTarget.style.opacity = '1'; }}
           >
-            {t.nav.cta}
+            {checkoutLoading ? '…' : t.nav.cta}
           </button>
         </div>
 
@@ -159,18 +187,20 @@ export default function LandingPage() {
 
                 {/* CTA */}
                 <button
-                  onClick={() => { setPricingOpen(false); navigate('/dashboard'); }}
+                  onClick={() => { setPricingOpen(false); handleCheckout(); }}
+                  disabled={checkoutLoading}
                   className="w-full py-3.5 rounded-xl text-sm font-bold transition-all mt-1"
                   style={{
                     background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)',
                     color: '#fff',
                     boxShadow: '0 0 32px rgba(79,142,247,0.4), 0 0 64px rgba(124,90,247,0.2)',
                     border: '1px solid rgba(255,255,255,0.12)',
+                    opacity: checkoutLoading ? 0.65 : 1,
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.88'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                  onMouseEnter={(e) => { if (!checkoutLoading) e.currentTarget.style.opacity = '0.88'; }}
+                  onMouseLeave={(e) => { if (!checkoutLoading) e.currentTarget.style.opacity = '1'; }}
                 >
-                  {t.pricing.cta}
+                  {checkoutLoading ? 'Redirecting…' : t.pricing.cta}
                 </button>
               </div>
             </div>
@@ -206,13 +236,14 @@ export default function LandingPage() {
         </p>
 
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={handleCheckout}
+          disabled={checkoutLoading}
           className="text-sm sm:text-base font-bold px-7 sm:px-8 py-3.5 sm:py-4 rounded-xl transition-all"
-          style={{ background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', color: '#fff', boxShadow: '0 0 40px rgba(79,142,247,0.35)' }}
-          onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 60px rgba(79,142,247,0.5)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 40px rgba(79,142,247,0.35)'; }}
+          style={{ background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', color: '#fff', boxShadow: '0 0 40px rgba(79,142,247,0.35)', opacity: checkoutLoading ? 0.65 : 1 }}
+          onMouseEnter={(e) => { if (!checkoutLoading) e.currentTarget.style.boxShadow = '0 0 60px rgba(79,142,247,0.5)'; }}
+          onMouseLeave={(e) => { if (!checkoutLoading) e.currentTarget.style.boxShadow = '0 0 40px rgba(79,142,247,0.35)'; }}
         >
-          {t.hero.cta}
+          {checkoutLoading ? 'Redirecting…' : t.hero.cta}
         </button>
 
         {/* Stats */}
@@ -354,13 +385,14 @@ export default function LandingPage() {
             {t.finalCta.body}
           </p>
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={handleCheckout}
+            disabled={checkoutLoading}
             className="text-sm sm:text-base font-bold px-8 sm:px-10 py-3.5 sm:py-4 rounded-xl transition-all"
-            style={{ background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', color: '#fff', boxShadow: '0 0 40px rgba(79,142,247,0.35)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 60px rgba(79,142,247,0.5)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 40px rgba(79,142,247,0.35)'; }}
+            style={{ background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', color: '#fff', boxShadow: '0 0 40px rgba(79,142,247,0.35)', opacity: checkoutLoading ? 0.65 : 1 }}
+            onMouseEnter={(e) => { if (!checkoutLoading) e.currentTarget.style.boxShadow = '0 0 60px rgba(79,142,247,0.5)'; }}
+            onMouseLeave={(e) => { if (!checkoutLoading) e.currentTarget.style.boxShadow = '0 0 40px rgba(79,142,247,0.35)'; }}
           >
-            {t.finalCta.cta}
+            {checkoutLoading ? 'Redirecting…' : t.finalCta.cta}
           </button>
         </div>
       </section>
