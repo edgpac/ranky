@@ -99,7 +99,7 @@ export default function LandingPage() {
           </button>
           <button
             onClick={() => navigate('/dashboard')}
-            className="font-semibold rounded-xl transition-all"
+            className="font-semibold rounded-xl transition-all whitespace-nowrap"
             style={{ height: '2.1em', fontSize: 15, paddingLeft: '1.1em', paddingRight: '1.1em', background: 'var(--accent)', color: '#fff' }}
             onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
             onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
