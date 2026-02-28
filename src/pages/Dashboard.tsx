@@ -337,7 +337,7 @@ export default function Dashboard() {
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
           <img
-            src="/rankylogo.png"
+            src="/hayvista-logo.png"
             alt="HayVista"
             style={{ width: '56px', height: '56px', objectFit: 'contain', flexShrink: 0 }}
           />
