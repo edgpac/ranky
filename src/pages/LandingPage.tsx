@@ -412,6 +412,7 @@ export default function LandingPage() {
         <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-4 text-xs">
           <a href="/privacy" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">{t.footer.privacy}</a>
           <a href="/terms" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">{t.footer.terms}</a>
+          <a href="/faq" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">FAQ</a>
         </div>
       </footer>
     </div>
