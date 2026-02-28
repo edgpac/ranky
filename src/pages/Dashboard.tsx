@@ -215,7 +215,7 @@ function GbpGate({
                 textDecoration: 'none',
               }}
             >
-              Connect Google — Free
+              Connect Google
             </a>
           ) : (
             <a
@@ -530,10 +530,27 @@ export default function Dashboard() {
             />
           )}
 
-          {tabNeedsGbp && !locationReady ? (
+          {tabNeedsGbp && !locationReady && !isGuest ? (
             <GbpGate connectState={connectState} cooldown={cooldown} onRetry={runPermissionCheck} isGuest={isGuest} />
-          ) : tabNeedsGbp && locationReady ? (
+          ) : tabNeedsGbp ? (
             <>
+              {isGuest && (
+                <div
+                  className="mb-5 flex items-center justify-between gap-4 px-4 py-3 rounded-xl"
+                  style={{ background: 'rgba(79,142,247,0.07)', border: '1px solid rgba(79,142,247,0.20)' }}
+                >
+                  <p className="text-xs" style={{ color: 'rgba(232,238,255,0.55)' }}>
+                    Connect your Google Business Profile to see your live data here.
+                  </p>
+                  <a
+                    href="/signup"
+                    className="shrink-0 text-xs font-semibold px-4 py-1.5 rounded-lg"
+                    style={{ background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', color: '#fff', textDecoration: 'none' }}
+                  >
+                    Connect Google
+                  </a>
+                </div>
+              )}
               {activeTab === 'reviews'  && <ReviewsTab ready={locationReady} />}
               {activeTab === 'photos'   && <PhotosTab ready={locationReady} />}
               {activeTab === 'insights' && <InsightsTab businessName={client?.business_name || ''} ready={locationReady} />}
