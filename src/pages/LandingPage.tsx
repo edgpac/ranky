@@ -4,50 +4,35 @@ const STEPS = [
   {
     n: '01',
     icon: '🔗',
-    title: 'Connect your Google account',
-    desc: 'One login with Google. We get read/write access to your Business Profile on your behalf. You stay in full control and can disconnect at any time.',
+    title: 'Connects on day one — no orientation',
+    desc: 'One login with Google. HayVista reads your Business Profile, your photos, and your local search data. It already knows what your market needs. No handholding required.',
   },
   {
     n: '02',
     icon: '🧠',
-    title: 'AI matches photos to local searches',
-    desc: 'Our AI reads your business photos and real local search data to suggest content that answers what people in your area are already looking for.',
+    title: 'Understands your business without being told',
+    desc: 'It studies your real job photos, your services, and what people nearby are actually searching for — then writes content that speaks directly to those customers.',
   },
   {
     n: '03',
     icon: '📅',
-    title: 'Content goes up on your schedule',
-    desc: 'Suggested posts publish to your GBP 1 to 4 times a week. You get a WhatsApp summary showing what went up — and you can pause or adjust anytime.',
+    title: 'Shows up every week. Does the work. Sends a recap.',
+    desc: 'Posts publish to your GBP up to 4 times a week — within Google\'s guidelines so your profile stays clean. You get a WhatsApp summary of what went up. You stay in control.',
   },
 ];
 
-const PLANS = [
-  {
-    name: 'Starter',
-    price: '$79',
-    freq: '1 post / week',
-    highlight: false,
-    features: ['Photo + search matching', 'GBP content publishing', 'Weekly WhatsApp summary', 'Cancel anytime'],
-  },
-  {
-    name: 'Growth',
-    price: '$149',
-    freq: '2 posts / week',
-    highlight: true,
-    features: ['Everything in Starter', '2× weekly GBP content', 'Priority support', 'Cancel anytime'],
-  },
-  {
-    name: 'Pro',
-    price: '$199',
-    freq: 'Up to 4 posts / week',
-    highlight: false,
-    features: ['Everything in Growth', 'Full weekly content cadence', 'Dedicated account review', 'Cancel anytime'],
-  },
+const PLAN_FEATURES = [
+  'Up to 4 posts / week',
+  'Photo + search keyword matching',
+  'GBP content published automatically',
+  'Weekly WhatsApp activity summary',
+  'Reviews, Photos, Services & Insights dashboard',
+  'No contracts — cancel anytime',
 ];
 
 const STATS = [
-  { value: '4×', label: 'more GBP content activity' },
-  { value: '2 min', label: 'setup time' },
+  { value: '$17', label: 'per month — less than minimum wage' },
+  { value: '4×', label: 'max posts/week — no Google spam' },
   { value: '100%', label: 'Google API compliant' },
 ];
 
@@ -103,18 +88,21 @@ export default function LandingPage() {
           style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: 'var(--success)' }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-          AI-ASSISTED GBP CONTENT
+          YOUR BEST EMPLOYEE — FOR $17 A MONTH
         </div>
 
         <h1 className="text-5xl md:text-7xl font-extrabold leading-tight max-w-4xl mb-6">
-          Your Google Business Profile,{' '}
+          The employee who already knows{' '}
           <span style={{ background: 'linear-gradient(90deg, #4f8ef7, #7c5af7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-            always visible.
+            your business.
           </span>
         </h1>
 
-        <p className="text-lg md:text-xl max-w-xl leading-relaxed mb-10" style={{ color: 'var(--text-muted)' }}>
-          We use your real job photos and what locals are already searching for to craft and publish GBP content every week — with your approval.
+        <p className="text-lg md:text-xl max-w-2xl leading-relaxed mb-4" style={{ color: 'var(--text-muted)' }}>
+          No training. No onboarding. No sick days.
+        </p>
+        <p className="text-lg md:text-xl max-w-2xl leading-relaxed mb-10" style={{ color: 'var(--text-muted)' }}>
+          HayVista walks in on day one, reads your Google Business Profile, studies your photos and what locals are searching for — and starts publishing content that puts you in front of customers every single week.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-4">
@@ -125,7 +113,7 @@ export default function LandingPage() {
             onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 60px rgba(79,142,247,0.5)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 40px rgba(79,142,247,0.35)'; }}
           >
-            Get Started Free
+            Meet Your New Employee — Free
           </button>
         </div>
 
@@ -140,12 +128,55 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── What makes this employee different ──────────────────────── */}
+      <section className="relative px-6 py-16">
+        <div className="max-w-3xl mx-auto">
+          <div
+            className="rounded-2xl px-8 py-10 flex flex-col gap-5"
+            style={{
+              background: 'linear-gradient(135deg, rgba(79,142,247,0.07), rgba(124,90,247,0.05))',
+              border: '1px solid rgba(79,142,247,0.18)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--accent)' }}>WHY HAYVISTA WORKS</p>
+            <h2 className="text-2xl font-extrabold leading-snug">
+              Most businesses lose customers because they're invisible on Google.<br />
+              Not because they do bad work.
+            </h2>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              A great plumber, contractor, or shop owner spends their day doing the job — not writing Google posts.
+              HayVista is the team member who handles that. It knows your services, your area, your photos.
+              It writes the content, picks the right keywords, and publishes — while you focus on the work that actually pays.
+            </p>
+            <div className="grid grid-cols-2 gap-4 mt-2">
+              {[
+                { icon: '🧠', label: 'No training needed', desc: 'Reads your GBP and starts working immediately' },
+                { icon: '📸', label: 'Uses your real photos', desc: 'Matches job photos to local search queries automatically' },
+                { icon: '📅', label: 'Never misses a week', desc: 'Publishes up to 4× per week — within Google\'s limits' },
+                { icon: '📲', label: 'Keeps you in the loop', desc: 'Weekly WhatsApp recap of everything published' },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-xl p-4 flex flex-col gap-1.5"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}
+                >
+                  <span className="text-xl">{item.icon}</span>
+                  <p className="text-sm font-bold">{item.label}</p>
+                  <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── How it works ────────────────────────────────────────────── */}
       <section id="how" className="relative px-6 py-24">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-xs font-bold tracking-widest mb-3" style={{ color: 'var(--accent)' }}>HOW IT WORKS</p>
-            <h2 className="text-4xl font-extrabold">Three steps. Minimal effort after setup.</h2>
+            <h2 className="text-4xl font-extrabold">Three steps. Runs itself after that.</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {STEPS.map((s) => (
@@ -215,58 +246,68 @@ export default function LandingPage() {
 
       {/* ── Pricing ─────────────────────────────────────────────────── */}
       <section className="relative px-6 py-24">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-lg mx-auto">
           <div className="text-center mb-14">
             <p className="text-xs font-bold tracking-widest mb-3" style={{ color: 'var(--accent)' }}>PRICING</p>
             <h2 className="text-4xl font-extrabold">Simple pricing. No surprises.</h2>
+            <p className="text-base mt-3" style={{ color: 'var(--text-muted)' }}>
+              One plan. Every feature. Less than a meal out.
+            </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {PLANS.map((p) => (
-              <div
-                key={p.name}
-                className="rounded-2xl p-8 flex flex-col gap-5 relative"
-                style={p.highlight ? {
-                  background: 'linear-gradient(145deg, rgba(79,142,247,0.16), rgba(124,90,247,0.12))',
-                  border: '1px solid rgba(79,142,247,0.4)',
-                  boxShadow: '0 0 60px rgba(79,142,247,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
-                } : glass}
-              >
-                {p.highlight && (
-                  <span
-                    className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-xs font-bold px-3 py-1 rounded-full"
-                    style={{ background: 'var(--accent)', color: '#fff' }}
-                  >
-                    Most Popular
-                  </span>
-                )}
-                <p className="text-sm font-semibold" style={{ color: p.highlight ? 'var(--accent)' : 'var(--text-muted)' }}>{p.name}</p>
+
+          {/* Single plan card */}
+          <div
+            className="rounded-2xl p-10 flex flex-col gap-6 relative"
+            style={{
+              background: 'linear-gradient(145deg, rgba(79,142,247,0.16), rgba(124,90,247,0.12))',
+              border: '1px solid rgba(79,142,247,0.4)',
+              boxShadow: '0 0 60px rgba(79,142,247,0.15), inset 0 1px 0 rgba(255,255,255,0.12)',
+            }}
+          >
+            <span
+              className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-xs font-bold px-4 py-1 rounded-full whitespace-nowrap"
+              style={{ background: 'var(--accent)', color: '#fff' }}
+            >
+              Everything included
+            </span>
+
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-sm font-semibold mb-1" style={{ color: 'var(--accent)' }}>Starter Plan</p>
                 <div className="flex items-end gap-1">
-                  <span className="text-4xl font-extrabold">{p.price}</span>
-                  <span className="text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>/mo</span>
+                  <span className="text-5xl font-extrabold">$17</span>
+                  <span className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>/month</span>
                 </div>
-                <p className="text-sm font-semibold" style={{ color: p.highlight ? '#a5c4fd' : 'rgba(240,244,255,0.55)' }}>{p.freq}</p>
-                <ul className="flex flex-col gap-2 flex-1">
-                  {p.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-sm" style={{ color: 'rgba(240,244,255,0.7)' }}>
-                      <span style={{ color: 'var(--success)' }}>✓</span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  onClick={() => navigate('/dashboard')}
-                  className="w-full py-3 rounded-xl text-sm font-semibold transition-all mt-2"
-                  style={p.highlight
-                    ? { background: 'var(--accent)', color: '#fff' }
-                    : { background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)', color: 'var(--text)' }
-                  }
-                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
-                >
-                  Get Started
-                </button>
               </div>
-            ))}
+              <div className="text-right">
+                <p className="text-xs font-semibold" style={{ color: 'rgba(240,244,255,0.45)' }}>capped at</p>
+                <p className="text-2xl font-extrabold" style={{ color: '#a5c4fd' }}>4×</p>
+                <p className="text-xs" style={{ color: 'rgba(240,244,255,0.45)' }}>posts / week</p>
+              </div>
+            </div>
+
+            <p className="text-xs leading-relaxed" style={{ color: 'rgba(240,244,255,0.5)', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem' }}>
+              Posts are capped at 4 per week to respect Google's publishing guidelines and keep your profile healthy — no spam, no penalties.
+            </p>
+
+            <ul className="flex flex-col gap-3">
+              {PLAN_FEATURES.map((f) => (
+                <li key={f} className="flex items-center gap-3 text-sm" style={{ color: 'rgba(240,244,255,0.82)' }}>
+                  <span style={{ color: 'var(--success)', flexShrink: 0 }}>✓</span>
+                  {f}
+                </li>
+              ))}
+            </ul>
+
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="w-full py-4 rounded-xl text-base font-bold transition-all"
+              style={{ background: 'var(--accent)', color: '#fff', boxShadow: '0 0 30px rgba(79,142,247,0.35)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+            >
+              Hire HayVista — Get Started Free
+            </button>
           </div>
         </div>
       </section>
@@ -283,10 +324,10 @@ export default function LandingPage() {
           }}
         >
           <h2 className="text-4xl md:text-5xl font-extrabold leading-tight max-w-lg">
-            Start showing up where your customers are searching.
+            Your most important hire costs $17 a month.
           </h2>
-          <p className="text-base" style={{ color: 'var(--text-muted)' }}>
-            Connect your Google account once. Content goes up every week — on your terms.
+          <p className="text-base max-w-md" style={{ color: 'var(--text-muted)' }}>
+            No résumé. No interview. No training. HayVista shows up every week, knows your business, and keeps you visible where your next customer is searching.
           </p>
           <button
             onClick={() => navigate('/dashboard')}
@@ -295,7 +336,7 @@ export default function LandingPage() {
             onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 60px rgba(79,142,247,0.5)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 40px rgba(79,142,247,0.35)'; }}
           >
-            Connect My Google Profile — Free
+            Make the Hire — Free to Start
           </button>
         </div>
       </section>
