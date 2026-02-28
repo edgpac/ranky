@@ -39,9 +39,39 @@ export default function PrivacyPage() {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-slate-900 mb-2">4. Google API Data</h2>
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">4. Google Business Profile API Data</h2>
+            <p className="mb-3">
+              HayVista accesses Google Business Profile (GBP) data solely on behalf of authenticated
+              users who have explicitly granted permission via Google OAuth 2.0. This includes business
+              information, photos, posts, reviews, and performance insights belonging to the user's own
+              GBP listing.
+            </p>
+            <p className="mb-2">This data is used exclusively to:</p>
+            <ul className="list-disc pl-5 mt-2 space-y-1 mb-3">
+              <li>Generate and publish posts to the user's own Google Business Profile</li>
+              <li>Display profile information within the HayVista dashboard</li>
+              <li>Match the user's real photos to local search queries for content creation</li>
+              <li>Read reviews and performance insights to inform post strategy</li>
+            </ul>
+            <p className="mb-3">
+              We do not sell, share, transfer, or use GBP data for any purpose beyond delivering
+              the HayVista service to the authenticated user. We do not access any GBP data beyond
+              what is necessary to perform the actions explicitly requested by the user.
+            </p>
+            <p className="mb-3">
+              Users can revoke HayVista's access to their Google account at any time by visiting{' '}
+              <a
+                href="https://myaccount.google.com/permissions"
+                className="text-blue-600 hover:underline"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                myaccount.google.com/permissions
+              </a>
+              . Upon revocation, all associated GBP data will be deleted from our systems within 30 days.
+            </p>
             <p>
-              HayVista's use of data obtained from Google APIs adheres to the{' '}
+              HayVista's use of data obtained from Google APIs adheres strictly to the{' '}
               <a
                 href="https://developers.google.com/terms/api-services-user-data-policy"
                 className="text-blue-600 hover:underline"
@@ -50,9 +80,10 @@ export default function PrivacyPage() {
               >
                 Google API Services User Data Policy
               </a>
-              , including the Limited Use requirements. Access is read/write only for the
-              authenticated user's own Business Profile. No data is transferred to third parties
-              except as necessary to operate the service.
+              , including the Limited Use requirements. Access is scoped only to the authenticated
+              user's own Business Profile. No GBP data is transferred to third parties except as
+              strictly necessary to operate the service (e.g., Anthropic Claude for AI post generation,
+              under strict data processing terms).
             </p>
           </div>
 
