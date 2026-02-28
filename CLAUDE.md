@@ -39,9 +39,11 @@ ranky/
 │   │   ├── SignupPage.tsx      # Google OAuth sign-in form
 │   │   ├── AuthCallback.tsx    # Post-OAuth: routes to Stripe or dashboard
 │   │   ├── Dashboard.tsx       # Main app — guest mode + authenticated mode
-│   │   ├── PrivacyPage.tsx
-│   │   └── TermsPage.tsx
+│   │   ├── PrivacyPage.tsx     # Uses SubPageLayout
+│   │   ├── TermsPage.tsx       # Uses SubPageLayout
+│   │   └── FaqPage.tsx         # 10 GBP/SEO FAQs — Uses SubPageLayout
 │   ├── components/
+│   │   ├── SubPageLayout.tsx   # Shared nav + footer for Privacy, Terms, FAQ
 │   │   └── tabs/               # Dashboard tab components
 │   │       ├── PostsTab.tsx
 │   │       ├── ReviewsTab.tsx
@@ -57,7 +59,8 @@ ranky/
 │   └── translations/
 │       └── landing.ts           # All landing page copy (EN + ES)
 ├── public/
-│   ├── sitemap.xml
+│   ├── hayvista-logo.png   # Main logo — used in all navbars (80px)
+│   ├── sitemap.xml         # 5 pages: /, /signup, /privacy, /terms, /faq
 │   └── robots.txt
 ├── index.html              # Vite entry — meta tags, OG, verification tags
 ├── vercel.json             # Rewrites: /api/* + /auth/* → Railway; SPA catch-all
@@ -76,6 +79,7 @@ ranky/
 | `/dashboard` | Dashboard — guest browse or full access |
 | `/privacy` | PrivacyPage |
 | `/terms` | TermsPage |
+| `/faq` | FaqPage — 10 GBP/SEO questions, linked from footer |
 
 ---
 
@@ -140,6 +144,23 @@ NODE_ENV=production
 - Runs Mon/Wed/Fri at 9am via `node-cron`
 - Uses `claude-sonnet-4-6` via Anthropic SDK
 
+### Pricing Card
+- Triggered by "Pricing" button in navbar (`pricingOpen` state)
+- Has backdrop click-to-close + explicit ✕ button in top-right corner of card
+- CTA inside card → Stripe checkout; close just dismisses without navigating
+
+### Logo
+- File: `/hayvista-logo.png` (black circle, white HAYVISTA text)
+- Landing navbar: `80px` base, `96px` sm+
+- SubPageLayout navbar: `80px`
+- SubPageLayout footer: `56px`
+
+### SubPageLayout (`src/components/SubPageLayout.tsx`)
+- Shared nav + footer used by Privacy, Terms, FAQ
+- Nav: logo + "Get Started" blue button → `/signup`
+- Footer: logo, address, email, copyright, links to Privacy / Terms / FAQ
+- Wrap any new sub-page content in `<SubPageLayout>` to get nav + footer automatically
+
 ### Vercel Rewrites
 - `/api/*` and `/auth/*` proxy to Railway backend
 - `/sitemap.xml` and `/robots.txt` served as static files explicitly
@@ -156,7 +177,7 @@ NODE_ENV=production
 
 ## SEO & GSC
 
-- **Sitemap:** https://hayvista.com/sitemap.xml (submitted to GSC, status: Success, 4 pages)
+- **Sitemap:** https://hayvista.com/sitemap.xml (submitted to GSC, status: Success, 5 pages)
 - **robots.txt:** https://hayvista.com/robots.txt
 - **Verification tag:** `aUdXm81wc2h6sDHytOQNfY3qfDPfVpxnH0qZ1AUTUW8`
 - **GSC property:** `hayvista.com` (domain property — verified)
