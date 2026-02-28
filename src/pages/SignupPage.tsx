@@ -46,7 +46,6 @@ const defaultForm = {
 export default function SignupPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<0 | 1>(0);
-  const [selectedFeature, setSelectedFeature] = useState('');
   const [mode, setMode] = useState<'signup' | 'login'>('signup');
   const [form, setForm] = useState(() => {
     try {
@@ -64,8 +63,7 @@ export default function SignupPage() {
     });
   };
 
-  const handleFeatureSelect = (tab: string) => {
-    setSelectedFeature(tab);
+  const handleFeatureSelect = (_tab: string) => {
     setStep(1);
   };
 
@@ -243,20 +241,6 @@ export default function SignupPage() {
                       <option key={bt.value} value={bt.value} style={{ background: '#0d1424' }}>{bt.label}</option>
                     ))}
                   </select>
-                </div>
-
-                {/* WhatsApp */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
-                    WhatsApp number <span style={{ color: 'rgba(240,244,255,0.3)', fontWeight: 400 }}>(for weekly post updates)</span>
-                  </label>
-                  <input
-                    className="h-11 px-3 rounded-lg text-sm outline-none"
-                    style={inputStyle}
-                    placeholder="+1 555 000 0000"
-                    value={form.whatsapp}
-                    onChange={(e) => updateForm({ whatsapp: e.target.value })}
-                  />
                 </div>
 
                 {/* Tone */}

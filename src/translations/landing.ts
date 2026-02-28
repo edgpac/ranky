@@ -25,7 +25,7 @@ export const landing = {
         { icon: '🧠', label: 'No training needed', desc: 'Reads your GBP and starts working immediately' },
         { icon: '📸', label: 'Uses your real photos', desc: 'Matches job photos to local search queries automatically' },
         { icon: '📅', label: 'Never misses a week', desc: 'Publishes up to 4× per week — within Google\'s limits' },
-        { icon: '📲', label: 'Keeps you in the loop', desc: 'Weekly WhatsApp recap of everything published' },
+        { icon: '📧', label: 'Keeps you in the loop', desc: 'Weekly email recap of everything published' },
       ],
     },
     how: {
@@ -45,7 +45,7 @@ export const landing = {
         {
           n: '03', icon: '📅',
           title: 'Shows up every week. Does the work. Sends a recap.',
-          desc: 'Posts publish to your GBP up to 4 times a week — within Google\'s guidelines so your profile stays clean. You get a WhatsApp summary of what went up. You stay in control.',
+          desc: 'Posts publish to your GBP up to 4 times a week — within Google\'s guidelines so your profile stays clean. You get a weekly email summary of what went up. You stay in control.',
         },
       ],
     },
@@ -108,7 +108,7 @@ export const landing = {
         {
           title: 'UPDATES & SUPPORT',
           items: [
-            { icon: '📲', text: 'Weekly WhatsApp digest — see exactly what went up' },
+            { icon: '📧', text: 'Weekly email digest — see exactly what went up' },
             { icon: '✅', text: 'No contracts. Cancel anytime. No lock-in.' },
           ],
         },
@@ -154,7 +154,7 @@ export const landing = {
         { icon: '🧠', label: 'Sin capacitación', desc: 'Lee tu GBP y comienza a trabajar de inmediato' },
         { icon: '📸', label: 'Usa tus fotos reales', desc: 'Combina fotos de trabajo con búsquedas locales automáticamente' },
         { icon: '📅', label: 'Nunca falta una semana', desc: 'Publica hasta 4× por semana — dentro de los límites de Google' },
-        { icon: '📲', label: 'Te mantiene informado', desc: 'Resumen semanal por WhatsApp de todo lo publicado' },
+        { icon: '📧', label: 'Te mantiene informado', desc: 'Resumen semanal por email de todo lo publicado' },
       ],
     },
     how: {
@@ -174,7 +174,7 @@ export const landing = {
         {
           n: '03', icon: '📅',
           title: 'Aparece cada semana. Hace el trabajo. Envía un resumen.',
-          desc: 'Las publicaciones van a tu GBP hasta 4 veces por semana — dentro de las pautas de Google para que tu perfil esté limpio. Recibes un resumen por WhatsApp. Tú mantienes el control.',
+          desc: 'Las publicaciones van a tu GBP hasta 4 veces por semana — dentro de las pautas de Google para que tu perfil esté limpio. Recibes un resumen semanal por email. Tú mantienes el control.',
         },
       ],
     },
@@ -237,7 +237,7 @@ export const landing = {
         {
           title: 'ACTUALIZACIONES Y SOPORTE',
           items: [
-            { icon: '📲', text: 'Resumen semanal por WhatsApp — ve exactamente qué se publicó' },
+            { icon: '📧', text: 'Resumen semanal por email — ve exactamente qué se publicó' },
             { icon: '✅', text: 'Sin contratos. Cancela cuando quieras. Sin permanencia.' },
           ],
         },
