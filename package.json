@@ -30,6 +30,7 @@
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "react-router-dom": "^6.26.0",
+    "resend": "^6.9.3",
     "sharp": "^0.34.5",
     "stripe": "^16.0.0",
     "tailwind-merge": "^2.5.0"

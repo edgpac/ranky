@@ -11,6 +11,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pg from 'pg';
 import cron from 'node-cron';
+import { Resend } from 'resend';
 import { mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -32,6 +33,7 @@ const pool = new Pool({
 // ─── Clients ──────────────────────────────────────────────────
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // ─── Google OAuth ─────────────────────────────────────────────
 const oauth2Client = new google.auth.OAuth2(
@@ -912,6 +914,125 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
   }
   res.json({ received: true });
 });
+
+// ─── Weekly Email Digest ──────────────────────────────────────
+// Sends each active subscriber a summary of posts published in the last 7 days.
+// Uses Resend (resend.com) — free tier covers 3,000 emails/month.
+// TO ENABLE: set RESEND_API_KEY in Railway env vars, then uncomment the cron.schedule below.
+
+async function sendWeeklyDigest() {
+  if (!resend) { console.log('⏭️  Digest skipped — RESEND_API_KEY not set'); return; }
+
+  const since = new Date();
+  since.setDate(since.getDate() - 7);
+
+  const { rows: clients } = await pool.query(
+    "SELECT * FROM clients WHERE subscription_status IN ('active', 'trial') AND email IS NOT NULL"
+  );
+
+  for (const client of clients) {
+    try {
+      const { rows: posts } = await pool.query(
+        `SELECT post_text, search_query, posted_at, photo_url
+         FROM posts
+         WHERE client_id = $1 AND posted_at >= $2
+         ORDER BY posted_at DESC`,
+        [client.id, since.toISOString()]
+      );
+
+      if (posts.length === 0) continue; // nothing published this week — skip
+
+      const postRows = posts.map((p) => `
+        <tr style="border-bottom:1px solid #1e2740">
+          <td style="padding:12px 16px;color:#e8eeff;font-size:14px;line-height:1.5">${p.post_text}</td>
+          <td style="padding:12px 16px;color:#4f8ef7;font-size:12px;white-space:nowrap">${p.search_query || '—'}</td>
+          <td style="padding:12px 16px;color:rgba(232,238,255,0.45);font-size:12px;white-space:nowrap">${new Date(p.posted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
+        </tr>`).join('');
+
+      const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#060b18;font-family:'DM Sans',system-ui,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;padding:32px 16px">
+    <tr><td>
+      <!-- Header -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px">
+        <tr>
+          <td style="padding-bottom:24px;border-bottom:1px solid rgba(255,255,255,0.08)">
+            <p style="margin:0;font-size:22px;font-weight:800;color:#e8eeff">HayVista</p>
+            <p style="margin:4px 0 0;font-size:13px;color:rgba(232,238,255,0.45)">Your weekly GBP activity recap</p>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Greeting -->
+      <p style="margin:0 0 8px;font-size:16px;font-weight:700;color:#e8eeff">Hey ${client.name || client.business_name} 👋</p>
+      <p style="margin:0 0 24px;font-size:14px;color:rgba(232,238,255,0.65);line-height:1.6">
+        Here's what HayVista published to your Google Business Profile this week.
+        ${posts.length} post${posts.length > 1 ? 's' : ''} went live — keeping you visible to local customers.
+      </p>
+
+      <!-- Stats pill -->
+      <table cellpadding="0" cellspacing="0" style="margin-bottom:28px">
+        <tr>
+          <td style="background:rgba(79,142,247,0.12);border:1px solid rgba(79,142,247,0.28);border-radius:12px;padding:12px 20px">
+            <span style="font-size:24px;font-weight:800;color:#4f8ef7">${posts.length}×</span>
+            <span style="font-size:13px;color:rgba(232,238,255,0.55);margin-left:8px">published this week</span>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Posts table -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid rgba(255,255,255,0.08);border-radius:12px;overflow:hidden;margin-bottom:32px">
+        <thead>
+          <tr style="background:rgba(255,255,255,0.04)">
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:rgba(232,238,255,0.4);letter-spacing:0.08em">POST</th>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:rgba(232,238,255,0.4);letter-spacing:0.08em">KEYWORD</th>
+            <th style="padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:rgba(232,238,255,0.4);letter-spacing:0.08em">DATE</th>
+          </tr>
+        </thead>
+        <tbody>${postRows}</tbody>
+      </table>
+
+      <!-- CTA -->
+      <table cellpadding="0" cellspacing="0" style="margin-bottom:40px">
+        <tr>
+          <td style="border-radius:10px;background:linear-gradient(135deg,#4f8ef7,#7c5af7)">
+            <a href="${process.env.FRONTEND_URL}/dashboard" style="display:inline-block;padding:12px 28px;font-size:14px;font-weight:700;color:#fff;text-decoration:none">
+              View your dashboard →
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Footer -->
+      <p style="margin:0;font-size:11px;color:rgba(232,238,255,0.25);line-height:1.6">
+        HayVista · Cabo San Lucas, BCS, Mexico<br>
+        You're receiving this because you're subscribed to HayVista.<br>
+        <a href="${process.env.FRONTEND_URL}/dashboard" style="color:rgba(232,238,255,0.35)">Manage your account</a>
+      </p>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+      await resend.emails.send({
+        from: 'HayVista <digest@hayvista.com>',
+        to: client.email,
+        subject: `Your week on Google: ${posts.length} post${posts.length > 1 ? 's' : ''} published for ${client.business_name}`,
+        html,
+      });
+
+      console.log(`📧 Weekly digest sent to ${client.email} (${posts.length} posts)`);
+    } catch (e) {
+      console.error(`❌ Digest failed for ${client.email}:`, e.message);
+    }
+  }
+}
+
+// ── COMMENTED OUT — uncomment after Google API review is approved ──────────
+// cron.schedule('0 9 * * 1', sendWeeklyDigest, { timezone: 'America/Los_Angeles' });
+// Runs every Monday at 9am PT. One email per client showing the past 7 days of posts.
 
 // ─── Cron ────────────────────────────────────────────────────
 cron.schedule('0 9 * * 1,3,5', async () => {
