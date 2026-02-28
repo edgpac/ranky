@@ -339,7 +339,7 @@ export default function Dashboard() {
           <img
             src="/hayvista-logo.png"
             alt="HayVista"
-            style={{ width: '56px', height: '56px', objectFit: 'contain', flexShrink: 0 }}
+            style={{ width: '80px', height: '80px', objectFit: 'contain', flexShrink: 0 }}
           />
           <div style={{ textAlign: 'left' }}>
             <div className="text-[15px] font-bold" style={{ color: 'rgba(232,238,255,0.96)' }}>
