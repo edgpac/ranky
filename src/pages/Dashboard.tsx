@@ -96,7 +96,7 @@ function LogoutButton({ onClick }: { onClick: () => void }) {
         cursor: 'pointer',
       }}
     >
-      Disconnect GBP
+      Log Out
     </button>
   );
 }
@@ -332,7 +332,11 @@ export default function Dashboard() {
           boxShadow: '0 1px 0 rgba(255,255,255,0.06), 0 8px 40px rgba(0,0,0,0.40)',
         }}
       >
-        <div className="flex items-center gap-3.5">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-3.5"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+        >
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
             style={{
@@ -342,7 +346,7 @@ export default function Dashboard() {
           >
             {bizInitial}
           </div>
-          <div>
+          <div style={{ textAlign: 'left' }}>
             <div className="text-[15px] font-bold" style={{ color: 'rgba(232,238,255,0.96)' }}>
               {client?.business_name}
             </div>
@@ -358,7 +362,7 @@ export default function Dashboard() {
               {bizType}
             </span>
           </div>
-        </div>
+        </button>
 
         <div className="flex items-center gap-3">
           <div
