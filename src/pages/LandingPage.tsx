@@ -98,14 +98,13 @@ export default function LandingPage() {
             {t.nav.pricing}
           </button>
           <button
-            onClick={handleCheckout}
-            disabled={checkoutLoading}
+            onClick={() => navigate('/dashboard')}
             className="font-semibold rounded-xl transition-all"
-            style={{ height: '2.1em', fontSize: 15, paddingLeft: '1.1em', paddingRight: '1.1em', background: 'var(--accent)', color: '#fff', opacity: checkoutLoading ? 0.65 : 1 }}
-            onMouseEnter={(e) => { if (!checkoutLoading) e.currentTarget.style.opacity = '0.85'; }}
-            onMouseLeave={(e) => { if (!checkoutLoading) e.currentTarget.style.opacity = '1'; }}
+            style={{ height: '2.1em', fontSize: 15, paddingLeft: '1.1em', paddingRight: '1.1em', background: 'var(--accent)', color: '#fff' }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
           >
-            {checkoutLoading ? '…' : t.nav.cta}
+            {t.nav.cta}
           </button>
         </div>
 
@@ -236,14 +235,13 @@ export default function LandingPage() {
         </p>
 
         <button
-          onClick={handleCheckout}
-          disabled={checkoutLoading}
+          onClick={() => navigate('/dashboard')}
           className="text-sm sm:text-base font-bold px-7 sm:px-8 py-3.5 sm:py-4 rounded-xl transition-all"
-          style={{ background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', color: '#fff', boxShadow: '0 0 40px rgba(79,142,247,0.35)', opacity: checkoutLoading ? 0.65 : 1 }}
-          onMouseEnter={(e) => { if (!checkoutLoading) e.currentTarget.style.boxShadow = '0 0 60px rgba(79,142,247,0.5)'; }}
-          onMouseLeave={(e) => { if (!checkoutLoading) e.currentTarget.style.boxShadow = '0 0 40px rgba(79,142,247,0.35)'; }}
+          style={{ background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', color: '#fff', boxShadow: '0 0 40px rgba(79,142,247,0.35)' }}
+          onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 60px rgba(79,142,247,0.5)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 40px rgba(79,142,247,0.35)'; }}
         >
-          {checkoutLoading ? 'Redirecting…' : t.hero.cta}
+          {t.hero.cta}
         </button>
 
         {/* Stats */}
