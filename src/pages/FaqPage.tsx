@@ -44,10 +44,9 @@ export default function FaqPage() {
 
   return (
     <div className="min-h-screen bg-white font-sans">
-      <nav className="flex items-center px-20 h-[72px] bg-white border-b border-gray-100">
-        <a href="/" className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-brand" />
-          <span className="text-xl font-bold text-slate-900">HayVista</span>
+      <nav className="flex items-center px-8 md:px-16 h-[68px] bg-white border-b border-gray-100">
+        <a href="/">
+          <img src="/hayvista-logo.png" alt="HayVista" className="h-[56px] w-[56px] object-contain" />
         </a>
       </nav>
 
