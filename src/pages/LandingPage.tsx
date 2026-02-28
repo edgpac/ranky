@@ -76,8 +76,8 @@ export default function LandingPage() {
         <img
           src="/hayvista-logo.png"
           alt="HayVista"
-          style={{ width: 56, height: 56, objectFit: 'contain', flexShrink: 0 }}
-          className="sm:w-[72px] sm:h-[72px]"
+          style={{ width: 80, height: 80, objectFit: 'contain', flexShrink: 0 }}
+          className="sm:w-[96px] sm:h-[96px]"
         />
 
         <div className="flex items-center gap-2 sm:gap-3">

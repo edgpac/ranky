@@ -1,3 +1,5 @@
+import SubPageLayout from '../components/SubPageLayout';
+
 export default function FaqPage() {
   const faqs = [
     {
@@ -43,14 +45,8 @@ export default function FaqPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white font-sans">
-      <nav className="flex items-center px-8 md:px-16 h-[68px] bg-white border-b border-gray-100">
-        <a href="/">
-          <img src="/hayvista-logo.png" alt="HayVista" className="h-[56px] w-[56px] object-contain" />
-        </a>
-      </nav>
-
-      <main className="max-w-3xl mx-auto px-6 py-16">
+    <SubPageLayout>
+      <div className="max-w-3xl mx-auto px-6 py-16">
         <h1 className="text-3xl font-bold text-slate-900 mb-2">Frequently Asked Questions</h1>
         <p className="text-sm text-slate-500 mb-10">Answers about Google Business Profile, local SEO, and how HayVista works.</p>
 
@@ -67,7 +63,7 @@ export default function FaqPage() {
           Still have questions?{' '}
           <a href="mailto:hayvista@gmail.com" className="text-blue-600 hover:underline">hayvista@gmail.com</a>
         </div>
-      </main>
-    </div>
+      </div>
+    </SubPageLayout>
   );
 }
