@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface Client {
   business_name: string;
@@ -7,6 +7,8 @@ interface Client {
   tone: string;
   business_type: string;
   subscription_status: string;
+  whatsapp?: string;
+  review_link?: string;
 }
 
 interface HourRow {
@@ -30,6 +32,9 @@ const CATEGORY_OPTIONS = [
   'Landscaper',
   'Cleaner',
 ];
+
+const TONE_OPTIONS = ['Friendly', 'Professional', 'Bilingual'];
+const FREQ_OPTIONS = [1, 2, 3, 4];
 
 function defaultHours(): Hours {
   const h: Hours = {};
@@ -93,34 +98,77 @@ const btnGhost: React.CSSProperties = {
   cursor: 'pointer',
 };
 
-export default function EditProfileTab({ client }: { client: Client | null }) {
+interface Props {
+  client: Client | null;
+  onClientUpdated: (client: Client) => void;
+}
+
+export default function EditProfileTab({ client, onClientUpdated }: Props) {
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
   const [businessName, setBusinessName] = useState(client?.business_name || '');
   const [category, setCategory] = useState(client?.business_type || 'General Contractor');
-  const [phone, setPhone] = useState('');
-  const [website, setWebsite] = useState('');
+  const [tone, setTone] = useState(client?.tone || 'Friendly');
+  const [postsPerWeek, setPostsPerWeek] = useState(client?.posts_per_week || 1);
+  const [whatsapp, setWhatsapp] = useState(client?.whatsapp || '');
   const [description, setDescription] = useState('');
-  const [hours, setHours] = useState<Hours>(defaultHours());
+  const [hours] = useState<Hours>(defaultHours());
 
   const MAX_DESC = 750;
 
-  const handleSave = () => {
-    setEditing(false);
-  };
+  useEffect(() => {
+    if (!client) return;
+    setBusinessName(client.business_name || '');
+    setCategory(client.business_type || 'General Contractor');
+    setTone(client.tone || 'Friendly');
+    setPostsPerWeek(client.posts_per_week || 1);
+    setWhatsapp(client.whatsapp || '');
+  }, [client?.business_name, client?.business_type, client?.tone, client?.posts_per_week, client?.whatsapp]);
 
-  const updateHour = (day: string, field: keyof HourRow, value: string | boolean) => {
-    setHours((prev) => ({ ...prev, [day]: { ...prev[day], [field]: value } }));
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError('');
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_name: businessName,
+          business_type: category,
+          tone,
+          posts_per_week: postsPerWeek,
+          whatsapp,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+      onClientUpdated(data.client);
+      setEditing(false);
+    } catch (e: unknown) {
+      setSaveError(e instanceof Error ? e.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div style={glassCard}>
-      {/* Header row */}
       <div className="flex items-center justify-between mb-6">
         <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>Edit Profile</h2>
         {editing ? (
-          <div className="flex gap-2">
-            <button style={btnGhost} onClick={() => setEditing(false)}>Cancel</button>
-            <button style={btnPrimary} onClick={handleSave}>Save Changes</button>
+          <div className="flex gap-2 items-center">
+            {saveError && <span style={{ fontSize: '0.75rem', color: '#f87171' }}>{saveError}</span>}
+            <button style={btnGhost} onClick={() => { setEditing(false); setSaveError(''); }}>Cancel</button>
+            <button
+              style={{ ...btnPrimary, opacity: saving ? 0.6 : 1 }}
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? 'Saving…' : 'Save Changes'}
+            </button>
           </div>
         ) : (
           <button style={btnGhost} onClick={() => setEditing(true)}>Edit</button>
@@ -128,7 +176,6 @@ export default function EditProfileTab({ client }: { client: Client | null }) {
       </div>
 
       {!editing ? (
-        /* View mode: 2-column grid */
         <div className="grid grid-cols-2 gap-x-8 gap-y-5">
           <div>
             <span style={labelStyle}>Business Name</span>
@@ -139,19 +186,26 @@ export default function EditProfileTab({ client }: { client: Client | null }) {
             <span style={valueStyle}>{category || '—'}</span>
           </div>
           <div>
-            <span style={labelStyle}>Phone</span>
-            <span style={valueStyle}>{phone || '—'}</span>
+            <span style={labelStyle}>WhatsApp</span>
+            <span style={valueStyle}>{whatsapp || '—'}</span>
           </div>
           <div>
-            <span style={labelStyle}>Website</span>
-            <span style={valueStyle}>{website || '—'}</span>
+            <span style={labelStyle}>Posts Per Week</span>
+            <span style={valueStyle}>{postsPerWeek}×</span>
+          </div>
+          <div>
+            <span style={labelStyle}>Post Tone</span>
+            <span style={valueStyle}>{tone}</span>
           </div>
           <div className="col-span-2">
             <span style={labelStyle}>Description</span>
             <span style={valueStyle}>{description || '—'}</span>
           </div>
           <div className="col-span-2">
-            <span style={labelStyle}>Hours</span>
+            <span style={labelStyle}>
+              Hours{' '}
+              <span style={{ fontWeight: 400, opacity: 0.5 }}>(editable once GBP scope approved)</span>
+            </span>
             <div className="flex flex-col gap-1 mt-1">
               {DAYS.map((day) => (
                 <div key={day} className="flex gap-4 text-sm">
@@ -165,7 +219,6 @@ export default function EditProfileTab({ client }: { client: Client | null }) {
           </div>
         </div>
       ) : (
-        /* Edit mode */
         <div className="flex flex-col gap-5">
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -190,24 +243,64 @@ export default function EditProfileTab({ client }: { client: Client | null }) {
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Phone</label>
+              <label style={labelStyle}>WhatsApp</label>
               <input
                 style={inputStyle}
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+1 (555) 000-0000"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="+52 624 000 0000"
                 type="tel"
               />
             </div>
-            <div>
-              <label style={labelStyle}>Website URL</label>
-              <input
-                style={inputStyle}
-                value={website}
-                onChange={(e) => setWebsite(e.target.value)}
-                placeholder="https://yourbusiness.com"
-                type="url"
-              />
+          </div>
+
+          <div>
+            <label style={labelStyle}>Post Tone</label>
+            <div className="flex gap-2 mt-1">
+              {TONE_OPTIONS.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setTone(t)}
+                  style={{
+                    padding: '0.375rem 1rem',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    border: '1px solid',
+                    background: tone === t ? 'rgba(79,142,247,0.15)' : 'rgba(255,255,255,0.04)',
+                    borderColor: tone === t ? 'rgba(79,142,247,0.4)' : 'rgba(255,255,255,0.10)',
+                    color: tone === t ? '#4f8ef7' : 'rgba(240,244,255,0.6)',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Posts Per Week</label>
+            <div className="grid grid-cols-4 gap-2 mt-1">
+              {FREQ_OPTIONS.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setPostsPerWeek(n)}
+                  className="flex flex-col items-center justify-center py-3 rounded-xl"
+                  style={{
+                    background: postsPerWeek === n ? 'rgba(79,142,247,0.12)' : 'rgba(255,255,255,0.04)',
+                    border: `${postsPerWeek === n ? 2 : 1}px solid ${postsPerWeek === n ? '#4f8ef7' : 'rgba(255,255,255,0.08)'}`,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: postsPerWeek === n ? '#4f8ef7' : 'rgba(240,244,255,0.5)' }}>
+                    {n}×
+                  </span>
+                  <span style={{ fontSize: '0.6875rem', color: 'rgba(240,244,255,0.4)', marginTop: '0.125rem' }}>per week</span>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -228,7 +321,7 @@ export default function EditProfileTab({ client }: { client: Client | null }) {
               }}
               value={description}
               onChange={(e) => setDescription(e.target.value.slice(0, MAX_DESC))}
-              placeholder="Describe your business..."
+              placeholder="Describe your business…"
               rows={4}
             />
             <div style={{ textAlign: 'right', fontSize: '0.75rem', color: 'rgba(240,244,255,0.5)', marginTop: '0.25rem' }}>
@@ -236,39 +329,20 @@ export default function EditProfileTab({ client }: { client: Client | null }) {
             </div>
           </div>
 
-          {/* Hours grid */}
           <div>
-            <label style={{ ...labelStyle, marginBottom: '0.75rem' }}>Regular Hours</label>
-            <div className="flex flex-col gap-2">
+            <label style={{ ...labelStyle, marginBottom: '0.5rem' }}>
+              Regular Hours{' '}
+              <span style={{ fontWeight: 400, color: 'rgba(240,244,255,0.35)', fontSize: '0.7rem' }}>
+                (editing available once GBP write scope is approved)
+              </span>
+            </label>
+            <div className="flex flex-col gap-2" style={{ opacity: 0.45, pointerEvents: 'none' }}>
               {DAYS.map((day) => (
                 <div key={day} className="flex items-center gap-3">
                   <span style={{ color: 'rgba(240,244,255,0.7)', fontSize: '0.875rem', width: '96px', flexShrink: 0 }}>{day}</span>
-                  <label className="flex items-center gap-1.5 cursor-pointer" style={{ fontSize: '0.8125rem', color: 'rgba(240,244,255,0.5)' }}>
-                    <input
-                      type="checkbox"
-                      checked={hours[day].closed}
-                      onChange={(e) => updateHour(day, 'closed', e.target.checked)}
-                      style={{ accentColor: '#4f8ef7' }}
-                    />
-                    Closed
-                  </label>
-                  {!hours[day].closed && (
-                    <>
-                      <input
-                        type="time"
-                        style={{ ...inputStyle, width: '110px' }}
-                        value={hours[day].open}
-                        onChange={(e) => updateHour(day, 'open', e.target.value)}
-                      />
-                      <span style={{ color: 'rgba(240,244,255,0.4)', fontSize: '0.875rem' }}>–</span>
-                      <input
-                        type="time"
-                        style={{ ...inputStyle, width: '110px' }}
-                        value={hours[day].close}
-                        onChange={(e) => updateHour(day, 'close', e.target.value)}
-                      />
-                    </>
-                  )}
+                  <span style={{ fontSize: '0.8125rem', color: 'rgba(240,244,255,0.5)' }}>
+                    {hours[day].closed ? 'Closed' : `${hours[day].open} – ${hours[day].close}`}
+                  </span>
                 </div>
               ))}
             </div>

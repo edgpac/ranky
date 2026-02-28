@@ -1,4 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+interface GbpServiceItem {
+  freeFormServiceItem?: {
+    category?: string;
+    label?: { displayName?: string; description?: string };
+  };
+  serviceTypeId?: string;
+  isOffered?: boolean;
+  price?: { currencyCode?: string; units?: string; nanos?: number };
+}
 
 interface Service {
   id: number;
@@ -6,21 +16,8 @@ interface Service {
   desc: string;
   price: string;
   editing: boolean;
+  fromGbp?: boolean;
 }
-
-const MOCK_SERVICES: Omit<Service, 'editing'>[] = [
-  { id: 1, name: 'Drywall Repair',          desc: 'Patch holes, cracks, and water-damaged drywall sections.',   price: '$85/hr' },
-  { id: 2, name: 'Tile Installation',        desc: 'Floor and wall tile install for kitchens and bathrooms.',     price: '$150 flat' },
-  { id: 3, name: 'Painting (Interior)',      desc: 'Full interior painting with prep, primer, and two coats.',   price: '$95/hr' },
-  { id: 4, name: 'Painting (Exterior)',      desc: 'Weather-resistant exterior paint and surface preparation.',   price: '$120/hr' },
-  { id: 5, name: 'Plumbing Repairs',         desc: 'Leak fixes, pipe replacements, and fixture installations.',  price: '$110/hr' },
-  { id: 6, name: 'Electrical Fixes',         desc: 'Outlet repair, switch replacement, and panel inspections.',  price: '$125/hr' },
-  { id: 7, name: 'Flooring Installation',    desc: 'Hardwood, LVP, and laminate flooring install and finishing.', price: '$200 flat' },
-  { id: 8, name: 'Deck Building',            desc: 'Custom deck design, framing, decking, and finishing.',        price: '$180/hr' },
-  { id: 9, name: 'General Handyman',         desc: 'Miscellaneous repairs and maintenance tasks around the home.', price: '$75/hr' },
-];
-
-let nextId = 100;
 
 const glassCard: React.CSSProperties = {
   background: 'rgba(255,255,255,0.05)',
@@ -72,12 +69,50 @@ const btnDanger: React.CSSProperties = {
   cursor: 'pointer',
 };
 
-export default function ServicesTab({ ready }: { ready: boolean }) {
-  const [services, setServices] = useState<Service[]>(
-    MOCK_SERVICES.map((s) => ({ ...s, editing: false }))
-  );
+let nextId = 200;
 
+function formatGbpPrice(item: GbpServiceItem): string {
+  const p = item.price;
+  if (!p) return '';
+  const units = parseInt(p.units || '0', 10);
+  if (!units) return '';
+  return `$${units}/${p.currencyCode === 'USD' ? 'hr' : p.currencyCode || 'hr'}`;
+}
+
+function mapGbpServices(items: GbpServiceItem[]): Service[] {
+  return items
+    .filter((s) => s.freeFormServiceItem?.label?.displayName)
+    .map((s, i) => ({
+      id: i + 1,
+      name: s.freeFormServiceItem!.label!.displayName!,
+      desc: s.freeFormServiceItem?.label?.description || '',
+      price: formatGbpPrice(s),
+      editing: false,
+      fromGbp: true,
+    }));
+}
+
+export default function ServicesTab({ ready }: { ready: boolean }) {
+  const [services, setServices] = useState<Service[]>([]);
   const [drafts, setDrafts] = useState<Record<number, { name: string; desc: string; price: string }>>({});
+  const [loading, setLoading] = useState(true);
+  const [fromGbp, setFromGbp] = useState(false);
+
+  useEffect(() => {
+    if (!ready) { setLoading(false); return; }
+    fetch('/api/services', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        const items: GbpServiceItem[] = d.services || [];
+        if (items.length > 0) {
+          setServices(mapGbpServices(items));
+          setFromGbp(true);
+        }
+        // if 0 GBP services, list stays empty — user can add manually
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [ready]);
 
   if (!ready) {
     return (
@@ -97,6 +132,13 @@ export default function ServicesTab({ ready }: { ready: boolean }) {
     );
   }
 
+  if (loading) return (
+    <div className="flex justify-center py-20">
+      <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin"
+        style={{ borderColor: '#4f8ef7', borderTopColor: 'transparent' }} />
+    </div>
+  );
+
   const startEdit = (svc: Service) => {
     setDrafts((d) => ({ ...d, [svc.id]: { name: svc.name, desc: svc.desc, price: svc.price } }));
     setServices((prev) => prev.map((s) => s.id === svc.id ? { ...s, editing: true } : s));
@@ -111,10 +153,11 @@ export default function ServicesTab({ ready }: { ready: boolean }) {
   };
 
   const cancelEdit = (id: number) => {
-    setServices((prev) => prev.map((s) => s.id === id ? { ...s, editing: false } : s));
-    if (services.find((s) => s.id === id && s.name === '')) {
-      setServices((prev) => prev.filter((s) => s.id !== id));
-    }
+    setServices((prev) => {
+      const svc = prev.find((s) => s.id === id);
+      if (svc && svc.name === '') return prev.filter((s) => s.id !== id);
+      return prev.map((s) => s.id === id ? { ...s, editing: false } : s);
+    });
   };
 
   const deleteService = (id: number) => {
@@ -133,19 +176,27 @@ export default function ServicesTab({ ready }: { ready: boolean }) {
 
   return (
     <div>
-      {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>
-          Services <span style={{ color: 'rgba(240,244,255,0.4)', fontWeight: 400, fontSize: '0.875rem' }}>({services.length})</span>
-        </h2>
+        <div>
+          <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>
+            Services{' '}
+            <span style={{ color: 'rgba(240,244,255,0.4)', fontWeight: 400, fontSize: '0.875rem' }}>
+              ({services.length})
+            </span>
+          </h2>
+          {fromGbp && (
+            <p style={{ fontSize: '0.75rem', color: 'rgba(52,211,153,0.8)', marginTop: '0.2rem' }}>
+              Loaded from Google Business Profile
+            </p>
+          )}
+        </div>
         <button style={btnPrimary} onClick={addService}>+ Add Service</button>
       </div>
 
-      {/* Services list */}
       <div style={glassCard}>
         {services.length === 0 && (
           <p style={{ color: 'rgba(240,244,255,0.4)', fontSize: '0.875rem', textAlign: 'center', padding: '2rem 0' }}>
-            No services yet. Click "Add Service" to get started.
+            No services found on your GBP. Click "Add Service" to get started.
           </p>
         )}
         {services.map((svc, idx) => (
@@ -157,7 +208,6 @@ export default function ServicesTab({ ready }: { ready: boolean }) {
             }}
           >
             {svc.editing ? (
-              /* Inline edit form */
               <div className="flex flex-col gap-3">
                 <div className="flex gap-3">
                   <input
@@ -186,10 +236,11 @@ export default function ServicesTab({ ready }: { ready: boolean }) {
                 </div>
               </div>
             ) : (
-              /* Display row */
               <div className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">
-                  <span style={{ fontWeight: 500, color: 'rgba(240,244,255,0.9)', fontSize: '0.875rem' }}>{svc.name}</span>
+                  <span style={{ fontWeight: 500, color: 'rgba(240,244,255,0.9)', fontSize: '0.875rem' }}>
+                    {svc.name}
+                  </span>
                   {svc.desc && (
                     <span
                       style={{
@@ -208,7 +259,11 @@ export default function ServicesTab({ ready }: { ready: boolean }) {
                     </span>
                   )}
                 </div>
-                <span style={{ color: '#34d399', fontWeight: 600, fontSize: '0.875rem', flexShrink: 0 }}>{svc.price}</span>
+                {svc.price && (
+                  <span style={{ color: '#34d399', fontWeight: 600, fontSize: '0.875rem', flexShrink: 0 }}>
+                    {svc.price}
+                  </span>
+                )}
                 <div className="flex gap-1.5 ml-2 flex-shrink-0">
                   <button style={btnGhost} onClick={() => startEdit(svc)}>Edit</button>
                   <button style={btnDanger} onClick={() => deleteService(svc.id)}>Delete</button>

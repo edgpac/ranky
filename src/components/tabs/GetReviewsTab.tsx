@@ -1,6 +1,9 @@
 import { useState } from 'react';
 
-const REVIEW_LINK = 'https://g.page/r/CdBKSVC63be9EBM/review';
+interface Props {
+  reviewLink: string;
+  onReviewLinkSaved: (link: string) => void;
+}
 
 const glassCard: React.CSSProperties = {
   background: 'rgba(255,255,255,0.05)',
@@ -57,102 +60,149 @@ const btnGhost: React.CSSProperties = {
   gap: '0.5rem',
 };
 
-export default function GetReviewsTab() {
+const inputStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  color: 'white',
+  borderRadius: '0.5rem',
+  height: '2.25rem',
+  padding: '0 0.75rem',
+  fontSize: '0.875rem',
+  outline: 'none',
+  flex: 1,
+};
+
+export default function GetReviewsTab({ reviewLink, onReviewLinkSaved }: Props) {
   const [copied, setCopied] = useState(false);
+  const [editingLink, setEditingLink] = useState(false);
+  const [linkDraft, setLinkDraft] = useState(reviewLink);
+  const [savingLink, setSavingLink] = useState(false);
+
+  const activeLink = reviewLink || '';
 
   const copyLink = () => {
-    navigator.clipboard.writeText(REVIEW_LINK).then(() => {
+    if (!activeLink) return;
+    navigator.clipboard.writeText(activeLink).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
   };
 
+  const saveLink = async () => {
+    if (!linkDraft.trim()) return;
+    setSavingLink(true);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ review_link: linkDraft.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      onReviewLinkSaved(data.client.review_link || linkDraft.trim());
+      setEditingLink(false);
+    } catch { /* ignore */ }
+    finally { setSavingLink(false); }
+  };
+
   const shareWhatsApp = () => {
-    const text = encodeURIComponent(`Leave us a review! ${REVIEW_LINK}`);
+    if (!activeLink) return;
+    const text = encodeURIComponent(`Leave us a review! ${activeLink}`);
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
   const shareEmail = () => {
-    const subject = encodeURIComponent('We\'d love your review!');
-    const body = encodeURIComponent(`Hi,\n\nThank you for your business! We'd really appreciate it if you left us a quick review on Google:\n\n${REVIEW_LINK}\n\nIt only takes 30 seconds and means a lot to us.\n\nThank you!`);
+    if (!activeLink) return;
+    const subject = encodeURIComponent("We'd love your review!");
+    const body = encodeURIComponent(
+      `Hi,\n\nThank you for your business! We'd really appreciate it if you left us a quick review on Google:\n\n${activeLink}\n\nIt only takes 30 seconds and means a lot to us.\n\nThank you!`
+    );
     window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
   };
 
   const shareSMS = () => {
-    const body = encodeURIComponent(`Hey! Leave us a Google review here: ${REVIEW_LINK}`);
+    if (!activeLink) return;
+    const body = encodeURIComponent(`Hey! Leave us a Google review here: ${activeLink}`);
     window.open(`sms:?body=${body}`, '_blank');
   };
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Section 1: Review Link */}
+      {/* Review link */}
       <div style={glassCard}>
-        <p style={sectionTitle}>Your Review Link</p>
-        <div style={codeBox}>
-          <span style={{ flex: 1 }}>{REVIEW_LINK}</span>
+        <div className="flex items-center justify-between mb-3">
+          <p style={sectionTitle}>Your Review Link</p>
           <button
-            style={{
-              ...btnPrimary,
-              background: copied ? '#34d399' : '#4f8ef7',
-              transition: 'background 0.2s',
-            }}
-            onClick={copyLink}
+            style={{ ...btnGhost, fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+            onClick={() => { setEditingLink((v) => !v); setLinkDraft(reviewLink); }}
           >
-            {copied ? 'Copied!' : 'Copy Link'}
+            {editingLink ? 'Cancel' : 'Edit Link'}
           </button>
         </div>
+
+        {editingLink ? (
+          <div className="flex gap-2">
+            <input
+              style={inputStyle}
+              placeholder="https://g.page/r/..."
+              value={linkDraft}
+              onChange={(e) => setLinkDraft(e.target.value)}
+              autoFocus
+              onKeyDown={(e) => e.key === 'Enter' && saveLink()}
+            />
+            <button
+              style={{ ...btnPrimary, opacity: savingLink || !linkDraft.trim() ? 0.5 : 1 }}
+              onClick={saveLink}
+              disabled={savingLink || !linkDraft.trim()}
+            >
+              {savingLink ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        ) : activeLink ? (
+          <div style={codeBox}>
+            <span style={{ flex: 1 }}>{activeLink}</span>
+            <button
+              style={{ ...btnPrimary, background: copied ? '#34d399' : '#4f8ef7', transition: 'background 0.2s' }}
+              onClick={copyLink}
+            >
+              {copied ? 'Copied!' : 'Copy Link'}
+            </button>
+          </div>
+        ) : (
+          <div
+            className="rounded-xl p-4 text-center"
+            style={{ background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.2)' }}
+          >
+            <p style={{ fontSize: '0.875rem', color: 'rgba(240,244,255,0.7)', marginBottom: '0.5rem' }}>
+              No review link set yet.
+            </p>
+            <p style={{ fontSize: '0.8125rem', color: 'rgba(240,244,255,0.4)' }}>
+              Find your link in Google Maps → your listing → "Get more reviews", then paste it above.
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* Section 2: Share */}
-      <div style={glassCard}>
+      {/* Share */}
+      <div style={{ ...glassCard, opacity: activeLink ? 1 : 0.4, pointerEvents: activeLink ? 'auto' : 'none' }}>
         <p style={sectionTitle}>Share Your Link</p>
         <div className="flex gap-3">
           <button
-            style={{
-              background: '#25D366',
-              color: 'white',
-              borderRadius: '0.5rem',
-              padding: '0.5rem 1.25rem',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-            }}
+            style={{ background: '#25D366', color: 'white', borderRadius: '0.5rem', padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             onClick={shareWhatsApp}
           >
             <span>📱</span> WhatsApp
           </button>
-
-          <button style={btnGhost} onClick={shareEmail}>
-            <span>📧</span> Email
-          </button>
-
-          <button style={btnGhost} onClick={shareSMS}>
-            <span>💬</span> SMS
-          </button>
+          <button style={btnGhost} onClick={shareEmail}><span>📧</span> Email</button>
+          <button style={btnGhost} onClick={shareSMS}><span>💬</span> SMS</button>
         </div>
       </div>
 
-      {/* Section 3: QR Code */}
-      <div style={glassCard}>
+      {/* QR placeholder */}
+      <div style={{ ...glassCard, opacity: activeLink ? 1 : 0.4 }}>
         <p style={sectionTitle}>QR Code</p>
         <div
-          style={{
-            width: '200px',
-            height: '200px',
-            border: '2px dashed rgba(255,255,255,0.18)',
-            borderRadius: '0.75rem',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto',
-            background: 'rgba(255,255,255,0.02)',
-            gap: '0.5rem',
-          }}
+          style={{ width: '200px', height: '200px', border: '2px dashed rgba(255,255,255,0.18)', borderRadius: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', margin: '0 auto', background: 'rgba(255,255,255,0.02)', gap: '0.5rem' }}
         >
           <span style={{ fontSize: '2.5rem' }}>🔲</span>
           <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'rgba(240,244,255,0.55)' }}>QR Code</p>

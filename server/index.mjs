@@ -101,6 +101,17 @@ async function initDB() {
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS business_type TEXT DEFAULT 'general'`);
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS last_gbp_check TIMESTAMPTZ`);
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT`);
+  await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS review_link TEXT`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS products (
+      id SERIAL PRIMARY KEY,
+      client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      price TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
   console.log('✅ DB ready');
 }
 
@@ -359,7 +370,8 @@ app.get('/api/permission-check', requireAuth, async (req, res) => {
 app.get('/api/me', requireAuth, async (req, res) => {
   const client = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
   const posts = await pool.query('SELECT * FROM posts WHERE client_id = $1 ORDER BY posted_at DESC LIMIT 20', [req.session.clientId]);
-  res.json({ client: client.rows[0], posts: posts.rows });
+  const products = await pool.query('SELECT * FROM products WHERE client_id = $1 ORDER BY created_at ASC', [req.session.clientId]);
+  res.json({ client: client.rows[0], posts: posts.rows, products: products.rows });
 });
 
 // ─── Posts ────────────────────────────────────────────────────
@@ -459,6 +471,95 @@ Rules:
   );
   return result.rows[0];
 }
+
+// ─── Profile ─────────────────────────────────────────────────
+
+app.patch('/api/profile', requireAuth, async (req, res) => {
+  try {
+    const { business_name, business_type, tone, posts_per_week, whatsapp, review_link } = req.body;
+    const { rows } = await pool.query(
+      `UPDATE clients SET
+        business_name  = COALESCE($1, business_name),
+        business_type  = COALESCE($2, business_type),
+        tone           = COALESCE($3, tone),
+        posts_per_week = COALESCE($4, posts_per_week),
+        whatsapp       = COALESCE($5, whatsapp),
+        review_link    = COALESCE($6, review_link)
+       WHERE id = $7 RETURNING *`,
+      [
+        business_name ?? null,
+        business_type ?? null,
+        tone ?? null,
+        posts_per_week ?? null,
+        whatsapp ?? null,
+        review_link ?? null,
+        req.session.clientId,
+      ]
+    );
+    res.json({ client: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Products ────────────────────────────────────────────────
+
+app.get('/api/products', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM products WHERE client_id = $1 ORDER BY created_at ASC',
+      [req.session.clientId]
+    );
+    res.json({ products: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/products', requireAuth, async (req, res) => {
+  try {
+    const { name, description = '', price = '' } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
+    const { rows } = await pool.query(
+      'INSERT INTO products (client_id, name, description, price) VALUES ($1, $2, $3, $4) RETURNING *',
+      [req.session.clientId, name.trim(), description.trim(), price.trim()]
+    );
+    res.json({ product: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/products/:id', requireAuth, async (req, res) => {
+  try {
+    const { name, description, price } = req.body;
+    const { rows } = await pool.query(
+      `UPDATE products SET
+        name        = COALESCE($1, name),
+        description = COALESCE($2, description),
+        price       = COALESCE($3, price)
+       WHERE id = $4 AND client_id = $5 RETURNING *`,
+      [name ?? null, description ?? null, price ?? null, req.params.id, req.session.clientId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Product not found' });
+    res.json({ product: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/products/:id', requireAuth, async (req, res) => {
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM products WHERE id = $1 AND client_id = $2',
+      [req.params.id, req.session.clientId]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Product not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ─── Reviews ─────────────────────────────────────────────────
 

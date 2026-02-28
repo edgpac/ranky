@@ -26,75 +26,204 @@ interface Client {
   tone: string;
   business_type: string;
   subscription_status: string;
+  whatsapp?: string;
+  review_link?: string;
+}
+
+interface Product {
+  id: number;
+  name: string;
+  description: string;
+  price: string;
 }
 
 const TABS = [
-  { id: 'profile',     label: 'Edit Profile' },
-  { id: 'reviews',     label: 'Reviews' },
-  { id: 'photos',      label: 'Photos' },
-  { id: 'posts',       label: 'Posts' },
-  { id: 'insights',    label: 'Performance' },
-  { id: 'services',    label: 'Services' },
-  { id: 'products',    label: 'Products' },
-  { id: 'bookings',    label: 'Bookings' },
-  { id: 'getreviews',  label: 'Get Reviews' },
+  { id: 'profile',     label: 'Edit Profile',  icon: '◈' },
+  { id: 'reviews',     label: 'Reviews',        icon: '★' },
+  { id: 'photos',      label: 'Photos',         icon: '⬡' },
+  { id: 'posts',       label: 'Posts',          icon: '⊞' },
+  { id: 'insights',    label: 'Performance',    icon: '◎' },
+  { id: 'services',    label: 'Services',       icon: '◇' },
+  { id: 'products',    label: 'Products',       icon: '⬙' },
+  { id: 'bookings',    label: 'Bookings',       icon: '◷' },
+  { id: 'getreviews',  label: 'Get Reviews',    icon: '✦' },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
 
-// ─── Styles ────────────────────────────────────────────────────────────────
-const S = {
-  card: {
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.10)',
-    backdropFilter: 'blur(8px)',
-  } as React.CSSProperties,
-  header: {
-    background: 'rgba(255,255,255,0.04)',
-    borderBottom: '1px solid rgba(255,255,255,0.10)',
-    backdropFilter: 'blur(12px)',
-  } as React.CSSProperties,
-  nav: {
-    background: 'rgba(255,255,255,0.02)',
-    borderBottom: '1px solid rgba(255,255,255,0.10)',
-  } as React.CSSProperties,
-  avatar: {
-    background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)',
-  } as React.CSSProperties,
-  badge: {
-    color: '#4f8ef7',
-    background: 'rgba(79,142,247,0.15)',
-    border: '1px solid rgba(79,142,247,0.3)',
-  } as React.CSSProperties,
-  statusPending: {
-    color: '#fbbf24',
-    background: 'rgba(251,191,36,0.1)',
-    border: '1px solid rgba(251,191,36,0.25)',
-  } as React.CSSProperties,
-  statusLive: {
-    color: '#34d399',
-    background: 'rgba(52,211,153,0.1)',
-    border: '1px solid rgba(52,211,153,0.25)',
-  } as React.CSSProperties,
-  disconnectBtn: {
-    color: 'rgba(240,244,255,0.7)',
-    border: '1px solid rgba(255,255,255,0.15)',
-    background: 'transparent',
-  } as React.CSSProperties,
-  btnPrimary: {
-    background: '#4f8ef7',
-    color: '#fff',
-  } as React.CSSProperties,
-  btnAmber: {
-    background: '#d97706',
-    color: '#fff',
-  } as React.CSSProperties,
-};
+// ─── Ambient orb layer ───────────────────────────────────────────────────────
+function AmbientOrbs() {
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true" style={{ zIndex: 0 }}>
+      <div style={{
+        position: 'absolute', top: '-12%', left: '-5%',
+        width: 750, height: 750, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(79,142,247,0.13) 0%, transparent 65%)',
+        filter: 'blur(60px)',
+      }} />
+      <div style={{
+        position: 'absolute', top: '20%', right: '-10%',
+        width: 600, height: 600, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(124,90,247,0.10) 0%, transparent 65%)',
+        filter: 'blur(60px)',
+      }} />
+      <div style={{
+        position: 'absolute', bottom: '-5%', left: '30%',
+        width: 500, height: 500, borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(52,211,153,0.07) 0%, transparent 65%)',
+        filter: 'blur(50px)',
+      }} />
+    </div>
+  );
+}
 
+// ─── Logout button with hover state ─────────────────────────────────────────
+function LogoutButton({ onClick }: { onClick: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="text-[12px] px-3 py-1.5 rounded-lg"
+      style={{
+        color: hovered ? '#f87171' : 'rgba(232,238,255,0.60)',
+        border: `1px solid ${hovered ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.11)'}`,
+        background: hovered ? 'rgba(239,68,68,0.07)' : 'transparent',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        transition: 'all 0.15s ease',
+        cursor: 'pointer',
+      }}
+    >
+      Disconnect GBP
+    </button>
+  );
+}
+
+// ─── GBP connection gate card ────────────────────────────────────────────────
+function GbpGate({
+  connectState,
+  cooldown,
+  onRetry,
+}: {
+  connectState: string | null;
+  cooldown: number;
+  onRetry: () => void;
+}) {
+  return (
+    <div
+      className="rounded-2xl p-12 flex flex-col items-center gap-6 text-center"
+      style={{
+        background: 'rgba(255,255,255,0.036)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        backdropFilter: 'blur(28px) saturate(160%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(160%)',
+        boxShadow: '0 8px 40px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.09)',
+      }}
+    >
+      {(connectState === null || connectState === 'checking') && (
+        <>
+          <div
+            className="w-11 h-11 rounded-full border-[3px] animate-spin"
+            style={{ borderColor: 'rgba(79,142,247,0.45)', borderTopColor: 'transparent' }}
+          />
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'rgba(232,238,255,0.92)' }}>
+              Connecting to your Google Business Profile
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'rgba(232,238,255,0.45)' }}>
+              Verifying your account access — just a moment.
+            </p>
+          </div>
+        </>
+      )}
+
+      {connectState === 'rate-limited' && (
+        <>
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
+            style={{
+              background: 'rgba(251,191,36,0.10)',
+              border: '1px solid rgba(251,191,36,0.22)',
+              boxShadow: '0 0 20px rgba(251,191,36,0.12)',
+            }}
+          >
+            ⏳
+          </div>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'rgba(232,238,255,0.92)' }}>
+              Google's API is temporarily throttled
+            </p>
+            <p className="text-xs mt-1 max-w-sm" style={{ color: 'rgba(232,238,255,0.45)' }}>
+              Google limits how often we can verify your account. Once the countdown ends, hit retry.
+            </p>
+          </div>
+          <button
+            onClick={onRetry}
+            disabled={cooldown > 0}
+            className="text-sm font-semibold px-6 py-2.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              background: cooldown > 0
+                ? 'rgba(79,142,247,0.15)'
+                : 'linear-gradient(135deg, #4f8ef7, #7c5af7)',
+              color: '#fff',
+              border: '1px solid rgba(79,142,247,0.30)',
+              boxShadow: cooldown > 0 ? 'none' : '0 0 24px rgba(79,142,247,0.30)',
+              transition: 'all 0.15s ease',
+              cursor: cooldown > 0 ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {cooldown > 0 ? `Retry in ${cooldown}s` : 'Retry now →'}
+          </button>
+        </>
+      )}
+
+      {connectState === 'error' && (
+        <>
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
+            style={{
+              background: 'rgba(79,142,247,0.10)',
+              border: '1px solid rgba(79,142,247,0.22)',
+              boxShadow: '0 0 20px rgba(79,142,247,0.12)',
+            }}
+          >
+            🔑
+          </div>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'rgba(232,238,255,0.92)' }}>
+              Google Business Profile access needed
+            </p>
+            <p className="text-xs mt-1 max-w-sm" style={{ color: 'rgba(232,238,255,0.45)' }}>
+              Your Google connection doesn't include Business Profile permissions. Reconnect to fix it.
+            </p>
+          </div>
+          <a
+            href="/auth/reauth"
+            className="text-sm font-semibold px-6 py-2.5 rounded-xl"
+            style={{
+              background: 'linear-gradient(135deg, #d97706, #b45309)',
+              color: '#fff',
+              border: '1px solid rgba(217,119,6,0.35)',
+              boxShadow: '0 0 24px rgba(217,119,6,0.25)',
+              textDecoration: 'none',
+            }}
+          >
+            Reconnect Google Account
+          </a>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Dashboard ──────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
   const [client, setClient] = useState<Client | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('profile');
   const [locationReady, setLocationReady] = useState(false);
@@ -117,6 +246,7 @@ export default function Dashboard() {
         if (!data) return;
         setClient(data.client);
         setPosts(data.posts || []);
+        setProducts(data.products || []);
         setLoading(false);
         setTimeout(() => runPermissionCheck(), 3000);
       })
@@ -156,9 +286,23 @@ export default function Dashboard() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center" style={{ background: '#080d1a' }}>
-        <div className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
-          style={{ borderColor: '#4f8ef7', borderTopColor: 'transparent' }} />
+      <div className="h-screen flex items-center justify-center" style={{ background: '#060b18' }}>
+        <AmbientOrbs />
+        <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.25rem' }}>
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-xl"
+            style={{
+              background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)',
+              boxShadow: '0 0 32px rgba(79,142,247,0.45)',
+            }}
+          >
+            R
+          </div>
+          <div
+            className="w-8 h-8 rounded-full border-[3px] animate-spin"
+            style={{ borderColor: 'rgba(79,142,247,0.5)', borderTopColor: 'transparent' }}
+          />
+        </div>
       </div>
     );
   }
@@ -166,31 +310,50 @@ export default function Dashboard() {
   const bizInitial = (client?.business_name?.[0] || 'R').toUpperCase();
   const bizType = client?.business_type && client.business_type !== 'general' ? client.business_type : 'Business';
 
-  // Tabs that don't need GBP connection
   const freeTabIds: TabId[] = ['profile', 'posts', 'products', 'bookings', 'getreviews'];
   const tabNeedsGbp = !freeTabIds.includes(activeTab);
 
   return (
     <div
       className="h-screen overflow-hidden flex flex-col"
-      style={{ background: '#080d1a', fontFamily: "'DM Sans', system-ui, sans-serif", color: 'white' }}
+      style={{ background: '#060b18', fontFamily: "'DM Sans', system-ui, sans-serif", color: '#e8eeff', position: 'relative' }}
     >
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <header className="flex-shrink-0 flex items-center justify-between px-6 py-3" style={S.header}>
+      <AmbientOrbs />
+
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <header
+        className="flex-shrink-0 flex items-center justify-between px-6 py-3"
+        style={{
+          position: 'relative', zIndex: 20,
+          background: 'rgba(255,255,255,0.052)',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(32px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(32px) saturate(180%)',
+          boxShadow: '0 1px 0 rgba(255,255,255,0.06), 0 8px 40px rgba(0,0,0,0.40)',
+        }}
+      >
         <div className="flex items-center gap-3.5">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
-            style={S.avatar}
+            style={{
+              background: 'linear-gradient(135deg, #4f8ef7 0%, #7c5af7 100%)',
+              boxShadow: '0 0 18px rgba(79,142,247,0.40), inset 0 1px 0 rgba(255,255,255,0.22)',
+            }}
           >
             {bizInitial}
           </div>
           <div>
-            <div className="text-[15px] font-bold" style={{ color: 'rgba(240,244,255,0.95)' }}>
+            <div className="text-[15px] font-bold" style={{ color: 'rgba(232,238,255,0.96)' }}>
               {client?.business_name}
             </div>
             <span
               className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5"
-              style={S.badge}
+              style={{
+                color: '#4f8ef7',
+                background: 'rgba(79,142,247,0.12)',
+                border: '1px solid rgba(79,142,247,0.25)',
+                backdropFilter: 'blur(8px)',
+              }}
             >
               {bizType}
             </span>
@@ -199,46 +362,73 @@ export default function Dashboard() {
 
         <div className="flex items-center gap-3">
           <div
-            className="flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1.5 rounded-full"
-            style={locationReady ? S.statusLive : S.statusPending}
+            className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full"
+            style={locationReady ? {
+              color: '#34d399',
+              background: 'rgba(52,211,153,0.09)',
+              border: '1px solid rgba(52,211,153,0.22)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              boxShadow: '0 0 12px rgba(52,211,153,0.12)',
+            } : {
+              color: '#fbbf24',
+              background: 'rgba(251,191,36,0.09)',
+              border: '1px solid rgba(251,191,36,0.22)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+            }}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"
+              style={{ boxShadow: locationReady ? '0 0 6px #34d399' : '0 0 6px #fbbf24' }}
+            />
             {locationReady ? 'GBP Connected' : 'API Approval Pending'}
           </div>
-          <button
-            onClick={logout}
-            className="text-[12px] px-3 py-1.5 rounded-lg transition-all"
-            style={S.disconnectBtn}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = '#f87171';
-              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(239,68,68,0.4)';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = 'rgba(240,244,255,0.7)';
-              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.15)';
-            }}
-          >
-            Disconnect GBP
-          </button>
+          <LogoutButton onClick={logout} />
         </div>
       </header>
 
-      {/* ── Nav Tabs ────────────────────────────────────────────────── */}
-      <nav className="flex-shrink-0" style={S.nav}>
-        <div className="flex items-end gap-0.5 px-5 pt-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+      {/* ── Tab nav ──────────────────────────────────────────────────── */}
+      <nav
+        className="flex-shrink-0"
+        style={{
+          position: 'relative', zIndex: 10,
+          background: 'rgba(255,255,255,0.022)',
+          borderBottom: '1px solid rgba(255,255,255,0.065)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+        }}
+      >
+        <div
+          className="flex items-end gap-0.5 px-5 pt-2"
+          style={{ overflowX: 'auto', scrollbarWidth: 'none' }}
+        >
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className="px-3.5 pb-2.5 pt-2 text-[13px] font-medium rounded-t-lg whitespace-nowrap transition-all -mb-px"
+                className="flex items-center gap-1.5 px-3.5 pb-2.5 pt-2 text-[13px] font-medium rounded-t-lg whitespace-nowrap -mb-px"
                 style={{
-                  color: isActive ? '#4f8ef7' : 'rgba(240,244,255,0.5)',
+                  color: isActive ? '#4f8ef7' : 'rgba(232,238,255,0.45)',
                   borderBottom: isActive ? '2px solid #4f8ef7' : '2px solid transparent',
-                  background: isActive ? 'rgba(79,142,247,0.06)' : 'transparent',
+                  background: isActive ? 'rgba(79,142,247,0.07)' : 'transparent',
+                  boxShadow: isActive ? 'inset 0 1px 0 rgba(79,142,247,0.15)' : 'none',
+                  backdropFilter: isActive ? 'blur(8px)' : 'none',
+                  WebkitBackdropFilter: isActive ? 'blur(8px)' : 'none',
+                  transition: 'all 0.16s ease',
+                  cursor: 'pointer',
+                  outline: 'none',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = 'rgba(232,238,255,0.75)';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = 'rgba(232,238,255,0.45)';
                 }}
               >
+                <span style={{ fontSize: '10px', opacity: 0.65, letterSpacing: '-0.5px' }}>{tab.icon}</span>
                 {tab.label}
               </button>
             );
@@ -246,15 +436,14 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      {/* ── Panel ───────────────────────────────────────────────────── */}
+      {/* ── Main content ─────────────────────────────────────────────── */}
       <main
         className="flex-1 overflow-y-auto p-6"
-        style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.10) transparent' }}
+        style={{ position: 'relative', zIndex: 1 }}
       >
         <div className="max-w-3xl mx-auto">
 
-          {/* Tabs that are always accessible regardless of GBP status */}
-          {activeTab === 'profile' && <EditProfileTab client={client} />}
+          {activeTab === 'profile' && <EditProfileTab client={client} onClientUpdated={setClient} />}
           {activeTab === 'posts' && (
             <PostsTab
               posts={posts}
@@ -262,74 +451,19 @@ export default function Dashboard() {
               onPostUpdated={(p) => setPosts((prev) => prev.map((x) => x.id === p.id ? p : x))}
             />
           )}
-          {activeTab === 'products'   && <ProductsTab />}
-          {activeTab === 'bookings'   && <BookingsTab />}
-          {activeTab === 'getreviews' && <GetReviewsTab />}
+          {activeTab === 'products' && (
+            <ProductsTab initialProducts={products} />
+          )}
+          {activeTab === 'bookings' && <BookingsTab />}
+          {activeTab === 'getreviews' && (
+            <GetReviewsTab
+              reviewLink={client?.review_link || ''}
+              onReviewLinkSaved={(link) => setClient((c) => c ? { ...c, review_link: link } : c)}
+            />
+          )}
 
-          {/* Tabs that require GBP connection */}
           {tabNeedsGbp && !locationReady ? (
-
-            /* ── Connection gate ─────────────────────────────────── */
-            <div className="rounded-2xl p-12 flex flex-col items-center gap-6 text-center" style={S.card}>
-              {(connectState === null || connectState === 'checking') && (
-                <>
-                  <div
-                    className="w-10 h-10 border-4 border-t-transparent rounded-full animate-spin"
-                    style={{ borderColor: '#4f8ef7', borderTopColor: 'transparent' }}
-                  />
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: 'rgba(240,244,255,0.9)' }}>
-                      Connecting to your Google Business Profile
-                    </p>
-                    <p className="text-xs mt-1" style={{ color: 'rgba(240,244,255,0.5)' }}>
-                      Verifying your account access — just a moment.
-                    </p>
-                  </div>
-                </>
-              )}
-              {connectState === 'rate-limited' && (
-                <>
-                  <span className="text-4xl">⏳</span>
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: 'rgba(240,244,255,0.9)' }}>
-                      Google's API is temporarily throttled
-                    </p>
-                    <p className="text-xs mt-1 max-w-sm" style={{ color: 'rgba(240,244,255,0.5)' }}>
-                      Google limits how often we can verify your account. Once the countdown ends, hit retry.
-                    </p>
-                  </div>
-                  <button
-                    onClick={runPermissionCheck}
-                    disabled={cooldown > 0}
-                    className="text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    style={S.btnPrimary}
-                  >
-                    {cooldown > 0 ? `Retry in ${cooldown}s` : 'Retry now →'}
-                  </button>
-                </>
-              )}
-              {connectState === 'error' && (
-                <>
-                  <span className="text-4xl">🔑</span>
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: 'rgba(240,244,255,0.9)' }}>
-                      Google Business Profile access needed
-                    </p>
-                    <p className="text-xs mt-1 max-w-sm" style={{ color: 'rgba(240,244,255,0.5)' }}>
-                      Your Google connection doesn't include Business Profile permissions. Reconnect to fix it.
-                    </p>
-                  </div>
-                  <a
-                    href="/auth/reauth"
-                    className="text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors"
-                    style={S.btnAmber}
-                  >
-                    Reconnect Google Account
-                  </a>
-                </>
-              )}
-            </div>
-
+            <GbpGate connectState={connectState} cooldown={cooldown} onRetry={runPermissionCheck} />
           ) : tabNeedsGbp && locationReady ? (
             <>
               {activeTab === 'reviews'  && <ReviewsTab ready={locationReady} />}
