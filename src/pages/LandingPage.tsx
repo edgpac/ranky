@@ -57,8 +57,12 @@ export default function LandingPage() {
           <LangToggle />
           <button
             onClick={() => setPricingOpen((v) => !v)}
-            className="text-xs sm:text-sm font-medium px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all"
+            className="font-medium rounded-xl transition-all"
             style={{
+              height: '2.1em',
+              fontSize: 15,
+              paddingLeft: '1em',
+              paddingRight: '1em',
               background: pricingOpen ? 'rgba(79,142,247,0.12)' : 'transparent',
               border: `1px solid ${pricingOpen ? 'rgba(79,142,247,0.35)' : 'rgba(255,255,255,0.10)'}`,
               color: pricingOpen ? '#4f8ef7' : 'rgba(240,244,255,0.65)',
@@ -68,8 +72,8 @@ export default function LandingPage() {
           </button>
           <button
             onClick={() => navigate('/dashboard')}
-            className="text-xs sm:text-sm font-semibold px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl transition-all"
-            style={{ background: 'var(--accent)', color: '#fff' }}
+            className="font-semibold rounded-xl transition-all"
+            style={{ height: '2.1em', fontSize: 15, paddingLeft: '1.1em', paddingRight: '1.1em', background: 'var(--accent)', color: '#fff' }}
             onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
             onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
           >
