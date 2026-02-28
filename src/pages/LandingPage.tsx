@@ -1,41 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
-const STEPS = [
-  {
-    n: '01',
-    icon: '🔗',
-    title: 'Connects on day one — no orientation',
-    desc: 'One login with Google. HayVista reads your Business Profile, your photos, and your local search data. It already knows what your market needs. No handholding required.',
-  },
-  {
-    n: '02',
-    icon: '🧠',
-    title: 'Understands your business without being told',
-    desc: 'It studies your real job photos, your services, and what people nearby are actually searching for — then writes content that speaks directly to those customers.',
-  },
-  {
-    n: '03',
-    icon: '📅',
-    title: 'Shows up every week. Does the work. Sends a recap.',
-    desc: 'Posts publish to your GBP up to 4 times a week — within Google\'s guidelines so your profile stays clean. You get a WhatsApp summary of what went up. You stay in control.',
-  },
-];
-
-const PLAN_FEATURES = [
-  'Up to 4 posts / week',
-  'Photo + search keyword matching',
-  'GBP content published automatically',
-  'Weekly WhatsApp activity summary',
-  'Reviews, Photos, Services & Insights dashboard',
-  'No contracts — cancel anytime',
-];
-
-const STATS = [
-  { value: '$17', label: 'per month — less than minimum wage' },
-  { value: '4×', label: 'max posts/week — no Google spam' },
-  { value: '100%', label: 'Google API compliant' },
-];
+import { useLanguage } from '../contexts/LanguageContext';
+import { landing } from '../translations/landing';
 
 const glass: React.CSSProperties = {
   background: 'rgba(255,255,255,0.04)',
@@ -44,8 +10,41 @@ const glass: React.CSSProperties = {
   boxShadow: '0 4px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.07)',
 };
 
+function LangToggle() {
+  const { language, setLanguage } = useLanguage();
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      onClick={() => setLanguage(language === 'en' ? 'es' : 'en')}
+      aria-label={language === 'en' ? 'Switch to Spanish' : 'Switch to English'}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: 'relative',
+        overflow: 'hidden',
+        width: '4rem',
+        borderRadius: '30em',
+        padding: '0.25rem 0',
+        fontSize: '0.8125rem',
+        fontWeight: 700,
+        border: '1px solid rgba(79,142,247,0.4)',
+        cursor: 'pointer',
+        background: hovered ? 'linear-gradient(135deg, #4f8ef7, #7c5af7)' : 'transparent',
+        color: hovered ? '#fff' : '#4f8ef7',
+        transition: 'background 0.3s ease, color 0.3s ease',
+        letterSpacing: '0.05em',
+      }}
+    >
+      {language === 'en' ? 'ES' : 'EN'}
+    </button>
+  );
+}
+
 export default function LandingPage() {
   const navigate = useNavigate();
+  const { language } = useLanguage();
+  const t = landing[language];
   const [pricingOpen, setPricingOpen] = useState(false);
 
   return (
@@ -68,7 +67,8 @@ export default function LandingPage() {
         <div className="flex items-center gap-2.5">
           <img src="/hayvista-logo.png" alt="HayVista" style={{ width: 80, height: 80, objectFit: 'contain', flexShrink: 0 }} />
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <LangToggle />
           <button
             onClick={() => setPricingOpen((v) => !v)}
             className="text-sm font-medium px-4 py-2 rounded-xl transition-all"
@@ -78,7 +78,7 @@ export default function LandingPage() {
               color: pricingOpen ? '#4f8ef7' : 'rgba(240,244,255,0.65)',
             }}
           >
-            Pricing
+            {t.nav.pricing}
           </button>
           <button
             onClick={() => navigate('/dashboard')}
@@ -87,20 +87,14 @@ export default function LandingPage() {
             onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
             onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
           >
-            Get Started Free
+            {t.nav.cta}
           </button>
         </div>
 
         {/* Pricing dropdown */}
         {pricingOpen && (
           <>
-            {/* Backdrop */}
-            <div
-              className="fixed inset-0"
-              style={{ zIndex: 40 }}
-              onClick={() => setPricingOpen(false)}
-            />
-            {/* Card */}
+            <div className="fixed inset-0" style={{ zIndex: 40 }} onClick={() => setPricingOpen(false)} />
             <div
               className="absolute right-8 top-[calc(100%+8px)] w-[380px] rounded-2xl p-8 flex flex-col gap-5"
               style={{
@@ -112,39 +106,36 @@ export default function LandingPage() {
               }}
             >
               <div className="text-center mb-1">
-                <p className="text-xs font-bold tracking-widest mb-1" style={{ color: 'var(--accent)' }}>PRICING</p>
-                <h3 className="text-lg font-extrabold">Simple pricing. No surprises.</h3>
-                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>One plan. Every feature. Less than a meal out.</p>
+                <p className="text-xs font-bold tracking-widest mb-1" style={{ color: 'var(--accent)' }}>{t.pricing.label}</p>
+                <h3 className="text-lg font-extrabold">{t.pricing.h3}</h3>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{t.pricing.sub}</p>
               </div>
 
-              <span
-                className="self-center text-xs font-bold px-4 py-1 rounded-full"
-                style={{ background: 'var(--accent)', color: '#fff' }}
-              >
-                Everything included
+              <span className="self-center text-xs font-bold px-4 py-1 rounded-full" style={{ background: 'var(--accent)', color: '#fff' }}>
+                {t.pricing.badge}
               </span>
 
               <div className="flex items-end justify-between">
                 <div>
-                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent)' }}>Starter Plan</p>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent)' }}>{t.pricing.planName}</p>
                   <div className="flex items-end gap-1">
                     <span className="text-4xl font-extrabold">$17</span>
-                    <span className="text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>/month</span>
+                    <span className="text-sm mb-1.5" style={{ color: 'var(--text-muted)' }}>{t.pricing.perMonth}</span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs" style={{ color: 'rgba(240,244,255,0.45)' }}>capped at</p>
+                  <p className="text-xs" style={{ color: 'rgba(240,244,255,0.45)' }}>{t.pricing.cappedAt}</p>
                   <p className="text-2xl font-extrabold" style={{ color: '#a5c4fd' }}>4×</p>
-                  <p className="text-xs" style={{ color: 'rgba(240,244,255,0.45)' }}>posts / week</p>
+                  <p className="text-xs" style={{ color: 'rgba(240,244,255,0.45)' }}>{t.pricing.postsWeek}</p>
                 </div>
               </div>
 
               <p className="text-xs leading-relaxed" style={{ color: 'rgba(240,244,255,0.45)', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '0.75rem' }}>
-                Capped at 4/week to respect Google's publishing guidelines — no spam, no penalties.
+                {t.pricing.disclaimer}
               </p>
 
               <ul className="flex flex-col gap-2">
-                {PLAN_FEATURES.map((f) => (
+                {t.pricing.features.map((f) => (
                   <li key={f} className="flex items-center gap-2 text-sm" style={{ color: 'rgba(240,244,255,0.8)' }}>
                     <span style={{ color: 'var(--success)', flexShrink: 0 }}>✓</span>
                     {f}
@@ -159,7 +150,7 @@ export default function LandingPage() {
                 onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
               >
-                Hire HayVista — Get Started Free
+                {t.pricing.cta}
               </button>
             </div>
           </>
@@ -175,21 +166,21 @@ export default function LandingPage() {
           style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: 'var(--success)' }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-          YOUR BEST EMPLOYEE — FOR $17 A MONTH
+          {t.badge}
         </div>
 
         <h1 className="text-5xl md:text-7xl font-extrabold leading-tight max-w-4xl mb-6">
-          The employee who already knows{' '}
+          {t.hero.h1a}{' '}
           <span style={{ background: 'linear-gradient(90deg, #4f8ef7, #7c5af7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-            your business.
+            {t.hero.h1b}
           </span>
         </h1>
 
         <p className="text-lg md:text-xl max-w-2xl leading-relaxed mb-4" style={{ color: 'var(--text-muted)' }}>
-          No training. No onboarding. No sick days.
+          {t.hero.sub1}
         </p>
         <p className="text-lg md:text-xl max-w-2xl leading-relaxed mb-10" style={{ color: 'var(--text-muted)' }}>
-          HayVista walks in on day one, reads your Google Business Profile, studies your photos and what locals are searching for — and starts publishing content that puts you in front of customers every single week.
+          {t.hero.sub2}
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-4">
@@ -200,13 +191,13 @@ export default function LandingPage() {
             onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 60px rgba(79,142,247,0.5)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 40px rgba(79,142,247,0.35)'; }}
           >
-            Meet Your New Employee — Free
+            {t.hero.cta}
           </button>
         </div>
 
         {/* Stats */}
         <div className="mt-20 flex flex-wrap justify-center gap-12">
-          {STATS.map((s) => (
+          {t.stats.map((s) => (
             <div key={s.label} className="text-center">
               <p className="text-3xl font-extrabold" style={{ color: 'var(--accent)' }}>{s.value}</p>
               <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
@@ -215,7 +206,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── What makes this employee different ──────────────────────── */}
+      {/* ── Why HayVista Works ──────────────────────────────────────── */}
       <section className="relative px-6 py-16">
         <div className="max-w-3xl mx-auto">
           <div
@@ -226,23 +217,15 @@ export default function LandingPage() {
               backdropFilter: 'blur(8px)',
             }}
           >
-            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--accent)' }}>WHY HAYVISTA WORKS</p>
-            <h2 className="text-2xl font-extrabold leading-snug">
-              Most businesses lose customers because they're invisible on Google.<br />
-              Not because they do bad work.
+            <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--accent)' }}>{t.why.label}</p>
+            <h2 className="text-2xl font-extrabold leading-snug" style={{ whiteSpace: 'pre-line' }}>
+              {t.why.h2}
             </h2>
             <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-              A great plumber, contractor, or shop owner spends their day doing the job — not writing Google posts.
-              HayVista is the team member who handles that. It knows your services, your area, your photos.
-              It writes the content, picks the right keywords, and publishes — while you focus on the work that actually pays.
+              {t.why.body}
             </p>
             <div className="grid grid-cols-2 gap-4 mt-2">
-              {[
-                { icon: '🧠', label: 'No training needed', desc: 'Reads your GBP and starts working immediately' },
-                { icon: '📸', label: 'Uses your real photos', desc: 'Matches job photos to local search queries automatically' },
-                { icon: '📅', label: 'Never misses a week', desc: 'Publishes up to 4× per week — within Google\'s limits' },
-                { icon: '📲', label: 'Keeps you in the loop', desc: 'Weekly WhatsApp recap of everything published' },
-              ].map((item) => (
+              {t.why.tiles.map((item) => (
                 <div
                   key={item.label}
                   className="rounded-xl p-4 flex flex-col gap-1.5"
@@ -262,11 +245,11 @@ export default function LandingPage() {
       <section id="how" className="relative px-6 py-24">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-xs font-bold tracking-widest mb-3" style={{ color: 'var(--accent)' }}>HOW IT WORKS</p>
-            <h2 className="text-4xl font-extrabold">Three steps. Runs itself after that.</h2>
+            <p className="text-xs font-bold tracking-widest mb-3" style={{ color: 'var(--accent)' }}>{t.how.label}</p>
+            <h2 className="text-4xl font-extrabold">{t.how.h2}</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            {STEPS.map((s) => (
+            {t.how.steps.map((s) => (
               <div
                 key={s.n}
                 className="rounded-2xl p-7 flex flex-col gap-4 transition-all cursor-default"
@@ -299,28 +282,30 @@ export default function LandingPage() {
           >
             <div className="flex items-center gap-2 mb-1">
               <span style={{ color: 'var(--success)', fontSize: 18 }}>🔒</span>
-              <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--success)' }}>GOOGLE API COMPLIANCE</p>
+              <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--success)' }}>{t.compliance.label}</p>
             </div>
-            <h2 className="text-2xl font-extrabold">Your data. Your control.</h2>
+            <h2 className="text-2xl font-extrabold">{t.compliance.h2}</h2>
             <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-              HayVista uses the Google Business Profile API in strict accordance with the{' '}
-              <a
-                href="https://developers.google.com/terms/api-services-user-data-policy"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: 'var(--accent)', textDecoration: 'underline' }}
-              >
-                Google API Services User Data Policy
-              </a>
-              , including all Limited Use requirements. We access your Business Profile only to suggest and publish content on your behalf — nothing else.
+              {language === 'en' ? (
+                <>
+                  HayVista uses the Google Business Profile API in strict accordance with the{' '}
+                  <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
+                    {t.compliance.linkText}
+                  </a>
+                  , including all Limited Use requirements. We access your Business Profile only to suggest and publish content on your behalf — nothing else.
+                </>
+              ) : (
+                <>
+                  HayVista utiliza la API de Perfil de Negocio de Google en estricta conformidad con la{' '}
+                  <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
+                    {t.compliance.linkText}
+                  </a>
+                  , incluidos todos los requisitos de Uso Limitado. Accedemos a tu Perfil de Negocio solo para sugerir y publicar contenido en tu nombre — nada más.
+                </>
+              )}
             </p>
             <ul className="flex flex-col gap-2 mt-1">
-              {[
-                'We never sell or share your Google data with third parties',
-                'OAuth access can be revoked at any time from your Google Account settings',
-                'You can review, pause, or disconnect your profile at any time',
-                'All content is suggested by AI and published according to your chosen schedule',
-              ].map((item) => (
+              {t.compliance.bullets.map((item) => (
                 <li key={item} className="flex items-start gap-2 text-sm" style={{ color: 'rgba(240,244,255,0.75)' }}>
                   <span style={{ color: 'var(--success)', marginTop: 2, flexShrink: 0 }}>✓</span>
                   {item}
@@ -331,7 +316,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-{/* ── Final CTA ───────────────────────────────────────────────── */}
+      {/* ── Final CTA ───────────────────────────────────────────────── */}
       <section className="relative px-6 py-28 text-center">
         <div
           className="max-w-3xl mx-auto rounded-3xl px-8 py-20 flex flex-col items-center gap-6"
@@ -343,10 +328,10 @@ export default function LandingPage() {
           }}
         >
           <h2 className="text-4xl md:text-5xl font-extrabold leading-tight max-w-lg">
-            Your most important hire costs $17 a month.
+            {t.finalCta.h2}
           </h2>
           <p className="text-base max-w-md" style={{ color: 'var(--text-muted)' }}>
-            No résumé. No interview. No training. HayVista shows up every week, knows your business, and keeps you visible where your next customer is searching.
+            {t.finalCta.body}
           </p>
           <button
             onClick={() => navigate('/dashboard')}
@@ -355,7 +340,7 @@ export default function LandingPage() {
             onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 60px rgba(79,142,247,0.5)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 40px rgba(79,142,247,0.35)'; }}
           >
-            Make the Hire — Free to Start
+            {t.finalCta.cta}
           </button>
         </div>
       </section>
@@ -363,25 +348,20 @@ export default function LandingPage() {
       </main>
 
       {/* ── Footer ──────────────────────────────────────────────────── */}
-      <footer
-        className="px-8 md:px-16 py-8"
-        style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
-      >
+      <footer className="px-8 md:px-16 py-8" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <span className="font-bold text-lg">HayVista</span>
           <div className="flex flex-col items-center md:items-end gap-1">
             <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              HayVista Inc. · Cabo San Lucas, BCS, Mexico ·{' '}
+              {t.footer.address} ·{' '}
               <a href="mailto:support@hayvista.com" style={{ color: 'var(--accent)' }}>support@hayvista.com</a>
             </span>
-            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
-              © 2026 HayVista. AI-assisted GBP content management for local businesses.
-            </span>
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>{t.footer.copyright}</span>
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-4 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
-          <a href="/privacy" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">Privacy Policy</a>
-          <a href="/terms" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">Terms of Service</a>
+        <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-4 text-xs">
+          <a href="/privacy" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">{t.footer.privacy}</a>
+          <a href="/terms" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">{t.footer.terms}</a>
         </div>
       </footer>
     </div>

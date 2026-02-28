@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { LanguageProvider } from './contexts/LanguageContext';
 import LandingPage from './pages/LandingPage';
 import SignupPage from './pages/SignupPage';
 import AuthCallback from './pages/AuthCallback';
@@ -8,6 +9,7 @@ import TermsPage from './pages/TermsPage';
 
 export default function App() {
   return (
+    <LanguageProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
@@ -18,5 +20,6 @@ export default function App() {
         <Route path="/terms" element={<TermsPage />} />
       </Routes>
     </BrowserRouter>
+    </LanguageProvider>
   );
 }
