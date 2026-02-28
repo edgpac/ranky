@@ -2,7 +2,7 @@ export const landing = {
   en: {
     nav: {
       pricing: 'Pricing',
-      cta: 'Get Started Free',
+      cta: 'Get Started',
     },
     badge: 'YOUR BEST EMPLOYEE — FOR $17 A MONTH',
     hero: {
@@ -131,7 +131,7 @@ export const landing = {
   es: {
     nav: {
       pricing: 'Precios',
-      cta: 'Comenzar Gratis',
+      cta: 'Comenzar',
     },
     badge: 'TU MEJOR EMPLEADO — POR $17 AL MES',
     hero: {
