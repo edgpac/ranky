@@ -64,20 +64,54 @@ export const landing = {
     pricing: {
       label: 'PRICING',
       h3: 'Simple pricing. No surprises.',
-      sub: 'One plan. Every feature. Less than a meal out.',
+      sub: 'One plan. Every feature. Less than a cup of coffee a day.',
       badge: 'Everything included',
       planName: 'Starter Plan',
       perMonth: '/month',
-      cappedAt: 'capped at',
-      postsWeek: 'posts / week',
-      disclaimer: "Capped at 4/week to respect Google's publishing guidelines — no spam, no penalties.",
-      features: [
-        'Up to 4 posts / week',
-        'Photo + search keyword matching',
-        'GBP content published automatically',
-        'Weekly WhatsApp activity summary',
-        'Reviews, Photos, Services & Insights dashboard',
-        'No contracts — cancel anytime',
+      valueLabel: 'A part-time marketing hire costs',
+      valueCrossed: '$2,000+/mo',
+      valueYours: 'Yours for',
+      cappedNote: 'Capped at 4 posts/week — Google\'s recommended limit for healthy profiles. No spam, no penalties.',
+      groups: [
+        {
+          title: 'CONTENT PUBLISHING',
+          items: [
+            { icon: '📝', text: 'Up to 4 posts / week — photo + search-matched copy' },
+            { icon: '🚀', text: 'Published directly to your Google Business Profile' },
+            { icon: '🔄', text: 'Rotates formats: updates, offers, event posts, tips' },
+          ],
+        },
+        {
+          title: 'REVIEW MANAGEMENT',
+          items: [
+            { icon: '⭐', text: 'AI reply drafts for every incoming customer review' },
+            { icon: '🎯', text: 'Matches your tone — friendly, professional, or bilingual' },
+            { icon: '🚨', text: 'Flags urgent or negative reviews immediately' },
+          ],
+        },
+        {
+          title: 'PROFILE & PHOTOS',
+          items: [
+            { icon: '📸', text: 'Photo SEO tagging — keywords injected before every upload' },
+            { icon: '🛠️', text: 'Services list kept current and GBP-optimized' },
+            { icon: '🔗', text: 'Booking & CTA links managed for you' },
+          ],
+        },
+        {
+          title: 'INTELLIGENCE & INSIGHTS',
+          items: [
+            { icon: '🔍', text: 'Tracks what locals are searching near your location' },
+            { icon: '📊', text: 'Weekly GBP report — views, searches, calls tracked' },
+            { icon: '🧠', text: 'AI adjusts strategy based on what\'s actually working' },
+          ],
+        },
+        {
+          title: 'UPDATES & SUPPORT',
+          items: [
+            { icon: '📲', text: 'Weekly WhatsApp digest — see exactly what went up' },
+            { icon: '✅', text: 'No contracts. Cancel anytime. No lock-in.' },
+          ],
+        },
       ],
       cta: 'Hire HayVista — Get Started Free',
     },
@@ -159,20 +193,54 @@ export const landing = {
     pricing: {
       label: 'PRECIOS',
       h3: 'Precio simple. Sin sorpresas.',
-      sub: 'Un plan. Cada función. Menos que una comida.',
+      sub: 'Un plan. Cada función. Menos que un café al día.',
       badge: 'Todo incluido',
       planName: 'Plan Inicial',
       perMonth: '/mes',
-      cappedAt: 'máx. al',
-      postsWeek: 'publicaciones / semana',
-      disclaimer: 'Limitado a 4/semana para respetar las pautas de publicación de Google — sin spam, sin penalizaciones.',
-      features: [
-        'Hasta 4 publicaciones / semana',
-        'Coincidencia de fotos + palabras clave de búsqueda',
-        'Contenido de GBP publicado automáticamente',
-        'Resumen semanal de actividad por WhatsApp',
-        'Panel de Reseñas, Fotos, Servicios e Información',
-        'Sin contratos — cancela cuando quieras',
+      valueLabel: 'Un empleado de marketing a tiempo parcial cuesta',
+      valueCrossed: '$2,000+/mes',
+      valueYours: 'El tuyo por',
+      cappedNote: 'Máximo 4 publicaciones por semana — el límite recomendado de Google para perfiles saludables. Sin spam, sin penalizaciones.',
+      groups: [
+        {
+          title: 'PUBLICACIÓN DE CONTENIDO',
+          items: [
+            { icon: '📝', text: 'Hasta 4 publicaciones / semana — con fotos y búsquedas locales' },
+            { icon: '🚀', text: 'Publicado directamente en tu Perfil de Negocio de Google' },
+            { icon: '🔄', text: 'Rota formatos: actualizaciones, ofertas, eventos, consejos' },
+          ],
+        },
+        {
+          title: 'GESTIÓN DE RESEÑAS',
+          items: [
+            { icon: '⭐', text: 'Respuestas con IA para cada reseña de cliente' },
+            { icon: '🎯', text: 'Adapta tu tono — amigable, profesional o bilingüe' },
+            { icon: '🚨', text: 'Detecta y alerta sobre reseñas urgentes o negativas' },
+          ],
+        },
+        {
+          title: 'PERFIL Y FOTOS',
+          items: [
+            { icon: '📸', text: 'Etiquetado SEO de fotos — palabras clave antes de cada carga' },
+            { icon: '🛠️', text: 'Lista de servicios actualizada y optimizada para GBP' },
+            { icon: '🔗', text: 'Links de reserva y CTA gestionados por ti' },
+          ],
+        },
+        {
+          title: 'INTELIGENCIA E INSIGHTS',
+          items: [
+            { icon: '🔍', text: 'Rastrea lo que buscan los locales cerca de tu negocio' },
+            { icon: '📊', text: 'Informe semanal de GBP — vistas, búsquedas y llamadas' },
+            { icon: '🧠', text: 'La IA ajusta la estrategia según lo que realmente funciona' },
+          ],
+        },
+        {
+          title: 'ACTUALIZACIONES Y SOPORTE',
+          items: [
+            { icon: '📲', text: 'Resumen semanal por WhatsApp — ve exactamente qué se publicó' },
+            { icon: '✅', text: 'Sin contratos. Cancela cuando quieras. Sin permanencia.' },
+          ],
+        },
       ],
       cta: 'Contratar HayVista — Comenzar Gratis',
     },

@@ -101,6 +101,51 @@ body {
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
 
+/* ── Language toggle — pill with sliding gradient + glow ─────────── */
+.lang-toggle-btn {
+  width: 4.5em;
+  height: 2.1em;
+  border-radius: 30em;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: 0.06em;
+  border: 1px solid rgba(79,142,247,0.45);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  cursor: pointer;
+  background: transparent;
+  color: #4f8ef7;
+  transition: color 0.45s ease, box-shadow 0.45s ease, border-color 0.45s ease;
+}
+
+.lang-toggle-btn::before {
+  content: '';
+  width: 0;
+  height: 100%;
+  border-radius: 30em;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: linear-gradient(135deg, #4f8ef7 0%, #7c5af7 100%);
+  transition: width 0.45s ease;
+  display: block;
+  z-index: -1;
+}
+
+.lang-toggle-btn:hover::before,
+.lang-toggle-btn:active::before {
+  width: 100%;
+}
+
+.lang-toggle-btn:hover,
+.lang-toggle-btn:active {
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 0 16px 4px rgba(79,142,247,0.50), 0 0 36px 8px rgba(124,90,247,0.22);
+}
+
 /* Input / select reset for glass aesthetic */
 input, textarea, select {
   background: rgba(255,255,255,0.05);
