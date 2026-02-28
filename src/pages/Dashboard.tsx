@@ -337,7 +337,7 @@ export default function Dashboard() {
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
           <img
-            src="/Ranky.png"
+            src="/rankylogo.png"
             alt="Ranky"
             style={{ width: '38px', height: '38px', objectFit: 'contain', flexShrink: 0 }}
           />
