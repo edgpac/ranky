@@ -2,11 +2,12 @@ import { useRef, useState } from 'react';
 
 // ─── AI capability bullets ─────────────────────────────────────────────────────
 const AI_POST_BULLETS = [
-  { icon: '◎', text: 'Reads your top local Google search queries — post copy targets what people nearby are already searching' },
-  { icon: '◇', text: 'Selects a real photo from your GBP gallery that matches the post topic' },
-  { icon: '◈', text: 'Writes in your configured tone (Friendly / Professional / Bilingual) and keeps it under 1,500 characters' },
-  { icon: '✦', text: 'Includes a call-to-action matched to your service type — no generic filler text' },
-  { icon: '⊞', text: 'Publishes on your set schedule (1–4× per week) so your listing stays active without manual work' },
+  { icon: '◎', text: 'Targets your top local Google search queries — post copy is written around what people nearby are already searching for' },
+  { icon: '◇', text: 'Pulls real photos from your GBP gallery and matches the image to the post topic automatically' },
+  { icon: '◈', text: 'Spotlights your services and products — each post can feature a specific offering with its name and price' },
+  { icon: '✦', text: 'Mines your existing reviews for authentic language and proof points to weave into post copy' },
+  { icon: '⊙', text: 'Angles vary every post: seasonal promotions, before/after results, tips, FAQs, product highlights, and more' },
+  { icon: '⊞', text: 'Writes in your configured tone, includes a matched CTA, and publishes on your 1–4× per week schedule automatically' },
 ];
 
 function AiBanner() {
@@ -333,7 +334,7 @@ export default function PostsTab({ posts, onPostGenerated, onPostUpdated }: Prop
       {/* Top action row */}
       <div className="flex items-center justify-between">
         <p style={{ fontSize: '0.875rem', color: 'rgba(240,244,255,0.5)' }}>
-          Posts are generated from your GBP photos + top local search queries.
+          AI writes from your photos, services, products, reviews & top local search queries.
         </p>
         <button
           style={{ ...btnPrimary, flexShrink: 0 }}
