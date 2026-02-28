@@ -85,15 +85,6 @@ export default function LandingPage() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/signup')}
-            className="text-sm font-medium transition-colors"
-            style={{ color: 'var(--text-muted)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
-          >
-            Log in
-          </button>
-          <button
-            onClick={() => navigate('/signup')}
             className="text-sm font-semibold px-5 py-2.5 rounded-xl transition-all"
             style={{ background: 'var(--accent)', color: '#fff' }}
             onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
@@ -133,17 +124,8 @@ export default function LandingPage() {
             onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 60px rgba(79,142,247,0.5)'; }}
             onMouseLeave={(e) => { e.currentTarget.style.boxShadow = '0 0 40px rgba(79,142,247,0.35)'; }}
           >
-            Connect My Google Profile
+            Get Started Free
           </button>
-          <a
-            href="#how"
-            className="text-base font-medium px-8 py-4 rounded-xl transition-all"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text)' }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-          >
-            See How It Works
-          </a>
         </div>
 
         {/* Stats */}
