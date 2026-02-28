@@ -256,7 +256,7 @@ export default function EditProfileTab({ client, onClientUpdated }: Props) {
                 style={inputStyle}
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
-                placeholder="+52 624 000 0000"
+                placeholder="+1 555 000 0000"
                 type="tel"
               />
             </div>
@@ -266,7 +266,7 @@ export default function EditProfileTab({ client, onClientUpdated }: Props) {
                 style={inputStyle}
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder="Cabo San Lucas"
+                placeholder="City or service area"
               />
             </div>
           </div>

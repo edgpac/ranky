@@ -245,7 +245,7 @@ export default function SignupPage() {
                     <input
                       className="h-11 px-3 rounded-lg text-sm outline-none"
                       style={inputStyle}
-                      placeholder="Edgar"
+                      placeholder="Your name"
                       value={form.name}
                       onChange={(e) => updateForm({ name: e.target.value })}
                     />
@@ -255,7 +255,7 @@ export default function SignupPage() {
                     <input
                       className="h-11 px-3 rounded-lg text-sm outline-none"
                       style={inputStyle}
-                      placeholder="Cabos Handyman"
+                      placeholder="Your business name"
                       value={form.businessName}
                       onChange={(e) => updateForm({ businessName: e.target.value })}
                     />
@@ -285,7 +285,7 @@ export default function SignupPage() {
                   <input
                     className="h-11 px-3 rounded-lg text-sm outline-none"
                     style={inputStyle}
-                    placeholder="+52 624 000 0000"
+                    placeholder="+1 555 000 0000"
                     value={form.whatsapp}
                     onChange={(e) => updateForm({ whatsapp: e.target.value })}
                   />
