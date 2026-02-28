@@ -128,6 +128,11 @@ export default function GetReviewsTab({ reviewLink, onReviewLinkSaved }: Props) 
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Section description */}
+      <p style={{ fontSize: '0.8125rem', color: 'rgba(232,238,255,0.45)' }}>
+        Share your review link and grow your star rating — send it to customers after a job is done.
+      </p>
+
       {/* Review link */}
       <div style={glassCard}>
         <div className="flex items-center justify-between mb-3">

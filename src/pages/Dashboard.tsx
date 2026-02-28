@@ -210,7 +210,7 @@ function GbpGate({
               textDecoration: 'none',
             }}
           >
-            Reconnect Google Account
+            Connect Google
           </a>
         </>
       )}

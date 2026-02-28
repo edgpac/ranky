@@ -176,6 +176,11 @@ export default function ServicesTab({ ready }: { ready: boolean }) {
 
   return (
     <div>
+      {/* Section description */}
+      <p style={{ fontSize: '0.8125rem', color: 'rgba(232,238,255,0.45)', marginBottom: '1rem' }}>
+        Keep your service listings up to date on Google Business Profile so customers always see what you offer.
+      </p>
+
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>

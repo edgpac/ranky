@@ -420,6 +420,11 @@ export default function ReviewsTab({ ready }: { ready: boolean }) {
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Section description */}
+      <p style={{ fontSize: '0.8125rem', color: 'rgba(232,238,255,0.45)' }}>
+        Respond to customer reviews with AI-matched tone — HayVista reads the review and replies in your voice.
+      </p>
+
       {/* AI capability banner */}
       <AiBanner />
 

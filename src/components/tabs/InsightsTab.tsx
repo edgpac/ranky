@@ -136,6 +136,11 @@ export default function InsightsTab({ ready }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Section description */}
+      <p style={{ fontSize: '0.8125rem', color: 'rgba(232,238,255,0.45)' }}>
+        Track views, searches, and profile activity pulled directly from your Google Business Profile.
+      </p>
+
       {/* Header row */}
       <div className="flex items-center justify-between">
         <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>Performance</h2>
