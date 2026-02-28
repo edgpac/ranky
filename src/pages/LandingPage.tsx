@@ -5,19 +5,19 @@ const STEPS = [
     n: '01',
     icon: '🔗',
     title: 'Connect your Google account',
-    desc: 'One login with Google. We get read access to your photos and search data. You never share a password.',
+    desc: 'One login with Google. We get read/write access to your Business Profile on your behalf. You stay in full control and can disconnect at any time.',
   },
   {
     n: '02',
     icon: '🧠',
-    title: 'We match photos to searches',
-    desc: 'Claude reads your photos and your real local search data to find the best match — then writes a post that answers what people are already looking for.',
+    title: 'AI matches photos to local searches',
+    desc: 'Our AI reads your business photos and real local search data to suggest content that answers what people in your area are already looking for.',
   },
   {
     n: '03',
-    icon: '🚀',
-    title: 'Posts go live automatically',
-    desc: 'Your GBP gets fresh posts on your schedule — 1 to 4 times a week. You get a WhatsApp update showing what went up.',
+    icon: '📅',
+    title: 'Content goes up on your schedule',
+    desc: 'Suggested posts publish to your GBP 1 to 4 times a week. You get a WhatsApp summary showing what went up — and you can pause or adjust anytime.',
   },
 ];
 
@@ -27,28 +27,28 @@ const PLANS = [
     price: '$79',
     freq: '1 post / week',
     highlight: false,
-    features: ['Photo + search matching', 'Auto-posting to GBP', 'Weekly WhatsApp update', 'Cancel anytime'],
+    features: ['Photo + search matching', 'GBP content publishing', 'Weekly WhatsApp summary', 'Cancel anytime'],
   },
   {
     name: 'Growth',
     price: '$149',
     freq: '2 posts / week',
     highlight: true,
-    features: ['Everything in Starter', '2× the GBP visibility', 'Priority support', 'Cancel anytime'],
+    features: ['Everything in Starter', '2× weekly GBP content', 'Priority support', 'Cancel anytime'],
   },
   {
     name: 'Pro',
     price: '$199',
     freq: 'Up to 4 posts / week',
     highlight: false,
-    features: ['Everything in Growth', 'Maximum GBP activity', 'Fastest ranking results', 'Cancel anytime'],
+    features: ['Everything in Growth', 'Full weekly content cadence', 'Dedicated account review', 'Cancel anytime'],
   },
 ];
 
 const STATS = [
-  { value: '4×', label: 'more GBP visibility' },
+  { value: '4×', label: 'more GBP content activity' },
   { value: '2 min', label: 'setup time' },
-  { value: '0', label: 'posts written by you' },
+  { value: '100%', label: 'Google API compliant' },
 ];
 
 const glass: React.CSSProperties = {
@@ -79,7 +79,7 @@ export default function LandingPage() {
         style={{ background: 'rgba(8,13,26,0.75)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
       >
         <div className="flex items-center gap-2.5">
-          <img src="/rankylogo.png" alt="Ranky" style={{ width: 56, height: 56, objectFit: 'contain', flexShrink: 0 }} />
+          <img src="/rankylogo.png" alt="HayVista" style={{ width: 56, height: 56, objectFit: 'contain', flexShrink: 0 }} />
         </div>
         <div className="flex items-center gap-4">
           <button
@@ -103,18 +103,18 @@ export default function LandingPage() {
           style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)', color: 'var(--success)' }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-          AUTOMATED GBP POSTING
+          AI-ASSISTED GBP CONTENT
         </div>
 
         <h1 className="text-5xl md:text-7xl font-extrabold leading-tight max-w-4xl mb-6">
-          Your Google Business Profile{' '}
+          Your Google Business Profile,{' '}
           <span style={{ background: 'linear-gradient(90deg, #4f8ef7, #7c5af7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-            posts itself.
+            always visible.
           </span>
         </h1>
 
         <p className="text-lg md:text-xl max-w-xl leading-relaxed mb-10" style={{ color: 'var(--text-muted)' }}>
-          We use your real job photos and what locals are already searching for to write and post to your GBP every week. Automatically.
+          We use your real job photos and what locals are already searching for to craft and publish GBP content every week — with your approval.
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-4">
@@ -145,7 +145,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-xs font-bold tracking-widest mb-3" style={{ color: 'var(--accent)' }}>HOW IT WORKS</p>
-            <h2 className="text-4xl font-extrabold">Three steps. Zero effort after setup.</h2>
+            <h2 className="text-4xl font-extrabold">Three steps. Minimal effort after setup.</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {STEPS.map((s) => (
@@ -164,6 +164,51 @@ export default function LandingPage() {
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>{s.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Compliance & Trust ──────────────────────────────────────── */}
+      <section className="relative px-6 py-16">
+        <div className="max-w-3xl mx-auto">
+          <div
+            className="rounded-2xl px-8 py-10 flex flex-col gap-4"
+            style={{
+              background: 'rgba(52,211,153,0.04)',
+              border: '1px solid rgba(52,211,153,0.15)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <span style={{ color: 'var(--success)', fontSize: 18 }}>🔒</span>
+              <p className="text-xs font-bold tracking-widest" style={{ color: 'var(--success)' }}>GOOGLE API COMPLIANCE</p>
+            </div>
+            <h2 className="text-2xl font-extrabold">Your data. Your control.</h2>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              HayVista uses the Google Business Profile API in strict accordance with the{' '}
+              <a
+                href="https://developers.google.com/terms/api-services-user-data-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--accent)', textDecoration: 'underline' }}
+              >
+                Google API Services User Data Policy
+              </a>
+              , including all Limited Use requirements. We access your Business Profile only to suggest and publish content on your behalf — nothing else.
+            </p>
+            <ul className="flex flex-col gap-2 mt-1">
+              {[
+                'We never sell or share your Google data with third parties',
+                'OAuth access can be revoked at any time from your Google Account settings',
+                'You can review, pause, or disconnect your profile at any time',
+                'All content is suggested by AI and published according to your chosen schedule',
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-2 text-sm" style={{ color: 'rgba(240,244,255,0.75)' }}>
+                  <span style={{ color: 'var(--success)', marginTop: 2, flexShrink: 0 }}>✓</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
@@ -241,7 +286,7 @@ export default function LandingPage() {
             Start showing up where your customers are searching.
           </h2>
           <p className="text-base" style={{ color: 'var(--text-muted)' }}>
-            Login with Google once. Posts go up every week.
+            Connect your Google account once. Content goes up every week — on your terms.
           </p>
           <button
             onClick={() => navigate('/signup')}
@@ -259,11 +304,25 @@ export default function LandingPage() {
 
       {/* ── Footer ──────────────────────────────────────────────────── */}
       <footer
-        className="flex items-center justify-between px-8 md:px-16 h-[64px]"
+        className="px-8 md:px-16 py-8"
         style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
       >
-        <span className="font-bold text-lg">Ranky</span>
-        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>© 2026 Ranky. Automated GBP posting for local businesses.</span>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <span className="font-bold text-lg">HayVista</span>
+          <div className="flex flex-col items-center md:items-end gap-1">
+            <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              HayVista Inc. · Cabo San Lucas, BCS, Mexico ·{' '}
+              <a href="mailto:support@hayvista.com" style={{ color: 'var(--accent)' }}>support@hayvista.com</a>
+            </span>
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              © 2026 HayVista. AI-assisted GBP content management for local businesses.
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-4 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+          <a href="/privacy" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">Privacy Policy</a>
+          <a href="/terms" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">Terms of Service</a>
+        </div>
       </footer>
     </div>
   );

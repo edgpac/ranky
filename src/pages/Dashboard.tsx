@@ -338,7 +338,7 @@ export default function Dashboard() {
         >
           <img
             src="/rankylogo.png"
-            alt="Ranky"
+            alt="HayVista"
             style={{ width: '56px', height: '56px', objectFit: 'contain', flexShrink: 0 }}
           />
           <div style={{ textAlign: 'left' }}>

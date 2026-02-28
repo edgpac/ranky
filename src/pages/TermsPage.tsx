@@ -4,7 +4,7 @@ export default function TermsPage() {
       <nav className="flex items-center px-20 h-[72px] bg-white border-b border-gray-100">
         <a href="/" className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-brand" />
-          <span className="text-xl font-bold text-slate-900">Ranky</span>
+          <span className="text-xl font-bold text-slate-900">HayVista</span>
         </a>
       </nav>
 
@@ -16,7 +16,7 @@ export default function TermsPage() {
           <div>
             <h2 className="text-lg font-semibold text-slate-900 mb-2">1. Acceptance</h2>
             <p>
-              By using Ranky, you agree to these Terms of Service. If you do not agree, do not
+              By using HayVista, you agree to these Terms of Service. If you do not agree, do not
               use the platform.
             </p>
           </div>
@@ -24,7 +24,7 @@ export default function TermsPage() {
           <div>
             <h2 className="text-lg font-semibold text-slate-900 mb-2">2. Description of Service</h2>
             <p>
-              Ranky is a platform that connects to your Google Business Profile via OAuth to help
+              HayVista is a platform that connects to your Google Business Profile via OAuth to help
               you manage business information, posts, and profile data. You must have legitimate
               owner or manager access to any Google Business Profile you connect.
             </p>
@@ -42,7 +42,7 @@ export default function TermsPage() {
           <div>
             <h2 className="text-lg font-semibold text-slate-900 mb-2">4. Google Services</h2>
             <p>
-              Ranky integrates with Google APIs. Your use of Google services through Ranky is
+              HayVista integrates with Google APIs. Your use of Google services through HayVista is
               also subject to{' '}
               <a
                 href="https://policies.google.com/terms"
@@ -59,7 +59,7 @@ export default function TermsPage() {
           <div>
             <h2 className="text-lg font-semibold text-slate-900 mb-2">5. Limitation of Liability</h2>
             <p>
-              Ranky is provided "as is" without warranties of any kind. We are not liable for
+              HayVista is provided "as is" without warranties of any kind. We are not liable for
               any indirect or consequential damages arising from use of the service.
             </p>
           </div>
@@ -76,8 +76,8 @@ export default function TermsPage() {
             <h2 className="text-lg font-semibent text-slate-900 mb-2">7. Contact</h2>
             <p>
               Questions about these terms? Contact us at{' '}
-              <a href="mailto:legal@ranky.app" className="text-blue-600 hover:underline">
-                legal@ranky.app
+              <a href="mailto:support@hayvista.com" className="text-blue-600 hover:underline">
+                support@hayvista.com
               </a>
               .
             </p>

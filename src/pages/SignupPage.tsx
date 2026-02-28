@@ -22,7 +22,7 @@ const inputStyle: React.CSSProperties = {
   color: 'var(--text)',
 };
 
-const STORAGE_KEY = 'ranky_signup_form';
+const STORAGE_KEY = 'hayvista_signup_form';
 
 const defaultForm = {
   name: '',
@@ -73,7 +73,7 @@ export default function SignupPage() {
       if (!res.ok) { setError(data.error || 'Something went wrong'); return; }
       // Save JWT as a browser cookie — sent automatically on every request, survives proxy/session issues
       if (data.token) {
-        document.cookie = `ranky_token=${data.token}; path=/; max-age=${30 * 24 * 3600}; SameSite=Strict`;
+        document.cookie = `hayvista_token=${data.token}; path=/; max-age=${30 * 24 * 3600}; SameSite=Strict`;
       }
       navigate('/dashboard');
     } catch {
@@ -103,18 +103,18 @@ export default function SignupPage() {
       >
         <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate('/')}>
           <div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', flexShrink: 0 }} />
-          <span className="font-bold text-xl">Ranky</span>
+          <span className="font-bold text-xl">HayVista</span>
         </div>
 
         <div className="mt-4">
           <h2 className="text-3xl font-extrabold leading-snug mb-4">
-            Your GBP posts itself{' '}
+            Your GBP,{' '}
             <span style={{ background: 'linear-gradient(90deg, #4f8ef7, #7c5af7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-              while you work.
+              always visible.
             </span>
           </h2>
           <p className="text-base leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-            Real photos. Real search data. Posts go up automatically every week.
+            Real photos. Real search data. AI-crafted content published on your schedule.
           </p>
         </div>
 
@@ -132,7 +132,7 @@ export default function SignupPage() {
         </div>
 
         <div className="mt-auto flex gap-6 pt-8" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-          {[{ v: '2 min', l: 'setup' }, { v: '0', l: 'posts you write' }, { v: '4×', l: 'more visibility' }].map((s) => (
+          {[{ v: '2 min', l: 'setup' }, { v: '100%', l: 'GBP compliant' }, { v: '4×', l: 'more visibility' }].map((s) => (
             <div key={s.l}>
               <p className="text-xl font-extrabold" style={{ color: 'var(--accent)' }}>{s.v}</p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{s.l}</p>
@@ -146,7 +146,7 @@ export default function SignupPage() {
         <div>
           <h1 className="text-2xl font-extrabold">{mode === 'signup' ? 'Get started' : 'Welcome back'}</h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            {mode === 'signup' ? 'Takes 2 minutes. No credit card required.' : 'Sign in to your Ranky account.'}
+            {mode === 'signup' ? 'Takes 2 minutes. No credit card required.' : 'Sign in to your HayVista account.'}
           </p>
         </div>
 

@@ -4,7 +4,7 @@ export default function PrivacyPage() {
       <nav className="flex items-center px-20 h-[72px] bg-white border-b border-gray-100">
         <a href="/" className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-brand" />
-          <span className="text-xl font-bold text-slate-900">Ranky</span>
+          <span className="text-xl font-bold text-slate-900">HayVista</span>
         </a>
       </nav>
 
@@ -16,7 +16,7 @@ export default function PrivacyPage() {
           <div>
             <h2 className="text-lg font-semibold text-slate-900 mb-2">1. Overview</h2>
             <p>
-              Ranky is a SaaS platform that allows business owners to connect and manage their
+              HayVista is a SaaS platform that allows business owners to connect and manage their
               Google Business Profile. This policy explains what data we collect, how we use it,
               and your rights regarding that data.
             </p>
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
           <div>
             <h2 className="text-lg font-semibold text-slate-900 mb-2">4. Google API Data</h2>
             <p>
-              Ranky's use of data obtained from Google APIs adheres to the{' '}
+              HayVista's use of data obtained from Google APIs adheres to the{' '}
               <a
                 href="https://developers.google.com/terms/api-services-user-data-policy"
                 className="text-blue-600 hover:underline"
@@ -83,8 +83,8 @@ export default function PrivacyPage() {
             <h2 className="text-lg font-semibold text-slate-900 mb-2">7. Contact</h2>
             <p>
               For privacy questions or data deletion requests, contact us at{' '}
-              <a href="mailto:privacy@ranky.app" className="text-blue-600 hover:underline">
-                privacy@ranky.app
+              <a href="mailto:support@hayvista.com" className="text-blue-600 hover:underline">
+                support@hayvista.com
               </a>
               .
             </p>

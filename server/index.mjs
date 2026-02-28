@@ -286,7 +286,7 @@ app.post('/auth/login', async (req, res) => {
 
 app.post('/auth/logout', (req, res) => {
   req.session.destroy(() => {});
-  res.setHeader('Set-Cookie', 'ranky_token=; path=/; max-age=0; SameSite=Strict');
+  res.setHeader('Set-Cookie', 'hayvista_token=; path=/; max-age=0; SameSite=Strict');
   res.json({ ok: true });
 });
 
@@ -295,7 +295,7 @@ function requireAuth(req, res, next) {
   if (req.session.clientId) return next();
   // Fallback: verify JWT from browser-set cookie (survives proxy/MemoryStore issues)
   const cookieHeader = req.headers.cookie || '';
-  const match = cookieHeader.match(/(?:^|;\s*)ranky_token=([^;]+)/);
+  const match = cookieHeader.match(/(?:^|;\s*)hayvista_token=([^;]+)/);
   if (match) {
     try {
       const decoded = jwt.verify(decodeURIComponent(match[1]), process.env.SESSION_SECRET);

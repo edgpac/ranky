@@ -102,7 +102,7 @@ export default function PhotosTab({ ready }: { ready: boolean }) {
       <div className="rounded-2xl p-5" style={card}>
         <h3 className="text-sm font-bold mb-1" style={{ color: 'var(--text)' }}>Upload photo to Google Business Profile</h3>
         <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>
-          Ranky injects SEO metadata (title, description, keywords) into the image before uploading so Google can read exactly what the photo shows.
+          HayVista injects SEO metadata (title, description, keywords) into the image before uploading so Google can read exactly what the photo shows.
         </p>
 
         {uploadResult && (
