@@ -56,10 +56,6 @@ export default function SignupPage() {
       return defaultForm;
     }
   });
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
   const updateForm = (patch: Partial<typeof defaultForm>) => {
     setForm((prev: typeof defaultForm) => {
       const next = { ...prev, ...patch };
@@ -72,34 +68,6 @@ export default function SignupPage() {
     setSelectedFeature(tab);
     setStep(1);
   };
-
-  const handleSubmit = async () => {
-    setError('');
-    setLoading(true);
-    try {
-      const url = mode === 'signup' ? '/auth/signup' : '/auth/login';
-      const body = mode === 'signup' ? { ...form, password } : { email: form.email, password };
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Something went wrong'); return; }
-      if (data.token) {
-        document.cookie = `hayvista_token=${data.token}; path=/; max-age=${30 * 24 * 3600}; SameSite=Strict`;
-      }
-      const dest = selectedFeature ? `/dashboard?tab=${selectedFeature}` : '/dashboard';
-      navigate(dest);
-    } catch {
-      setError('Something went wrong. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const isDisabled = loading || !form.email || !password || (mode === 'signup' && (!form.name || !form.businessName));
 
   return (
     <div
@@ -222,7 +190,7 @@ export default function SignupPage() {
           <>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => { setStep(0); setError(''); }}
+                onClick={() => { setStep(0); }}
                 className="text-xs px-3 py-1.5 rounded-lg transition-all"
                 style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)', color: 'var(--text-muted)' }}
               >
@@ -336,61 +304,32 @@ export default function SignupPage() {
               </>
             )}
 
-            {/* Email */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Email</label>
-              <input
-                type="email"
-                className="h-11 px-3 rounded-lg text-sm outline-none"
-                style={inputStyle}
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={(e) => updateForm({ email: e.target.value })}
-              />
-            </div>
-
-            {/* Password */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Password</label>
-              <input
-                type="password"
-                className="h-11 px-3 rounded-lg text-sm outline-none"
-                style={inputStyle}
-                placeholder={mode === 'signup' ? 'Create a password' : 'Your password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !isDisabled) handleSubmit(); }}
-              />
-            </div>
-
-            {/* Error */}
-            {error && (
-              <p className="text-sm px-3 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#f87171' }}>
-                {error}
-              </p>
-            )}
-
-            {/* Submit */}
+            {/* Submit — redirects to Google OAuth which handles auth + GBP permissions */}
             <button
-              onClick={handleSubmit}
-              disabled={isDisabled}
-              className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl font-semibold text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={() => { window.location.href = '/auth/google'; }}
+              className="w-full flex items-center justify-center gap-3 py-3.5 rounded-xl font-semibold text-base transition-all"
               style={{ background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', color: '#fff' }}
             >
-              {loading ? 'Please wait...' : mode === 'signup' ? 'Create Account' : 'Sign In'}
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" fill="#fff" fillOpacity=".9"/>
+                <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#fff" fillOpacity=".9"/>
+                <path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#fff" fillOpacity=".9"/>
+                <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z" fill="#fff" fillOpacity=".9"/>
+              </svg>
+              {mode === 'signup' ? 'Create Account with Google' : 'Sign In with Google'}
             </button>
 
             {/* Mode toggle */}
             <p className="text-sm text-center" style={{ color: 'rgba(240,244,255,0.4)' }}>
               {mode === 'signup' ? (
                 <>Already have an account?{' '}
-                  <button onClick={() => { setMode('login'); setError(''); }} className="underline" style={{ color: 'var(--accent)' }}>
+                  <button onClick={() => { setMode('login')}} className="underline" style={{ color: 'var(--accent)' }}>
                     Sign in
                   </button>
                 </>
               ) : (
                 <>Don't have an account?{' '}
-                  <button onClick={() => { setMode('signup'); setError(''); }} className="underline" style={{ color: 'var(--accent)' }}>
+                  <button onClick={() => { setMode('signup')}} className="underline" style={{ color: 'var(--accent)' }}>
                     Get started
                   </button>
                 </>
