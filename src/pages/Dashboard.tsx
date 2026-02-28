@@ -106,10 +106,12 @@ function GbpGate({
   connectState,
   cooldown,
   onRetry,
+  isGuest,
 }: {
   connectState: string | null;
   cooldown: number;
   onRetry: () => void;
+  isGuest?: boolean;
 }) {
   return (
     <div
@@ -193,25 +195,43 @@ function GbpGate({
           </div>
           <div>
             <p className="text-sm font-semibold" style={{ color: 'rgba(232,238,255,0.92)' }}>
-              Google Business Profile access needed
+              {isGuest ? 'Connect your Google Business Profile' : 'Google Business Profile access needed'}
             </p>
             <p className="text-xs mt-1 max-w-sm" style={{ color: 'rgba(232,238,255,0.45)' }}>
-              Your Google connection doesn't include Business Profile permissions. Reconnect to fix it.
+              {isGuest
+                ? 'Create a free account and link your Google profile to start managing your content.'
+                : "Your Google connection doesn't include Business Profile permissions. Reconnect to fix it."}
             </p>
           </div>
-          <a
-            href="/auth/reauth"
-            className="text-sm font-semibold px-6 py-2.5 rounded-xl"
-            style={{
-              background: 'linear-gradient(135deg, #d97706, #b45309)',
-              color: '#fff',
-              border: '1px solid rgba(217,119,6,0.35)',
-              boxShadow: '0 0 24px rgba(217,119,6,0.25)',
-              textDecoration: 'none',
-            }}
-          >
-            Connect Google
-          </a>
+          {isGuest ? (
+            <a
+              href="/signup"
+              className="text-sm font-semibold px-6 py-2.5 rounded-xl"
+              style={{
+                background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)',
+                color: '#fff',
+                border: '1px solid rgba(79,142,247,0.35)',
+                boxShadow: '0 0 24px rgba(79,142,247,0.25)',
+                textDecoration: 'none',
+              }}
+            >
+              Connect Google — Free
+            </a>
+          ) : (
+            <a
+              href="/auth/reauth"
+              className="text-sm font-semibold px-6 py-2.5 rounded-xl"
+              style={{
+                background: 'linear-gradient(135deg, #d97706, #b45309)',
+                color: '#fff',
+                border: '1px solid rgba(217,119,6,0.35)',
+                boxShadow: '0 0 24px rgba(217,119,6,0.25)',
+                textDecoration: 'none',
+              }}
+            >
+              Connect Google
+            </a>
+          )}
         </>
       )}
     </div>
@@ -226,6 +246,7 @@ export default function Dashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('profile');
+  const [isGuest, setIsGuest] = useState(false);
   const [locationReady, setLocationReady] = useState(false);
   const [connectState, setConnectState] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
@@ -241,7 +262,15 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetch('/api/me', { credentials: 'include' })
-      .then((r) => { if (!r.ok) { navigate('/signup'); return null; } return r.json(); })
+      .then((r) => {
+        if (!r.ok) {
+          setIsGuest(true);
+          setConnectState('error');
+          setLoading(false);
+          return null;
+        }
+        return r.json();
+      })
       .then((data) => {
         if (!data) return;
         setClient(data.client);
@@ -250,7 +279,11 @@ export default function Dashboard() {
         setLoading(false);
         setTimeout(() => runPermissionCheck(), 3000);
       })
-      .catch(() => navigate('/signup'));
+      .catch(() => {
+        setIsGuest(true);
+        setConnectState('error');
+        setLoading(false);
+      });
   }, []);
 
   function startCooldown(seconds: number) {
@@ -341,51 +374,87 @@ export default function Dashboard() {
             alt="HayVista"
             style={{ width: '80px', height: '80px', objectFit: 'contain', flexShrink: 0 }}
           />
-          <div style={{ textAlign: 'left' }}>
-            <div className="text-[15px] font-bold" style={{ color: 'rgba(232,238,255,0.96)' }}>
-              {client?.business_name}
+          {!isGuest && (
+            <div style={{ textAlign: 'left' }}>
+              <div className="text-[15px] font-bold" style={{ color: 'rgba(232,238,255,0.96)' }}>
+                {client?.business_name}
+              </div>
+              <span
+                className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5"
+                style={{
+                  color: '#4f8ef7',
+                  background: 'rgba(79,142,247,0.12)',
+                  border: '1px solid rgba(79,142,247,0.25)',
+                  backdropFilter: 'blur(8px)',
+                }}
+              >
+                {bizType}
+              </span>
             </div>
-            <span
-              className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5"
-              style={{
-                color: '#4f8ef7',
-                background: 'rgba(79,142,247,0.12)',
-                border: '1px solid rgba(79,142,247,0.25)',
-                backdropFilter: 'blur(8px)',
-              }}
-            >
-              {bizType}
-            </span>
-          </div>
+          )}
         </button>
 
         <div className="flex items-center gap-3">
-          <div
-            className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full"
-            style={locationReady ? {
-              color: '#34d399',
-              background: 'rgba(52,211,153,0.09)',
-              border: '1px solid rgba(52,211,153,0.22)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              boxShadow: '0 0 12px rgba(52,211,153,0.12)',
-            } : {
-              color: '#fbbf24',
-              background: 'rgba(251,191,36,0.09)',
-              border: '1px solid rgba(251,191,36,0.22)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-            }}
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"
-              style={{ boxShadow: locationReady ? '0 0 6px #34d399' : '0 0 6px #fbbf24' }}
-            />
-            {locationReady ? 'GBP Connected' : 'API Approval Pending'}
-          </div>
-          <LogoutButton onClick={logout} />
+          {!isGuest && (
+            <div
+              className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full"
+              style={locationReady ? {
+                color: '#34d399',
+                background: 'rgba(52,211,153,0.09)',
+                border: '1px solid rgba(52,211,153,0.22)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                boxShadow: '0 0 12px rgba(52,211,153,0.12)',
+              } : {
+                color: '#fbbf24',
+                background: 'rgba(251,191,36,0.09)',
+                border: '1px solid rgba(251,191,36,0.22)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+              }}
+            >
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"
+                style={{ boxShadow: locationReady ? '0 0 6px #34d399' : '0 0 6px #fbbf24' }}
+              />
+              {locationReady ? 'GBP Connected' : 'API Approval Pending'}
+            </div>
+          )}
+          {isGuest ? (
+            <a
+              href="/signup"
+              className="text-sm font-semibold px-5 py-2 rounded-xl"
+              style={{
+                background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)',
+                color: '#fff',
+                textDecoration: 'none',
+                boxShadow: '0 0 20px rgba(79,142,247,0.3)',
+              }}
+            >
+              Sign In / Sign Up
+            </a>
+          ) : (
+            <LogoutButton onClick={logout} />
+          )}
         </div>
       </header>
+
+      {/* ── Guest banner ─────────────────────────────────────────────── */}
+      {isGuest && (
+        <div
+          className="flex-shrink-0 flex items-center justify-center gap-2 py-2 text-xs font-medium"
+          style={{
+            background: 'rgba(79,142,247,0.08)',
+            borderBottom: '1px solid rgba(79,142,247,0.18)',
+            color: 'rgba(232,238,255,0.55)',
+          }}
+        >
+          <span>Browsing as guest —</span>
+          <a href="/signup" style={{ color: '#4f8ef7', textDecoration: 'none', fontWeight: 600 }}>
+            Connect Google to manage your real profile
+          </a>
+        </div>
+      )}
 
       {/* ── Tab nav ──────────────────────────────────────────────────── */}
       <nav
@@ -462,7 +531,7 @@ export default function Dashboard() {
           )}
 
           {tabNeedsGbp && !locationReady ? (
-            <GbpGate connectState={connectState} cooldown={cooldown} onRetry={runPermissionCheck} />
+            <GbpGate connectState={connectState} cooldown={cooldown} onRetry={runPermissionCheck} isGuest={isGuest} />
           ) : tabNeedsGbp && locationReady ? (
             <>
               {activeTab === 'reviews'  && <ReviewsTab ready={locationReady} />}

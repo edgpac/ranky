@@ -83,7 +83,7 @@ export default function LandingPage() {
         </div>
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/signup')}
+            onClick={() => navigate('/dashboard')}
             className="text-sm font-semibold px-5 py-2.5 rounded-xl transition-all"
             style={{ background: 'var(--accent)', color: '#fff' }}
             onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
@@ -119,7 +119,7 @@ export default function LandingPage() {
 
         <div className="flex flex-wrap items-center justify-center gap-4">
           <button
-            onClick={() => navigate('/signup')}
+            onClick={() => navigate('/dashboard')}
             className="text-base font-bold px-8 py-4 rounded-xl transition-all"
             style={{ background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', color: '#fff', boxShadow: '0 0 40px rgba(79,142,247,0.35)' }}
             onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 60px rgba(79,142,247,0.5)'; }}
@@ -254,7 +254,7 @@ export default function LandingPage() {
                   ))}
                 </ul>
                 <button
-                  onClick={() => navigate('/signup')}
+                  onClick={() => navigate('/dashboard')}
                   className="w-full py-3 rounded-xl text-sm font-semibold transition-all mt-2"
                   style={p.highlight
                     ? { background: 'var(--accent)', color: '#fff' }
@@ -289,7 +289,7 @@ export default function LandingPage() {
             Connect your Google account once. Content goes up every week — on your terms.
           </p>
           <button
-            onClick={() => navigate('/signup')}
+            onClick={() => navigate('/dashboard')}
             className="text-base font-bold px-10 py-4 rounded-xl transition-all"
             style={{ background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', color: '#fff', boxShadow: '0 0 40px rgba(79,142,247,0.35)' }}
             onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 60px rgba(79,142,247,0.5)'; }}
