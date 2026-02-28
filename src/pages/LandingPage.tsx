@@ -138,7 +138,25 @@ export default function LandingPage() {
 
               <div className="p-6 sm:p-7 flex flex-col gap-5">
                 {/* Header */}
-                <div className="text-center">
+                <div className="text-center relative">
+                  <button
+                    onClick={() => setPricingOpen(false)}
+                    aria-label="Close"
+                    style={{
+                      position: 'absolute', top: -4, right: -4,
+                      width: 28, height: 28,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      borderRadius: '50%',
+                      background: 'rgba(255,255,255,0.07)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                      color: 'rgba(255,255,255,0.5)',
+                      fontSize: 15, lineHeight: 1, cursor: 'pointer',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.14)'; e.currentTarget.style.color = '#fff'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; }}
+                  >
+                    ✕
+                  </button>
                   <p className="text-[10px] font-bold tracking-[0.15em] mb-1.5" style={{ color: 'var(--accent)' }}>{t.pricing.label}</p>
                   <h3 className="text-xl font-extrabold">{t.pricing.h3}</h3>
                   <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>{t.pricing.sub}</p>
