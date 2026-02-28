@@ -18,8 +18,8 @@ const BUSINESS_TYPES = [
 
 const FEATURES = [
   { icon: '⭐', label: 'Reviews',     tab: 'reviews',     desc: 'Respond to customer reviews with AI-matched tone' },
-  { icon: '📸', label: 'Photos',      tab: 'photos',      desc: 'Your only job: upload real business images. We handle SEO tagging, formatting, and publishing to your GBP.' },
-  { icon: '📝', label: 'Posts',       tab: 'posts',       desc: 'Posts crafted from your photos, services, products, and local web searches that align with your business and GBP.' },
+  { icon: '📸', label: 'Photos',      tab: 'photos',      desc: 'Drop in real photos from your jobs or location. We tag them with the right keywords and push them to your GBP — that\'s all you need to do.' },
+  { icon: '📝', label: 'Posts',       tab: 'posts',       desc: 'We look at your photos, services, and products, then check what people nearby are searching for — and write posts that connect the two.' },
   { icon: '📊', label: 'Insights',    tab: 'insights',    desc: 'Track views, searches, and profile activity' },
   { icon: '🛠️', label: 'Services',    tab: 'services',    desc: 'Keep your service listings up to date' },
   { icon: '🔗', label: 'Get Reviews', tab: 'get-reviews', desc: 'Share your review link and grow your rating' },
