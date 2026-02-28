@@ -94,6 +94,8 @@ export default function LandingPage() {
         </div>
       </nav>
 
+      {/* ── Main content ─────────────────────────────────────────── */}
+      <main>
       {/* ── Hero ────────────────────────────────────────────────────── */}
       <section className="relative flex flex-col items-center text-center px-6 pt-28 pb-24">
         <div
@@ -252,6 +254,8 @@ export default function LandingPage() {
           </button>
         </div>
       </section>
+
+      </main>
 
       {/* ── Footer ──────────────────────────────────────────────────── */}
       <footer
