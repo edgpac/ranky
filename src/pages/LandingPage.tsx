@@ -79,7 +79,7 @@ export default function LandingPage() {
         style={{ background: 'rgba(8,13,26,0.75)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
       >
         <div className="flex items-center gap-2.5">
-          <img src="/rankylogo.png" alt="Ranky" style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }} />
+          <img src="/rankylogo.png" alt="Ranky" style={{ width: 56, height: 56, objectFit: 'contain', flexShrink: 0 }} />
         </div>
         <div className="flex items-center gap-4">
           <button
