@@ -113,12 +113,12 @@ export const landing = {
           ],
         },
       ],
-      cta: 'Hire HayVista — Get Started Free',
+      cta: 'Hire HayVista — $17/month',
     },
     finalCta: {
       h2: 'Your most important hire costs $17 a month.',
       body: 'No résumé. No interview. No training. HayVista shows up every week, knows your business, and keeps you visible where your next customer is searching.',
-      cta: 'Make the Hire — Free to Start',
+      cta: 'Make the Hire — Get Started',
     },
     footer: {
       address: 'HayVista Inc. · Cabo San Lucas, BCS, Mexico',
@@ -242,12 +242,12 @@ export const landing = {
           ],
         },
       ],
-      cta: 'Contratar HayVista — Comenzar Gratis',
+      cta: 'Contratar HayVista — $17/mes',
     },
     finalCta: {
       h2: 'Tu contratación más importante cuesta $17 al mes.',
       body: 'Sin currículum. Sin entrevista. Sin capacitación. HayVista aparece cada semana, conoce tu negocio y te mantiene visible donde tu próximo cliente está buscando.',
-      cta: 'Contratar — Comenzar Gratis',
+      cta: 'Contratar HayVista — Comenzar',
     },
     footer: {
       address: 'HayVista Inc. · Cabo San Lucas, BCS, México',

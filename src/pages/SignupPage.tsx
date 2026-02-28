@@ -197,9 +197,9 @@ export default function SignupPage() {
                 ← Back
               </button>
               <div>
-                <h1 className="text-2xl font-extrabold">{mode === 'signup' ? 'Create your account' : 'Welcome back'}</h1>
+                <h1 className="text-2xl font-extrabold">{mode === 'signup' ? 'Connect your Google Business Profile' : 'Welcome back'}</h1>
                 <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                  {mode === 'signup' ? 'Takes 2 minutes. No credit card required.' : 'Sign in to your HayVista account.'}
+                  {mode === 'signup' ? 'Create a free account and link your Google profile to start managing your content.' : 'Sign in to your HayVista account.'}
                 </p>
               </div>
             </div>
@@ -316,7 +316,7 @@ export default function SignupPage() {
                 <path d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z" fill="#fff" fillOpacity=".9"/>
                 <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z" fill="#fff" fillOpacity=".9"/>
               </svg>
-              {mode === 'signup' ? 'Create Account with Google' : 'Sign In with Google'}
+              {mode === 'signup' ? 'Continue With Google' : 'Sign In with Google'}
             </button>
 
             {/* Mode toggle */}
