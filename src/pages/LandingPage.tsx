@@ -404,7 +404,7 @@ export default function LandingPage() {
           <div className="flex flex-col items-center md:items-end gap-1">
             <span className="text-xs sm:text-sm text-center md:text-right" style={{ color: 'var(--text-muted)' }}>
               {t.footer.address} ·{' '}
-              <a href="mailto:support@hayvista.com" style={{ color: 'var(--accent)' }}>support@hayvista.com</a>
+              <a href="mailto:hayvista@gmail.com" style={{ color: 'var(--accent)' }}>hayvista@gmail.com</a>
             </span>
             <span className="text-xs text-center md:text-right" style={{ color: 'rgba(255,255,255,0.3)' }}>{t.footer.copyright}</span>
           </div>

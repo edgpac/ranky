@@ -83,8 +83,8 @@ export default function PrivacyPage() {
             <h2 className="text-lg font-semibold text-slate-900 mb-2">7. Contact</h2>
             <p>
               For privacy questions or data deletion requests, contact us at{' '}
-              <a href="mailto:support@hayvista.com" className="text-blue-600 hover:underline">
-                support@hayvista.com
+              <a href="mailto:hayvista@gmail.com" className="text-blue-600 hover:underline">
+                hayvista@gmail.com
               </a>
               .
             </p>
