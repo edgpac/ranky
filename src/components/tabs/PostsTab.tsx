@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 interface Post {
   id: number;
@@ -7,6 +7,8 @@ interface Post {
   search_query: string;
   posted_at: string;
   status: 'posted' | 'pending' | 'approved';
+  cta_type?: string;
+  cta_url?: string;
 }
 
 interface Props {
@@ -15,24 +17,56 @@ interface Props {
   onPostUpdated: (post: Post) => void;
 }
 
+const CTA_OPTIONS = ['Call now', 'Learn more', 'Book', 'Order online', 'Sign up'];
+
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
-  posted:   { background: 'rgba(52,211,153,0.1)',  color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' },
-  approved: { background: 'rgba(79,142,247,0.1)',  color: '#4f8ef7', border: '1px solid rgba(79,142,247,0.2)' },
-  pending:  { background: 'rgba(251,191,36,0.1)',  color: '#fbbf24', border: '1px solid rgba(251,191,36,0.2)' },
+  posted:   { background: 'rgba(52,211,153,0.12)',  color: '#34d399', border: '1px solid rgba(52,211,153,0.25)' },
+  approved: { background: 'rgba(79,142,247,0.12)',  color: '#4f8ef7', border: '1px solid rgba(79,142,247,0.25)' },
+  pending:  { background: 'rgba(251,191,36,0.12)',  color: '#fbbf24', border: '1px solid rgba(251,191,36,0.25)' },
 };
 
-const DATA_SOURCES = [
-  { icon: '📸', title: 'Your GBP photos',          desc: 'Real photos from your Google Business Profile — no stock images.' },
-  { icon: '🔍', title: 'What locals search',        desc: 'GSC shows the exact queries people type. Posts match those searches.' },
-  { icon: '✍️', title: 'Your tone & business type', desc: 'Claude writes in your chosen voice, tailored to your industry.' },
-  { icon: '📅', title: 'Auto-schedule',              desc: 'Posts go live every week without you touching anything.' },
-];
-
-const card: React.CSSProperties = {
-  background: 'var(--bg-card)',
-  border: '1px solid var(--border)',
-  boxShadow: 'var(--shadow-glass)',
+const glassCard: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  backdropFilter: 'blur(8px)',
+  borderRadius: '1rem',
+  padding: '1.25rem',
 };
+
+const inputStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  color: 'white',
+  borderRadius: '0.5rem',
+  height: '2.25rem',
+  padding: '0 0.75rem',
+  fontSize: '0.875rem',
+  outline: 'none',
+  width: '100%',
+};
+
+const btnPrimary: React.CSSProperties = {
+  background: '#4f8ef7',
+  color: 'white',
+  borderRadius: '0.5rem',
+  padding: '0.5rem 1rem',
+  fontSize: '0.875rem',
+  fontWeight: 600,
+  border: 'none',
+  cursor: 'pointer',
+};
+
+const btnGhost: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid rgba(255,255,255,0.15)',
+  color: 'rgba(240,244,255,0.7)',
+  borderRadius: '0.5rem',
+  padding: '0.375rem 0.75rem',
+  fontSize: '0.875rem',
+  cursor: 'pointer',
+};
+
+let mockIdCounter = 9000;
 
 function PostCard({ post, onUpdated }: { post: Post; onUpdated: (p: Post) => void }) {
   const [editing, setEditing] = useState(false);
@@ -52,57 +86,130 @@ function PostCard({ post, onUpdated }: { post: Post; onUpdated: (p: Post) => voi
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       onUpdated(data.post); setEditing(false);
-    } catch (e: any) { setSaveError(e.message); }
-    finally { setSaving(false); }
+    } catch (e: unknown) {
+      setSaveError(e instanceof Error ? e.message : 'Save failed');
+    } finally { setSaving(false); }
   };
 
   const cancel = () => { setDraft(post.post_text); setEditing(false); setSaveError(''); };
+  const statusLabel = post.status === 'posted' ? 'Live' : post.status === 'approved' ? 'Approved' : 'Pending';
 
   return (
-    <div className="rounded-2xl p-5 flex gap-4" style={card}>
-      {post.photo_url && <img src={post.photo_url} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0" />}
-      <div className="flex flex-col gap-2 flex-1">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={STATUS_STYLE[post.status] || STATUS_STYLE.pending}>
-              {post.status}
-            </span>
-            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{new Date(post.posted_at).toLocaleDateString()}</span>
-            {post.search_query && (
-              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                · matched: <span style={{ color: 'var(--accent)' }}>{post.search_query}</span>
-              </span>
-            )}
-          </div>
-          {!editing && (
-            <button
-              onClick={() => { setDraft(post.post_text); setEditing(true); }}
-              className="text-[11px] px-3 py-1 rounded-lg transition-colors"
-              style={{ color: 'var(--text-muted)', border: '1px solid var(--border)', background: 'none' }}
-            >
-              Edit
-            </button>
+    <div style={glassCard}>
+      <div className="flex gap-4">
+        {/* Image placeholder */}
+        <div
+          style={{
+            width: '80px',
+            height: '80px',
+            borderRadius: '0.75rem',
+            flexShrink: 0,
+            overflow: 'hidden',
+            background: post.photo_url ? 'transparent' : 'linear-gradient(135deg, #4f8ef7, #7c5af7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          {post.photo_url ? (
+            <img src={post.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <span style={{ fontSize: '1.5rem' }}>📷</span>
           )}
         </div>
 
-        {editing ? (
-          <>
-            <textarea
-              className="w-full rounded-xl text-sm p-3 focus:outline-none resize-none leading-relaxed"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--accent)', color: 'var(--text)' }}
-              rows={5} value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus
-            />
-            {saveError && <p className="text-xs" style={{ color: 'var(--danger)' }}>{saveError}</p>}
-            <div className="flex items-center gap-2">
-              <span className="text-xs mr-auto" style={{ color: 'var(--text-muted)' }}>{draft.length} chars</span>
-              <button onClick={cancel} className="text-xs px-3 py-1.5 rounded-lg transition-colors" style={{ color: 'var(--text-muted)', border: '1px solid var(--border)', background: 'none' }}>Cancel</button>
-              <button onClick={save} disabled={saving || !draft.trim()} className="text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50" style={{ background: 'var(--accent)', color: '#fff' }}>
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </>
-        ) : (
-          <p className="text-sm leading-relaxed" style={{ color: 'rgba(240,244,255,0.85)' }}>{post.post_text}</p>
+        {/* Content */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {editing ? (
+            <>
+              <textarea
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid #4f8ef7',
+                  color: 'white',
+                  borderRadius: '0.5rem',
+                  padding: '0.5rem 0.75rem',
+                  fontSize: '0.875rem',
+                  outline: 'none',
+                  resize: 'vertical',
+                  width: '100%',
+                  lineHeight: 1.5,
+                }}
+                rows={4}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                autoFocus
+              />
+              {saveError && <p style={{ color: '#f87171', fontSize: '0.75rem' }}>{saveError}</p>}
+              <div className="flex items-center gap-2">
+                <span style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.5)', marginRight: 'auto' }}>{draft.length} chars</span>
+                <button onClick={cancel} style={btnGhost}>Cancel</button>
+                <button
+                  onClick={save}
+                  disabled={saving || !draft.trim()}
+                  style={{ ...btnPrimary, opacity: saving || !draft.trim() ? 0.5 : 1 }}
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p
+                style={{
+                  fontSize: '0.875rem',
+                  color: 'rgba(240,244,255,0.85)',
+                  lineHeight: 1.5,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                } as React.CSSProperties}
+              >
+                {post.post_text}
+              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span
+                  style={{
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    padding: '0.125rem 0.5rem',
+                    borderRadius: '9999px',
+                    ...(STATUS_STYLE[post.status] || STATUS_STYLE.pending),
+                  }}
+                >
+                  {statusLabel}
+                </span>
+                {post.cta_type && (
+                  <span
+                    style={{
+                      fontSize: '0.6875rem',
+                      padding: '0.125rem 0.5rem',
+                      borderRadius: '9999px',
+                      background: 'rgba(255,255,255,0.07)',
+                      color: 'rgba(240,244,255,0.6)',
+                      border: '1px solid rgba(255,255,255,0.10)',
+                    }}
+                  >
+                    {post.cta_type}
+                  </span>
+                )}
+                <span style={{ fontSize: '0.6875rem', color: 'rgba(240,244,255,0.4)' }}>
+                  {new Date(post.posted_at).toLocaleDateString()}
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Edit button */}
+        {!editing && (
+          <button
+            onClick={() => { setDraft(post.post_text); setEditing(true); }}
+            style={{ ...btnGhost, alignSelf: 'flex-start', flexShrink: 0, fontSize: '0.8125rem' }}
+          >
+            Edit
+          </button>
         )}
       </div>
     </div>
@@ -110,79 +217,193 @@ function PostCard({ post, onUpdated }: { post: Post; onUpdated: (p: Post) => voi
 }
 
 export default function PostsTab({ posts, onPostGenerated, onPostUpdated }: Props) {
-  const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState('');
-  const [newPost, setNewPost] = useState<Post | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [postText, setPostText] = useState('');
+  const [ctaType, setCtaType] = useState('Call now');
+  const [ctaUrl, setCtaUrl] = useState('');
+  const [, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const generate = async () => {
-    setGenerating(true); setError(''); setNewPost(null);
-    try {
-      const res = await fetch('/api/generate-post', { method: 'POST', credentials: 'include' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Generation failed');
-      setNewPost(data.post); onPostGenerated(data.post);
-    } catch (e: any) { setError(e.message); }
-    finally { setGenerating(false); }
+  const MAX_TEXT = 1500;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setPhotoFile(f);
+    setPhotoPreview(URL.createObjectURL(f));
+  };
+
+  const handlePublish = () => {
+    const newPost: Post = {
+      id: mockIdCounter++,
+      photo_url: photoPreview || '',
+      post_text: postText || 'New post',
+      search_query: '',
+      posted_at: new Date().toISOString(),
+      status: 'pending',
+      cta_type: ctaType,
+      cta_url: ctaUrl,
+    };
+    onPostGenerated(newPost);
+    setShowForm(false);
+    setPostText('');
+    setCtaType('Call now');
+    setCtaUrl('');
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const handleCancel = () => {
+    setShowForm(false);
+    setPostText('');
+    setCtaType('Call now');
+    setCtaUrl('');
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    if (fileRef.current) fileRef.current.value = '';
   };
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Top action */}
+      {/* Top action row */}
       <div className="flex items-center justify-between">
-        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Posts are generated from your GBP photos + top local search queries.</p>
+        <p style={{ fontSize: '0.875rem', color: 'rgba(240,244,255,0.5)' }}>
+          Posts are generated from your GBP photos + top local search queries.
+        </p>
         <button
-          onClick={generate} disabled={generating}
-          className="shrink-0 text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
-          style={{ background: 'var(--accent)', color: '#fff' }}
+          style={{ ...btnPrimary, flexShrink: 0 }}
+          onClick={() => setShowForm((v) => !v)}
         >
-          {generating ? (
-            <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Generating…</>
-          ) : '+ Generate Post'}
+          {showForm ? 'Close' : '+ Add Post'}
         </button>
       </div>
 
-      {error && (
-        <div className="rounded-xl px-5 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--danger)' }}>{error}</div>
-      )}
-
-      {newPost && (
-        <div className="rounded-2xl p-5 flex gap-4" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.2)' }}>
-          {newPost.photo_url && <img src={newPost.photo_url} alt="" className="w-20 h-20 rounded-xl object-cover shrink-0" />}
-          <div className="flex flex-col gap-2 flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}>Just generated</span>
-              {newPost.search_query && <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Matched: <span style={{ color: 'var(--accent)' }}>{newPost.search_query}</span></span>}
+      {/* Inline add post form */}
+      {showForm && (
+        <div style={glassCard}>
+          <div className="flex flex-col gap-4">
+            {/* Text area */}
+            <div style={{ position: 'relative' }}>
+              <textarea
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  color: 'white',
+                  borderRadius: '0.5rem',
+                  padding: '0.625rem 0.75rem',
+                  fontSize: '0.875rem',
+                  outline: 'none',
+                  resize: 'vertical',
+                  width: '100%',
+                  lineHeight: 1.6,
+                  minHeight: '100px',
+                }}
+                rows={5}
+                placeholder="Write your post..."
+                value={postText}
+                onChange={(e) => setPostText(e.target.value.slice(0, MAX_TEXT))}
+              />
+              <span
+                style={{
+                  position: 'absolute',
+                  bottom: '0.5rem',
+                  right: '0.75rem',
+                  fontSize: '0.6875rem',
+                  color: 'rgba(240,244,255,0.4)',
+                  pointerEvents: 'none',
+                }}
+              >
+                {postText.length} / {MAX_TEXT}
+              </span>
             </div>
-            <p className="text-sm leading-relaxed" style={{ color: 'rgba(240,244,255,0.85)' }}>{newPost.post_text}</p>
+
+            {/* CTA + URL row */}
+            <div className="flex gap-3">
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(240,244,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>
+                  CTA Type
+                </label>
+                <select
+                  style={{ ...inputStyle, appearance: 'none' as const }}
+                  value={ctaType}
+                  onChange={(e) => setCtaType(e.target.value)}
+                >
+                  {CTA_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt} style={{ background: '#080d1a' }}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: 2 }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(240,244,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>
+                  URL
+                </label>
+                <input
+                  style={inputStyle}
+                  type="url"
+                  placeholder="https://..."
+                  value={ctaUrl}
+                  onChange={(e) => setCtaUrl(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Photo upload */}
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(240,244,255,0.5)', display: 'block', marginBottom: '0.25rem' }}>
+                Photo (optional)
+              </label>
+              <div
+                onClick={() => fileRef.current?.click()}
+                style={{
+                  border: '2px dashed rgba(255,255,255,0.15)',
+                  borderRadius: '0.5rem',
+                  height: '80px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  background: 'rgba(255,255,255,0.02)',
+                }}
+              >
+                {photoPreview ? (
+                  <img src={photoPreview} alt="" style={{ height: '100%', objectFit: 'cover', width: '100%' }} />
+                ) : (
+                  <p style={{ fontSize: '0.8125rem', color: 'rgba(240,244,255,0.4)' }}>Drop photo or click to upload</p>
+                )}
+              </div>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-2 justify-end">
+              <button style={btnGhost} onClick={handleCancel}>Cancel</button>
+              <button style={btnPrimary} onClick={handlePublish}>Publish Post</button>
+            </div>
           </div>
         </div>
       )}
 
-      {posts.length === 0 && !newPost && (
-        <div className="rounded-2xl p-8" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-          <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>No posts yet. Here's what Ranky does automatically every week:</p>
-          <div className="grid grid-cols-2 gap-5">
-            {DATA_SOURCES.map((s) => (
-              <div key={s.title} className="flex gap-3">
-                <span className="text-2xl">{s.icon}</span>
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{s.title}</p>
-                  <p className="text-xs leading-relaxed mt-0.5" style={{ color: 'var(--text-muted)' }}>{s.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6 text-center">
-            <button onClick={generate} disabled={generating} className="text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-50" style={{ background: 'var(--accent)', color: '#fff' }}>
-              {generating ? 'Generating…' : 'Generate my first post'}
-            </button>
-          </div>
+      {/* Post list */}
+      {posts.length === 0 && !showForm && (
+        <div style={{ ...glassCard, textAlign: 'center', padding: '3rem' }}>
+          <p style={{ fontSize: '0.875rem', color: 'rgba(240,244,255,0.4)' }}>No posts yet. Click "Add Post" to create your first post.</p>
         </div>
       )}
 
       {posts.length > 0 && (
         <div className="flex flex-col gap-3">
-          {posts.map((p) => <PostCard key={p.id} post={p} onUpdated={onPostUpdated} />)}
+          {posts.map((p) => (
+            <PostCard key={p.id} post={p} onUpdated={onPostUpdated} />
+          ))}
         </div>
       )}
     </div>

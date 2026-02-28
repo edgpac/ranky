@@ -1,145 +1,223 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
-interface ServiceItem {
-  structuredServiceItem?: { serviceTypeId: string; description?: string };
-  freeFormServiceItem?: {
-    category?: { displayName: string; serviceTypeId: string };
-    label?: { displayName: string; languageCode: string; description?: string };
-  };
+interface Service {
+  id: number;
+  name: string;
+  desc: string;
+  price: string;
+  editing: boolean;
 }
 
-interface BusinessInfo {
-  services: ServiceItem[];
-  categories: { primaryCategory?: { displayName: string }; additionalCategories?: Array<{ displayName: string }> };
-  hours: any;
-  website: string;
-  phone: string;
-}
+const MOCK_SERVICES: Omit<Service, 'editing'>[] = [
+  { id: 1, name: 'Drywall Repair',          desc: 'Patch holes, cracks, and water-damaged drywall sections.',   price: '$85/hr' },
+  { id: 2, name: 'Tile Installation',        desc: 'Floor and wall tile install for kitchens and bathrooms.',     price: '$150 flat' },
+  { id: 3, name: 'Painting (Interior)',      desc: 'Full interior painting with prep, primer, and two coats.',   price: '$95/hr' },
+  { id: 4, name: 'Painting (Exterior)',      desc: 'Weather-resistant exterior paint and surface preparation.',   price: '$120/hr' },
+  { id: 5, name: 'Plumbing Repairs',         desc: 'Leak fixes, pipe replacements, and fixture installations.',  price: '$110/hr' },
+  { id: 6, name: 'Electrical Fixes',         desc: 'Outlet repair, switch replacement, and panel inspections.',  price: '$125/hr' },
+  { id: 7, name: 'Flooring Installation',    desc: 'Hardwood, LVP, and laminate flooring install and finishing.', price: '$200 flat' },
+  { id: 8, name: 'Deck Building',            desc: 'Custom deck design, framing, decking, and finishing.',        price: '$180/hr' },
+  { id: 9, name: 'General Handyman',         desc: 'Miscellaneous repairs and maintenance tasks around the home.', price: '$75/hr' },
+];
 
-function getServiceName(s: ServiceItem): string {
-  return (
-    s.freeFormServiceItem?.label?.displayName ||
-    s.freeFormServiceItem?.category?.displayName ||
-    s.structuredServiceItem?.serviceTypeId?.replace(/_/g, ' ').toLowerCase() ||
-    'Unknown service'
-  );
-}
+let nextId = 100;
 
-function getServiceDesc(s: ServiceItem): string {
-  return s.freeFormServiceItem?.label?.description || s.structuredServiceItem?.description || '';
-}
+const glassCard: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.05)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  backdropFilter: 'blur(8px)',
+  borderRadius: '1rem',
+  padding: '1.5rem',
+};
 
-const DAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const inputStyle: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.06)',
+  border: '1px solid rgba(255,255,255,0.10)',
+  color: 'white',
+  borderRadius: '0.5rem',
+  height: '2.25rem',
+  padding: '0 0.75rem',
+  fontSize: '0.875rem',
+  outline: 'none',
+};
 
-const card: React.CSSProperties = {
-  background: 'var(--bg-card)',
-  border: '1px solid var(--border)',
+const btnPrimary: React.CSSProperties = {
+  background: '#4f8ef7',
+  color: 'white',
+  borderRadius: '0.5rem',
+  padding: '0.5rem 1rem',
+  fontSize: '0.875rem',
+  fontWeight: 600,
+  border: 'none',
+  cursor: 'pointer',
+};
+
+const btnGhost: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid rgba(255,255,255,0.15)',
+  color: 'rgba(240,244,255,0.7)',
+  borderRadius: '0.5rem',
+  padding: '0.375rem 0.75rem',
+  fontSize: '0.8125rem',
+  cursor: 'pointer',
+};
+
+const btnDanger: React.CSSProperties = {
+  background: 'rgba(239,68,68,0.15)',
+  border: '1px solid rgba(239,68,68,0.3)',
+  color: '#f87171',
+  borderRadius: '0.5rem',
+  padding: '0.375rem 0.75rem',
+  fontSize: '0.8125rem',
+  cursor: 'pointer',
 };
 
 export default function ServicesTab({ ready }: { ready: boolean }) {
-  const [info, setInfo] = useState<BusinessInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!ready) return;
-    fetch('/api/services', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => { if (d.error) throw new Error(d.error); setInfo(d); })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [ready]);
-
-  if (!ready || loading) return (
-    <div className="flex justify-center py-20">
-      <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--accent)', borderTopColor: 'transparent' }} />
-    </div>
+  const [services, setServices] = useState<Service[]>(
+    MOCK_SERVICES.map((s) => ({ ...s, editing: false }))
   );
 
-  if (error) return (
-    <div className="rounded-xl px-5 py-4 text-sm" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--danger)' }}>{error}</div>
-  );
+  const [drafts, setDrafts] = useState<Record<number, { name: string; desc: string; price: string }>>({});
 
-  if (!info) return null;
+  if (!ready) {
+    return (
+      <div
+        style={{
+          border: '2px dashed rgba(255,255,255,0.15)',
+          borderRadius: '1rem',
+          padding: '3rem',
+          textAlign: 'center',
+        }}
+      >
+        <p style={{ color: 'rgba(240,244,255,0.5)', fontSize: '0.875rem' }}>GBP not connected</p>
+        <p style={{ color: 'rgba(240,244,255,0.35)', fontSize: '0.8125rem', marginTop: '0.5rem' }}>
+          Connect your Google Business Profile to manage services.
+        </p>
+      </div>
+    );
+  }
 
-  const allCategories = [
-    info.categories?.primaryCategory?.displayName,
-    ...(info.categories?.additionalCategories?.map((c) => c.displayName) || []),
-  ].filter(Boolean);
+  const startEdit = (svc: Service) => {
+    setDrafts((d) => ({ ...d, [svc.id]: { name: svc.name, desc: svc.desc, price: svc.price } }));
+    setServices((prev) => prev.map((s) => s.id === svc.id ? { ...s, editing: true } : s));
+  };
+
+  const saveEdit = (id: number) => {
+    const draft = drafts[id];
+    if (!draft) return;
+    setServices((prev) =>
+      prev.map((s) => s.id === id ? { ...s, name: draft.name, desc: draft.desc, price: draft.price, editing: false } : s)
+    );
+  };
+
+  const cancelEdit = (id: number) => {
+    setServices((prev) => prev.map((s) => s.id === id ? { ...s, editing: false } : s));
+    if (services.find((s) => s.id === id && s.name === '')) {
+      setServices((prev) => prev.filter((s) => s.id !== id));
+    }
+  };
+
+  const deleteService = (id: number) => {
+    setServices((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const addService = () => {
+    const id = nextId++;
+    setServices((prev) => [...prev, { id, name: '', desc: '', price: '', editing: true }]);
+    setDrafts((d) => ({ ...d, [id]: { name: '', desc: '', price: '' } }));
+  };
+
+  const updateDraft = (id: number, field: 'name' | 'desc' | 'price', value: string) => {
+    setDrafts((d) => ({ ...d, [id]: { ...d[id], [field]: value } }));
+  };
 
   return (
-    <div className="flex flex-col gap-7">
-
-      {/* Info cards */}
-      <div className="grid grid-cols-3 gap-4">
-        {info.website && (
-          <div className="rounded-2xl px-5 py-4" style={card}>
-            <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Website</p>
-            <a href={info.website} target="_blank" rel="noopener noreferrer" className="text-sm break-all hover:underline" style={{ color: 'var(--accent)' }}>{info.website}</a>
-          </div>
-        )}
-        {info.phone && (
-          <div className="rounded-2xl px-5 py-4" style={card}>
-            <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Phone</p>
-            <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>{info.phone}</p>
-          </div>
-        )}
-        {allCategories.length > 0 && (
-          <div className="rounded-2xl px-5 py-4" style={card}>
-            <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>GBP categories</p>
-            <div className="flex flex-wrap gap-1">
-              {allCategories.map((cat) => (
-                <span key={cat} className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(240,244,255,0.7)' }}>{cat}</span>
-              ))}
-            </div>
-          </div>
-        )}
+    <div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>
+          Services <span style={{ color: 'rgba(240,244,255,0.4)', fontWeight: 400, fontSize: '0.875rem' }}>({services.length})</span>
+        </h2>
+        <button style={btnPrimary} onClick={addService}>+ Add Service</button>
       </div>
 
       {/* Services list */}
-      <div>
-        <h3 className="text-sm font-bold mb-3" style={{ color: 'rgba(240,244,255,0.6)' }}>Services listed on Google ({info.services.length})</h3>
-        {info.services.length === 0 ? (
-          <div className="rounded-2xl p-8 text-center text-sm" style={card}>
-            <span style={{ color: 'var(--text-muted)' }}>No services found. Add them in your Google Business Profile dashboard.</span>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {info.services.map((s, i) => (
-              <div key={i} className="rounded-xl px-4 py-3 flex flex-col gap-0.5" style={card}>
-                <p className="text-sm font-semibold capitalize" style={{ color: 'var(--text)' }}>{getServiceName(s)}</p>
-                {getServiceDesc(s) && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{getServiceDesc(s)}</p>}
-              </div>
-            ))}
-          </div>
+      <div style={glassCard}>
+        {services.length === 0 && (
+          <p style={{ color: 'rgba(240,244,255,0.4)', fontSize: '0.875rem', textAlign: 'center', padding: '2rem 0' }}>
+            No services yet. Click "Add Service" to get started.
+          </p>
         )}
-      </div>
-
-      {/* Hours */}
-      {info.hours?.periods && (
-        <div>
-          <h3 className="text-sm font-bold mb-3" style={{ color: 'rgba(240,244,255,0.6)' }}>Business hours</h3>
-          <div className="rounded-2xl overflow-hidden" style={card}>
-            <table className="w-full text-sm">
-              <tbody>
-                {DAY_LABELS.map((day, idx) => {
-                  const period = info.hours.periods.find((p: any) => p.openDay === day.toUpperCase());
-                  return (
-                    <tr key={day} style={{ borderBottom: idx < DAY_LABELS.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-                      <td className="px-5 py-3 font-medium w-32" style={{ color: 'var(--text)' }}>{day}</td>
-                      <td className="px-5 py-3" style={{ color: 'var(--text-muted)' }}>
-                        {period
-                          ? `${period.openTime?.hours ?? 0}:${String(period.openTime?.minutes ?? 0).padStart(2, '0')} – ${period.closeTime?.hours ?? 0}:${String(period.closeTime?.minutes ?? 0).padStart(2, '0')}`
-                          : <span style={{ color: 'rgba(255,255,255,0.2)' }}>Closed</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        {services.map((svc, idx) => (
+          <div
+            key={svc.id}
+            style={{
+              borderBottom: idx < services.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+              padding: '0.875rem 0',
+            }}
+          >
+            {svc.editing ? (
+              /* Inline edit form */
+              <div className="flex flex-col gap-3">
+                <div className="flex gap-3">
+                  <input
+                    style={{ ...inputStyle, flex: 2 }}
+                    placeholder="Service name"
+                    value={drafts[svc.id]?.name ?? svc.name}
+                    onChange={(e) => updateDraft(svc.id, 'name', e.target.value)}
+                    autoFocus
+                  />
+                  <input
+                    style={{ ...inputStyle, flex: 1 }}
+                    placeholder="Price (e.g. $85/hr)"
+                    value={drafts[svc.id]?.price ?? svc.price}
+                    onChange={(e) => updateDraft(svc.id, 'price', e.target.value)}
+                  />
+                </div>
+                <input
+                  style={{ ...inputStyle, width: '100%' }}
+                  placeholder="Short description"
+                  value={drafts[svc.id]?.desc ?? svc.desc}
+                  onChange={(e) => updateDraft(svc.id, 'desc', e.target.value)}
+                />
+                <div className="flex gap-2 justify-end">
+                  <button style={btnGhost} onClick={() => cancelEdit(svc.id)}>Cancel</button>
+                  <button style={btnPrimary} onClick={() => saveEdit(svc.id)}>Save</button>
+                </div>
+              </div>
+            ) : (
+              /* Display row */
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <span style={{ fontWeight: 500, color: 'rgba(240,244,255,0.9)', fontSize: '0.875rem' }}>{svc.name}</span>
+                  {svc.desc && (
+                    <span
+                      style={{
+                        color: 'rgba(240,244,255,0.5)',
+                        fontSize: '0.8125rem',
+                        marginLeft: '0.75rem',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '20rem',
+                        display: 'inline-block',
+                        verticalAlign: 'middle',
+                      }}
+                    >
+                      {svc.desc}
+                    </span>
+                  )}
+                </div>
+                <span style={{ color: '#34d399', fontWeight: 600, fontSize: '0.875rem', flexShrink: 0 }}>{svc.price}</span>
+                <div className="flex gap-1.5 ml-2 flex-shrink-0">
+                  <button style={btnGhost} onClick={() => startEdit(svc)}>Edit</button>
+                  <button style={btnDanger} onClick={() => deleteService(svc.id)}>Delete</button>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 }
