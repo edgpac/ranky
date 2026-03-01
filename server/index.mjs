@@ -139,6 +139,16 @@ async function initDB() {
       UNIQUE(client_id, question_id)
     )
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS photo_labels (
+      id SERIAL PRIMARY KEY,
+      client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+      photo_url TEXT NOT NULL,
+      ai_description TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(client_id, photo_url)
+    )
+  `);
   console.log('✅ DB ready');
 }
 
@@ -196,6 +206,76 @@ async function callClaude(systemPrompt, messages, maxTokens = 400, model = 'clau
     messages,
   });
   return response.content[0].text;
+}
+
+/** Download a photo URL → base64 string + mimeType. Returns null on failure. */
+async function fetchPhotoAsBase64(url) {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return null;
+    const contentType = res.headers.get('content-type') || 'image/jpeg';
+    const mimeType = contentType.split(';')[0].trim();
+    const buffer = Buffer.from(await res.arrayBuffer());
+    return { base64: buffer.toString('base64'), mimeType };
+  } catch (e) {
+    console.warn('fetchPhotoAsBase64 failed:', e.message);
+    return null;
+  }
+}
+
+/** Use Claude Vision (Haiku) to describe a single photo in ~15 words. */
+async function describePhotoWithVision(base64, mimeType, businessName, bizLabel) {
+  const response = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 60,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+        { type: 'text', text: `You are describing a Google Business Profile photo for ${businessName}, a ${bizLabel}. Describe what you see in 10–15 words. Be specific about subjects, colors, setting. No intro, no punctuation at end.` },
+      ],
+    }],
+  });
+  return response.content[0].text.trim();
+}
+
+/**
+ * Background job: label up to `limit` unlabeled photos for a client using Claude Vision.
+ * Fires and forgets — caller does NOT await this.
+ */
+async function labelPhotosInBackground(client, photos, bizLabel, limit = 5) {
+  try {
+    const photoUrls = photos.slice(0, 20).map((p) => p.googleUrl || p.sourceUrl).filter(Boolean);
+    if (photoUrls.length === 0) return;
+
+    // Find which URLs we've already labeled
+    const { rows: existing } = await pool.query(
+      'SELECT photo_url FROM photo_labels WHERE client_id = $1',
+      [client.id]
+    );
+    const labeled = new Set(existing.map((r) => r.photo_url));
+    const toLabel = photoUrls.filter((url) => !labeled.has(url)).slice(0, limit);
+    if (toLabel.length === 0) return;
+
+    for (const url of toLabel) {
+      try {
+        const img = await fetchPhotoAsBase64(url);
+        if (!img) continue;
+        const description = await describePhotoWithVision(img.base64, img.mimeType, client.business_name, bizLabel);
+        await pool.query(
+          `INSERT INTO photo_labels (client_id, photo_url, ai_description)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (client_id, photo_url) DO UPDATE SET ai_description = EXCLUDED.ai_description`,
+          [client.id, url, description]
+        );
+        console.log(`[vision] labeled photo for client ${client.id}: "${description}"`);
+      } catch (e) {
+        console.warn(`[vision] failed to label ${url}:`, e.message);
+      }
+    }
+  } catch (e) {
+    console.warn('[vision] labelPhotosInBackground error:', e.message);
+  }
 }
 
 // ─── Auth Routes ──────────────────────────────────────────────
@@ -501,10 +581,27 @@ async function generatePostForClient(client, overridePostType) {
         .locations.get({ name: locationName, readMask: 'profile,serviceItems' }),
     ]);
     photos = (mediaRes.data.mediaItems || []).filter((p) => p.mediaFormat === 'PHOTO' || !p.mediaFormat);
-    photoMeta = photos.slice(0, 20).map((p, i) => {
+
+    // Load AI labels from DB to enhance photo descriptions for the picker
+    const photoSlice = photos.slice(0, 20);
+    const photoUrlsForLabels = photoSlice.map((p) => p.googleUrl || p.sourceUrl).filter(Boolean);
+    let aiLabelMap = {};
+    if (photoUrlsForLabels.length > 0) {
+      try {
+        const { rows: labelRows } = await pool.query(
+          'SELECT photo_url, ai_description FROM photo_labels WHERE client_id = $1 AND photo_url = ANY($2)',
+          [client.id, photoUrlsForLabels]
+        );
+        aiLabelMap = Object.fromEntries(labelRows.map((r) => [r.photo_url, r.ai_description]));
+      } catch (e) { /* non-fatal */ }
+    }
+
+    photoMeta = photoSlice.map((p, i) => {
+      const url = p.googleUrl || p.sourceUrl;
       const cat = p.locationAssociation?.category || 'GENERAL';
-      const desc = p.description ? ` — "${p.description}"` : '';
-      return `${i}: ${cat}${desc}`;
+      const aiDesc = url && aiLabelMap[url] ? ` — "${aiLabelMap[url]}"` : '';
+      const gbpDesc = !aiDesc && p.description ? ` — "${p.description}"` : '';
+      return `${i}: ${cat}${aiDesc || gbpDesc}`;
     });
     gbpDescription = locRes.data?.profile?.description || '';
     gbpServices = (locRes.data?.serviceItems || [])
@@ -868,14 +965,18 @@ app.get('/api/photos', requireAuth, async (req, res) => {
     const locationName = await ensureLocation(client);
     const mybusiness = google.mybusiness({ version: 'v4', auth });
     const mediaRes = await mybusiness.accounts.locations.media.list({ parent: locationName });
-    res.json({ photos: mediaRes.data.mediaItems || [] });
+    const photos = mediaRes.data.mediaItems || [];
+    res.json({ photos });
+    // Trigger background Vision labeling without blocking the response
+    const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
+    setImmediate(() => labelPhotosInBackground(client, photos, bizLabel));
   } catch (err) {
     console.error('Photos fetch error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Debug: show exactly what the AI photo picker sees for each photo
+// Debug: show exactly what the AI photo picker sees for each photo (including AI labels)
 app.get('/api/photos/debug', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
@@ -885,14 +986,32 @@ app.get('/api/photos/debug', requireAuth, async (req, res) => {
     const mybusiness = google.mybusiness({ version: 'v4', auth });
     const mediaRes = await mybusiness.accounts.locations.media.list({ parent: locationName });
     const all = (mediaRes.data.mediaItems || []).filter((p) => p.mediaFormat === 'PHOTO' || !p.mediaFormat);
-    const pickerView = all.slice(0, 20).map((p, i) => ({
-      index: i,
-      category: p.locationAssociation?.category || 'GENERAL',
-      description: p.description || null,
-      url: p.googleUrl || p.sourceUrl || null,
-      pickerLine: `${i}: ${p.locationAssociation?.category || 'GENERAL'}${p.description ? ` — "${p.description}"` : ''}`,
-    }));
-    res.json({ total: all.length, pickerView });
+    const photoSlice = all.slice(0, 20);
+    const urls = photoSlice.map((p) => p.googleUrl || p.sourceUrl).filter(Boolean);
+    let aiLabelMap = {};
+    if (urls.length > 0) {
+      const { rows: labelRows } = await pool.query(
+        'SELECT photo_url, ai_description FROM photo_labels WHERE client_id = $1 AND photo_url = ANY($2)',
+        [client.id, urls]
+      );
+      aiLabelMap = Object.fromEntries(labelRows.map((r) => [r.photo_url, r.ai_description]));
+    }
+    const pickerView = photoSlice.map((p, i) => {
+      const url = p.googleUrl || p.sourceUrl || null;
+      const cat = p.locationAssociation?.category || 'GENERAL';
+      const aiDesc = url && aiLabelMap[url] ? aiLabelMap[url] : null;
+      const gbpDesc = p.description || null;
+      const effectiveDesc = aiDesc || gbpDesc;
+      return {
+        index: i,
+        category: cat,
+        gbpDescription: gbpDesc,
+        aiDescription: aiDesc,
+        url,
+        pickerLine: `${i}: ${cat}${effectiveDesc ? ` — "${effectiveDesc}"` : ''}`,
+      };
+    });
+    res.json({ total: all.length, labeled: Object.keys(aiLabelMap).length, pickerView });
   } catch (err) {
     console.error('Photos debug error:', err);
     res.status(500).json({ error: err.message });
@@ -971,6 +1090,25 @@ Return ONLY a JSON object, no markdown:
     });
 
     res.json({ ok: true, url: publicUrl, meta });
+
+    // 5. Auto-label the uploaded photo with Claude Vision (background, non-blocking)
+    setImmediate(async () => {
+      try {
+        const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
+        const base64 = req.file.buffer.toString('base64');
+        const mimeType = req.file.mimetype || 'image/jpeg';
+        const aiDescription = await describePhotoWithVision(base64, mimeType, client.business_name, bizLabel);
+        await pool.query(
+          `INSERT INTO photo_labels (client_id, photo_url, ai_description)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (client_id, photo_url) DO UPDATE SET ai_description = EXCLUDED.ai_description`,
+          [client.id, publicUrl, aiDescription]
+        );
+        console.log(`[vision] auto-labeled uploaded photo for client ${client.id}: "${aiDescription}"`);
+      } catch (e) {
+        console.warn('[vision] upload label failed:', e.message);
+      }
+    });
   } catch (err) {
     console.error('Photo upload error:', err);
     res.status(500).json({ error: err.message });
