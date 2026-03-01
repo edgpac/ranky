@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { app } from '../translations/app';
 
 type Language = 'en' | 'es';
 
@@ -39,4 +40,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
 export function useLanguage() {
   return useContext(LanguageContext);
+}
+
+/** Returns the app translation object for the current language. */
+export function useAppT() {
+  const { language } = useContext(LanguageContext);
+  return app[language];
 }

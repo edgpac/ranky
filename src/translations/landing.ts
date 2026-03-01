@@ -14,7 +14,7 @@ export const landing = {
     },
     stats: [
       { value: '$17', label: 'per month — less than minimum wage' },
-      { value: '4×', label: 'max posts/week — no Google spam' },
+      { value: '3×', label: 'max posts/week — no Google spam' },
       { value: '100%', label: 'Google API compliant' },
     ],
     why: {
@@ -24,7 +24,7 @@ export const landing = {
       tiles: [
         { icon: '🧠', label: 'No training needed', desc: 'Reads your GBP and starts working immediately' },
         { icon: '📸', label: 'Uses your real photos', desc: 'Matches job photos to local search queries automatically' },
-        { icon: '📅', label: 'Never misses a week', desc: 'Publishes up to 4× per week — within Google\'s limits' },
+        { icon: '📅', label: 'Never misses a week', desc: 'Publishes up to 3× per week — within Google\'s limits' },
         { icon: '📧', label: 'Keeps you in the loop', desc: 'Weekly email recap of everything published' },
       ],
     },
@@ -45,7 +45,7 @@ export const landing = {
         {
           n: '03', icon: '📅',
           title: 'Shows up every week. Does the work. Sends a recap.',
-          desc: 'Posts publish to your GBP up to 4 times a week — within Google\'s guidelines so your profile stays clean. You get a weekly email summary of what went up. You stay in control.',
+          desc: 'Posts publish to your GBP up to 3 times a week — within Google\'s guidelines so your profile stays clean. You get a weekly email summary of what went up. You stay in control.',
         },
       ],
     },
@@ -71,12 +71,12 @@ export const landing = {
       valueLabel: 'A part-time marketing hire costs',
       valueCrossed: '$2,000+/mo',
       valueYours: 'Yours for',
-      cappedNote: 'Capped at 4 posts/week — Google\'s recommended limit for healthy profiles. No spam, no penalties.',
+      cappedNote: 'Capped at 3 posts/week — Google\'s recommended limit for healthy profiles. No spam, no penalties.',
       groups: [
         {
           title: 'CONTENT PUBLISHING',
           items: [
-            { icon: '📝', text: 'Up to 4 posts / week — photo + search-matched copy' },
+            { icon: '📝', text: 'Up to 3 posts / week — photo + search-matched copy' },
             { icon: '🚀', text: 'Published directly to your Google Business Profile' },
             { icon: '🔄', text: 'Rotates formats: updates, offers, event posts, tips' },
           ],
@@ -143,7 +143,7 @@ export const landing = {
     },
     stats: [
       { value: '$17', label: 'al mes — menos que el salario mínimo' },
-      { value: '4×', label: 'máx. publicaciones/semana — sin spam' },
+      { value: '3×', label: 'máx. publicaciones/semana — sin spam' },
       { value: '100%', label: 'cumple la API de Google' },
     ],
     why: {
@@ -153,7 +153,7 @@ export const landing = {
       tiles: [
         { icon: '🧠', label: 'Sin capacitación', desc: 'Lee tu GBP y comienza a trabajar de inmediato' },
         { icon: '📸', label: 'Usa tus fotos reales', desc: 'Combina fotos de trabajo con búsquedas locales automáticamente' },
-        { icon: '📅', label: 'Nunca falta una semana', desc: 'Publica hasta 4× por semana — dentro de los límites de Google' },
+        { icon: '📅', label: 'Nunca falta una semana', desc: 'Publica hasta 3× por semana — dentro de los límites de Google' },
         { icon: '📧', label: 'Te mantiene informado', desc: 'Resumen semanal por email de todo lo publicado' },
       ],
     },
@@ -174,7 +174,7 @@ export const landing = {
         {
           n: '03', icon: '📅',
           title: 'Aparece cada semana. Hace el trabajo. Envía un resumen.',
-          desc: 'Las publicaciones van a tu GBP hasta 4 veces por semana — dentro de las pautas de Google para que tu perfil esté limpio. Recibes un resumen semanal por email. Tú mantienes el control.',
+          desc: 'Las publicaciones van a tu GBP hasta 3 veces por semana — dentro de las pautas de Google para que tu perfil esté limpio. Recibes un resumen semanal por email. Tú mantienes el control.',
         },
       ],
     },
@@ -200,12 +200,12 @@ export const landing = {
       valueLabel: 'Un empleado de marketing a tiempo parcial cuesta',
       valueCrossed: '$2,000+/mes',
       valueYours: 'El tuyo por',
-      cappedNote: 'Máximo 4 publicaciones por semana — el límite recomendado de Google para perfiles saludables. Sin spam, sin penalizaciones.',
+      cappedNote: 'Máximo 3 publicaciones por semana — el límite recomendado de Google para perfiles saludables. Sin spam, sin penalizaciones.',
       groups: [
         {
           title: 'PUBLICACIÓN DE CONTENIDO',
           items: [
-            { icon: '📝', text: 'Hasta 4 publicaciones / semana — con fotos y búsquedas locales' },
+            { icon: '📝', text: 'Hasta 3 publicaciones / semana — con fotos y búsquedas locales' },
             { icon: '🚀', text: 'Publicado directamente en tu Perfil de Negocio de Google' },
             { icon: '🔄', text: 'Rota formatos: actualizaciones, ofertas, eventos, consejos' },
           ],

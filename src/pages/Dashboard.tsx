@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAppT } from '../contexts/LanguageContext';
 import EditProfileTab from '../components/tabs/EditProfileTab';
 import ReviewsTab from '../components/tabs/ReviewsTab';
 import PhotosTab from '../components/tabs/PhotosTab';
@@ -54,16 +55,16 @@ const TABS = [
 
 type TabId = typeof TABS[number]['id'];
 
-const TAB_META: Record<TabId, { label: string; icon: React.ReactNode }> = {
-  profile:    { label: 'Edit Profile',  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
-  reviews:    { label: 'Reviews',       icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> },
-  photos:     { label: 'Photos',        icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> },
-  posts:      { label: 'Posts',         icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> },
-  insights:   { label: 'Performance',   icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
-  services:   { label: 'Services',      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg> },
-  products:   { label: 'Products',      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> },
-  bookings:   { label: 'Bookings',      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> },
-  getreviews: { label: 'Get Reviews',   icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg> },
+const TAB_ICONS: Record<TabId, React.ReactNode> = {
+  profile:    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  reviews:    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+  photos:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>,
+  posts:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+  insights:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+  services:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>,
+  products:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>,
+  bookings:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  getreviews: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
 };
 
 const SECTIONS_BY_CATEGORY: Record<string, TabId[]> = {
@@ -76,15 +77,6 @@ const SECTIONS_BY_CATEGORY: Record<string, TabId[]> = {
   real_estate: ['profile', 'reviews', 'photos', 'posts', 'insights', 'services', 'getreviews'],
 };
 
-const CATEGORY_OPTIONS = [
-  { value: 'contractor',  label: 'General Contractor / Handyman' },
-  { value: 'restaurant',  label: 'Restaurant / Food' },
-  { value: 'store',       label: 'Retail Store' },
-  { value: 'salon',       label: 'Salon & Spa' },
-  { value: 'hotel',       label: 'Hotel / Lodging' },
-  { value: 'doctor',      label: 'Medical / Health' },
-  { value: 'real_estate', label: 'Real Estate' },
-];
 
 // ─── Ambient orb layer ───────────────────────────────────────────────────────
 function AmbientOrbs() {
@@ -115,6 +107,7 @@ function AmbientOrbs() {
 // ─── Logout button with hover state ─────────────────────────────────────────
 function LogoutButton({ onClick }: { onClick: () => void }) {
   const [hovered, setHovered] = useState(false);
+  const dt = useAppT().dash;
   return (
     <button
       onClick={onClick}
@@ -131,7 +124,7 @@ function LogoutButton({ onClick }: { onClick: () => void }) {
         cursor: 'pointer',
       }}
     >
-      Log Out
+      {dt.logOut}
     </button>
   );
 }
@@ -148,6 +141,7 @@ function GbpGate({
   onRetry: () => void;
   isGuest?: boolean;
 }) {
+  const dt = useAppT().dash;
   return (
     <div
       className="rounded-2xl p-12 flex flex-col items-center gap-6 text-center"
@@ -167,10 +161,10 @@ function GbpGate({
           />
           <div>
             <p className="text-sm font-semibold" style={{ color: 'rgba(232,238,255,0.92)' }}>
-              Connecting to your Google Business Profile
+              {dt.gateChecking}
             </p>
             <p className="text-xs mt-1" style={{ color: 'rgba(232,238,255,0.45)' }}>
-              Verifying your account access — just a moment.
+              {dt.gateCheckingSub}
             </p>
           </div>
         </>
@@ -190,10 +184,10 @@ function GbpGate({
           </div>
           <div>
             <p className="text-sm font-semibold" style={{ color: 'rgba(232,238,255,0.92)' }}>
-              Google's API is temporarily throttled
+              {dt.gateRateLimited}
             </p>
             <p className="text-xs mt-1 max-w-sm" style={{ color: 'rgba(232,238,255,0.45)' }}>
-              Google limits how often we can verify your account. Once the countdown ends, hit retry.
+              {dt.gateRateLimitedSub}
             </p>
           </div>
           <button
@@ -211,7 +205,7 @@ function GbpGate({
               cursor: cooldown > 0 ? 'not-allowed' : 'pointer',
             }}
           >
-            {cooldown > 0 ? `Retry in ${cooldown}s` : 'Retry now →'}
+            {cooldown > 0 ? `${dt.gateRetryIn} ${cooldown}s` : dt.gateRetry}
           </button>
         </>
       )}
@@ -230,12 +224,10 @@ function GbpGate({
           </div>
           <div>
             <p className="text-sm font-semibold" style={{ color: 'rgba(232,238,255,0.92)' }}>
-              {isGuest ? 'Connect your Google Business Profile' : 'Google Business Profile access needed'}
+              {isGuest ? dt.gateGuestTitle : dt.gateAuthTitle}
             </p>
             <p className="text-xs mt-1 max-w-sm" style={{ color: 'rgba(232,238,255,0.45)' }}>
-              {isGuest
-                ? 'Create a free account and link your Google profile to start managing your content.'
-                : "Your Google connection doesn't include Business Profile permissions. Reconnect to fix it."}
+              {isGuest ? dt.gateGuestSub : dt.gateAuthSub}
             </p>
           </div>
           {isGuest ? (
@@ -250,7 +242,7 @@ function GbpGate({
                 textDecoration: 'none',
               }}
             >
-              Connect Google
+              {dt.connectGoogle}
             </a>
           ) : (
             <a
@@ -264,7 +256,7 @@ function GbpGate({
                 textDecoration: 'none',
               }}
             >
-              Connect Google
+              {dt.connectGoogle}
             </a>
           )}
         </>
@@ -276,6 +268,7 @@ function GbpGate({
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 export default function Dashboard() {
   const navigate = useNavigate();
+  const dt = useAppT().dash;
   const [client, setClient] = useState<Client | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -453,7 +446,7 @@ export default function Dashboard() {
                 className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"
                 style={{ boxShadow: locationReady ? '0 0 6px #34d399' : '0 0 6px #fbbf24' }}
               />
-              {locationReady ? 'GBP Connected' : 'API Approval Pending'}
+              {locationReady ? dt.gbpConnected : dt.apiPending}
             </div>
           )}
           {isGuest ? (
@@ -467,7 +460,7 @@ export default function Dashboard() {
                 boxShadow: '0 0 20px rgba(79,142,247,0.3)',
               }}
             >
-              Sign In / Sign Up
+              {dt.signInUp}
             </a>
           ) : (
             <LogoutButton onClick={logout} />
@@ -485,9 +478,9 @@ export default function Dashboard() {
             color: 'rgba(232,238,255,0.55)',
           }}
         >
-          <span>Browsing as guest —</span>
+          <span>{dt.guestBanner}</span>
           <a href="/signup" style={{ color: '#4f8ef7', textDecoration: 'none', fontWeight: 600 }}>
-            Connect Google to manage your real profile
+            {dt.guestBannerLink}
           </a>
         </div>
       )}
@@ -506,7 +499,7 @@ export default function Dashboard() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
-          <span style={{ fontWeight: 600, color: 'rgba(232,238,255,0.55)' }}>Simulate business category:</span>
+          <span style={{ fontWeight: 600, color: 'rgba(232,238,255,0.55)' }}>{dt.simulateLabel}</span>
           <select
             value={demoCategory}
             onChange={(e) => {
@@ -526,12 +519,12 @@ export default function Dashboard() {
               fontFamily: 'inherit',
             }}
           >
-            {CATEGORY_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value} style={{ background: '#080d1a' }}>{o.label}</option>
+            {(Object.entries(dt.categories) as [string, string][]).map(([value, label]) => (
+              <option key={value} value={value} style={{ background: '#080d1a' }}>{label}</option>
             ))}
           </select>
           <span style={{ marginLeft: 'auto', fontStyle: 'italic', opacity: 0.6, fontSize: '11px' }}>
-            In production, sections are fetched dynamically from GBP API based on the connected business category.
+            {dt.simulateNote}
           </span>
         </div>
       )}
@@ -551,8 +544,7 @@ export default function Dashboard() {
           className="flex items-end gap-0.5 px-5 pt-2"
           style={{ overflowX: 'auto', scrollbarWidth: 'none' }}
         >
-          {(isGuest ? SECTIONS_BY_CATEGORY[demoCategory] ?? TABS.map(t => t.id) : TABS.map(t => t.id)).map((tabId) => {
-            const meta = TAB_META[tabId as TabId];
+          {(isGuest ? SECTIONS_BY_CATEGORY[demoCategory] ?? TABS.map(tab => tab.id) : TABS.map(tab => tab.id)).map((tabId) => {
             const isActive = activeTab === tabId;
             return (
               <button
@@ -577,8 +569,8 @@ export default function Dashboard() {
                   if (!isActive) (e.currentTarget as HTMLButtonElement).style.color = 'rgba(232,238,255,0.45)';
                 }}
               >
-                <span style={{ opacity: isActive ? 1 : 0.6, display: 'flex' }}>{meta.icon}</span>
-                {meta.label}
+                <span style={{ opacity: isActive ? 1 : 0.6, display: 'flex' }}>{TAB_ICONS[tabId as TabId]}</span>
+                {dt.tabs[tabId as TabId]}
               </button>
             );
           })}
@@ -624,14 +616,14 @@ export default function Dashboard() {
                   style={{ background: 'rgba(79,142,247,0.07)', border: '1px solid rgba(79,142,247,0.20)' }}
                 >
                   <p className="text-xs" style={{ color: 'rgba(232,238,255,0.55)' }}>
-                    Connect your Google Business Profile to see your live data here.
+                    {dt.guestInlineBanner}
                   </p>
                   <a
                     href="/signup"
                     className="shrink-0 text-xs font-semibold px-4 py-1.5 rounded-lg"
                     style={{ background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', color: '#fff', textDecoration: 'none' }}
                   >
-                    Connect Google
+                    {dt.connectGoogle}
                   </a>
                 </div>
               )}

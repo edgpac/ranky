@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAppT } from '../../contexts/LanguageContext';
 
 interface GbpServiceItem {
   freeFormServiceItem?: {
@@ -130,6 +131,7 @@ function ServiceCard({
   onDelete: () => void;
   onDraftChange: (field: 'name' | 'desc' | 'price', value: string) => void;
 }) {
+  const ts = useAppT().services;
   if (svc.editing) {
     return (
       <div
@@ -146,27 +148,27 @@ function ServiceCard({
         <div style={{ display: 'flex', gap: '0.625rem' }}>
           <input
             style={{ ...inputStyle, flex: 2 }}
-            placeholder="Service name"
+            placeholder={ts.namePlaceholder}
             value={draft?.name ?? svc.name}
             onChange={(e) => onDraftChange('name', e.target.value)}
             autoFocus
           />
           <input
             style={{ ...inputStyle, flex: 1 }}
-            placeholder="Price (e.g. From $85)"
+            placeholder={ts.pricePlaceholder}
             value={draft?.price ?? svc.price}
             onChange={(e) => onDraftChange('price', e.target.value)}
           />
         </div>
         <input
           style={{ ...inputStyle, width: '100%' }}
-          placeholder="Short description"
+          placeholder={ts.descPlaceholder}
           value={draft?.desc ?? svc.desc}
           onChange={(e) => onDraftChange('desc', e.target.value)}
         />
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-          <button style={btnGhost} onClick={onCancel}>Cancel</button>
-          <button style={btnPrimary} onClick={onSave}>Save</button>
+          <button style={btnGhost} onClick={onCancel}>{ts.cancel}</button>
+          <button style={btnPrimary} onClick={onSave}>{ts.save}</button>
         </div>
       </div>
     );
@@ -226,7 +228,7 @@ function ServiceCard({
             {svc.price}
           </span>
         )}
-        {!isMock && <button style={btnGhost} onClick={onEdit}>Edit</button>}
+        {!isMock && <button style={btnGhost} onClick={onEdit}>{ts.edit}</button>}
         {!isMock && (
           <button style={btnDelete} onClick={onDelete} title="Remove service">
             ✕
@@ -240,6 +242,7 @@ function ServiceCard({
 // ─── Main tab ─────────────────────────────────────────────────────────────────
 
 export default function ServicesTab({ ready }: { ready: boolean }) {
+  const ts = useAppT().services;
   const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
   const [drafts, setDrafts] = useState<Record<number, { name: string; desc: string; price: string }>>({});
   const [loading, setLoading] = useState(false);
@@ -313,17 +316,15 @@ export default function ServicesTab({ ready }: { ready: boolean }) {
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>Services</h2>
+        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>{ts.heading}</h2>
         {!isMockMode && (
-          <button style={btnPrimary} onClick={addService}>+ Add Service</button>
+          <button style={btnPrimary} onClick={addService}>{ts.addService}</button>
         )}
       </div>
 
       {/* Subtitle */}
       <p style={{ fontSize: '0.8125rem', color: 'rgba(240,244,255,0.38)', lineHeight: 1.5, marginTop: '-0.25rem' }}>
-        {isMockMode
-          ? 'Connect your GBP to manage services. Edit them here and Ranky will sync to Google.'
-          : 'These services appear on your GBP listing. Edit them here and Ranky will sync to Google.'}
+        {isMockMode ? ts.subtitleMock : ts.subtitleReal}
       </p>
 
       {/* Service list */}
@@ -338,7 +339,7 @@ export default function ServicesTab({ ready }: { ready: boolean }) {
           }}
         >
           <p style={{ color: 'rgba(240,244,255,0.32)', fontSize: '0.875rem' }}>
-            No services yet — click "+ Add Service" to get started.
+            {ts.noServices}
           </p>
         </div>
       )}

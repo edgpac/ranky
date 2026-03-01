@@ -1,8 +1,13 @@
+import type { ReactNode } from 'react';
+import { useAppT } from '../contexts/LanguageContext';
+
 interface Props {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export default function SubPageLayout({ children }: Props) {
+  const t = useAppT().subLayout;
+
   return (
     <div className="min-h-screen bg-white font-sans flex flex-col">
 
@@ -25,7 +30,7 @@ export default function SubPageLayout({ children }: Props) {
             border: 'none',
           }}
         >
-          Get Started
+          {t.navCta}
         </a>
       </nav>
 
@@ -44,14 +49,14 @@ export default function SubPageLayout({ children }: Props) {
               <a href="mailto:hayvista@gmail.com" className="text-blue-500 hover:underline">hayvista@gmail.com</a>
             </span>
             <span className="text-xs text-center md:text-right text-gray-300">
-              © 2026 HayVista. AI-assisted GBP content management for local businesses.
+              {t.copyright}
             </span>
           </div>
         </div>
         <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-4 text-xs text-gray-400">
-          <a href="/privacy" className="hover:underline">Privacy Policy</a>
-          <a href="/terms" className="hover:underline">Terms of Service</a>
-          <a href="/faq" className="hover:underline">FAQ</a>
+          <a href="/privacy" className="hover:underline">{t.privacy}</a>
+          <a href="/terms" className="hover:underline">{t.terms}</a>
+          <a href="/faq" className="hover:underline">{t.faq}</a>
         </div>
       </footer>
 

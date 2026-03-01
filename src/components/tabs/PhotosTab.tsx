@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useAppT } from '../../contexts/LanguageContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -288,6 +289,7 @@ function PhotoCard({
 // ─── Upload panel ─────────────────────────────────────────────────────────────
 
 function UploadPanel({ onClose, onUploaded }: { onClose: () => void; onUploaded: (photo: PhotoItem) => void }) {
+  const tp = useAppT().photos;
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -346,19 +348,19 @@ function UploadPanel({ onClose, onUploaded }: { onClose: () => void; onUploaded:
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'rgba(240,244,255,0.85)' }}>Upload Photo</p>
-        <button style={btnGhost} onClick={onClose}>Cancel</button>
+        <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'rgba(240,244,255,0.85)' }}>{tp.uploadHeading}</p>
+        <button style={btnGhost} onClick={onClose}>{tp.cancel}</button>
       </div>
 
       <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.38)', lineHeight: 1.5, marginTop: '-0.25rem' }}>
-        HayVista injects SEO metadata (title, description, keywords) into the image before uploading so Google can index exactly what the photo shows.
+        {tp.uploadSubtitle}
       </p>
 
       {uploadResult && (
         <div style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)', borderRadius: '0.625rem', padding: '0.75rem' }}>
-          <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#34d399', marginBottom: '0.25rem' }}>Uploaded to Google ✓</p>
+          <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#34d399', marginBottom: '0.25rem' }}>{tp.uploadSuccess}</p>
           <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.65)' }}><strong>Title:</strong> {uploadResult.meta.title}</p>
-          <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.65)', marginTop: '0.2rem' }}><strong>Keywords:</strong> {uploadResult.meta.keywords?.join(', ')}</p>
+          <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.65)', marginTop: '0.2rem' }}><strong>{tp.uploadSuccessKw}</strong> {uploadResult.meta.keywords?.join(', ')}</p>
         </div>
       )}
 
@@ -389,15 +391,15 @@ function UploadPanel({ onClose, onUploaded }: { onClose: () => void; onUploaded:
         ) : (
           <>
             <span style={{ fontSize: '1.75rem', marginBottom: '0.35rem' }}>📸</span>
-            <p style={{ fontSize: '0.8125rem', color: 'rgba(240,244,255,0.45)' }}>Click to select photo</p>
-            <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.25)', marginTop: '0.15rem' }}>JPEG · PNG · WebP · max 15 MB</p>
+            <p style={{ fontSize: '0.8125rem', color: 'rgba(240,244,255,0.45)' }}>{tp.dropClick}</p>
+            <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.25)', marginTop: '0.15rem' }}>{tp.dropFormats}</p>
           </>
         )}
         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleFile} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem' }}>
-        <input style={inputStyle} placeholder="Caption (optional)" value={caption} onChange={(e) => setCaption(e.target.value)} />
+        <input style={inputStyle} placeholder={tp.captionPlaceholder} value={caption} onChange={(e) => setCaption(e.target.value)} />
         <select
           style={{ ...inputStyle, cursor: 'pointer', appearance: 'none' as const, background: 'rgba(255,255,255,0.06)' }}
           value={category}
@@ -432,9 +434,9 @@ function UploadPanel({ onClose, onUploaded }: { onClose: () => void; onUploaded:
                 display: 'inline-block',
               }}
             />
-            Adding metadata &amp; uploading…
+            {tp.uploading}
           </>
-        ) : 'Upload to Google Business Profile'}
+        ) : tp.uploadBtn}
       </button>
     </div>
   );
@@ -504,6 +506,7 @@ function Pagination({ page, totalPages, onPage }: { page: number; totalPages: nu
 // ─── Main tab ─────────────────────────────────────────────────────────────────
 
 export default function PhotosTab({ ready }: { ready: boolean }) {
+  const tp = useAppT().photos;
   const [photos, setPhotos] = useState<PhotoItem[]>(MOCK_PHOTOS);
   const [isMockMode, setIsMockMode] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -576,19 +579,17 @@ export default function PhotosTab({ ready }: { ready: boolean }) {
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>Photos &amp; Videos</h2>
+        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>{tp.heading}</h2>
         {!isMockMode && (
           <button style={btnPrimary} onClick={() => setShowUpload((v) => !v)}>
-            {showUpload ? 'Cancel' : '+ Add Photo'}
+            {showUpload ? tp.cancel : tp.addPhoto}
           </button>
         )}
       </div>
 
       {/* Subtitle */}
       <p style={{ fontSize: '0.8125rem', color: 'rgba(240,244,255,0.38)', lineHeight: 1.5, marginTop: '-0.25rem' }}>
-        {isMockMode
-          ? 'Connect your GBP to manage photos. These appear on your Google listing in Search and Maps.'
-          : 'Photos uploaded here are synced to your GBP listing and shown to customers on Google Search and Maps.'}
+        {isMockMode ? tp.subtitleMock : tp.subtitleReal}
       </p>
 
       {/* Upload panel */}
@@ -606,8 +607,8 @@ export default function PhotosTab({ ready }: { ready: boolean }) {
       {/* Count row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.28)' }}>
-          {photos.length} {photos.length === 1 ? 'photo' : 'photos'}
-          {totalPages > 1 && ` · page ${page} of ${totalPages}`}
+          {photos.length} {photos.length === 1 ? tp.photo : tp.photos}
+          {totalPages > 1 && ` · ${tp.page} ${page} ${tp.of} ${totalPages}`}
         </p>
       </div>
 
@@ -623,7 +624,7 @@ export default function PhotosTab({ ready }: { ready: boolean }) {
           }}
         >
           <p style={{ color: 'rgba(240,244,255,0.32)', fontSize: '0.875rem' }}>
-            No photos yet — click "+ Add Photo" to upload your first one.
+            {tp.noPhotos}
           </p>
         </div>
       ) : (

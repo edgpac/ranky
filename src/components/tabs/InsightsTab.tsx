@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAppT } from '../../contexts/LanguageContext';
 
 interface MetricValue {
   metric: string;
@@ -65,13 +66,7 @@ function extractMetric(insights: InsightsData | null, metric: string): number {
   return parseInt(found?.totalValue?.value || '0', 10);
 }
 
-const TAB_LABELS: Record<string, string> = {
-  photos:     'Photos',
-  reviews:    'Reviews',
-  getreviews: 'Get Reviews',
-  profile:    'Edit Profile',
-  posts:      'Posts',
-};
+// Tab labels are now provided by translations; see AuditRow below
 
 // ─── Metric card ─────────────────────────────────────────────────────────────
 
@@ -111,9 +106,10 @@ const STATUS_BORDER: Record<string, string> = {
 };
 
 function AuditRow({ item, onNavigate }: { item: AuditItem; onNavigate: (tab: string) => void }) {
+  const t = useAppT().insights;
   const color  = STATUS_COLOR[item.status];
   const icon   = STATUS_ICON[item.status];
-  const tabLabel = TAB_LABELS[item.tab] ?? item.tab;
+  const tabLabel = (t.tabs as Record<string, string>)[item.tab] ?? item.tab;
 
   return (
     <div style={{
@@ -171,6 +167,7 @@ function AuditRow({ item, onNavigate }: { item: AuditItem; onNavigate: (tab: str
 // ─── Main tab ─────────────────────────────────────────────────────────────────
 
 export default function InsightsTab({ ready, onNavigate }: Props) {
+  const t = useAppT().insights;
   const [insights, setInsights]   = useState<InsightsData | null>(null);
   const [auditItems, setAuditItems] = useState<AuditItem[]>(MOCK_AUDIT);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -218,7 +215,7 @@ export default function InsightsTab({ ready, onNavigate }: Props) {
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>Performance</h2>
+        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>{t.heading}</h2>
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value as PeriodKey)}
@@ -240,10 +237,10 @@ export default function InsightsTab({ ready, onNavigate }: Props) {
 
       {/* 4 metric cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.625rem' }}>
-        <MetricCard label="Interactions"  value={interactions.toLocaleString()} sub="from last period" subGreen />
-        <MetricCard label="Calls"          value="—" sub="API pending" />
-        <MetricCard label="Directions"     value="—" sub="API pending" />
-        <MetricCard label="Website Clicks" value="—" sub="API pending" />
+        <MetricCard label={t.interactions}  value={interactions.toLocaleString()} sub={t.fromLastPeriod} subGreen />
+        <MetricCard label={t.calls}          value="—" sub={t.apiPending} />
+        <MetricCard label={t.directions}     value="—" sub={t.apiPending} />
+        <MetricCard label={t.websiteClicks}  value="—" sub={t.apiPending} />
       </div>
 
       {/* Bar chart */}
@@ -252,7 +249,7 @@ export default function InsightsTab({ ready, onNavigate }: Props) {
         borderRadius: '0.875rem', padding: '1.125rem 1.25rem 0.875rem',
       }}>
         <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'rgba(240,244,255,0.75)', marginBottom: '1.25rem' }}>
-          Profile Interactions by Month
+          {t.chartTitle}
         </p>
         <div style={{ position: 'relative' }}>
           {[100, 66, 33].map((pct) => (
@@ -289,22 +286,22 @@ export default function InsightsTab({ ready, onNavigate }: Props) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
             <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'rgba(240,244,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              Profile Health
+              {t.profileHealth}
             </span>
             {/* Summary chips */}
             {errorCount > 0 && (
               <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: '9999px', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.22)', color: '#f87171' }}>
-                {errorCount} critical
+                {errorCount} {t.critical}
               </span>
             )}
             {warnCount > 0 && (
               <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: '9999px', background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.20)', color: '#fbbf24' }}>
-                {warnCount} warnings
+                {warnCount} {t.warnings}
               </span>
             )}
             {errorCount === 0 && warnCount === 0 && (
               <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: '9999px', background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.20)', color: '#34d399' }}>
-                All good
+                {t.allGood}
               </span>
             )}
           </div>
@@ -322,7 +319,7 @@ export default function InsightsTab({ ready, onNavigate }: Props) {
 
       {/* Footer note */}
       <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.30)', lineHeight: 1.5 }}>
-        Full breakdowns for calls, direction requests, and website clicks will populate once the GBP API is approved.
+        {t.footerNote}
       </p>
 
     </div>
