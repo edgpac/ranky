@@ -423,8 +423,8 @@ export default function ProductsTab({ initialProducts }: { initialProducts: Prod
   }, [initialProducts]);
 
   const handleAdd = async (draft: Draft) => {
-    try {
-      // TODO: POST /api/products once GBP write scope is approved
+    if (isMockMode) {
+      // Mock mode: local-only
       const newProduct: Product = {
         id: nextId++,
         name: draft.name,
@@ -434,12 +434,24 @@ export default function ProductsTab({ initialProducts }: { initialProducts: Prod
       };
       setProducts((prev) => [...prev, newProduct]);
       setAdding(false);
+      return;
+    }
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: draft.name, description: draft.description, price: draft.price, url: draft.url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setProducts((prev) => [...prev, data.product]);
+      setAdding(false);
     } catch { /* ignore */ }
   };
 
   const handleSaveEdit = async (id: number, draft: Draft) => {
-    try {
-      // TODO: PATCH /api/products/:id once GBP write scope is approved
+    if (isMockMode) {
       setProducts((prev) =>
         prev.map((p) => p.id === id
           ? { ...p, name: draft.name, description: draft.description, price: draft.price, url: draft.url || undefined }
@@ -447,13 +459,29 @@ export default function ProductsTab({ initialProducts }: { initialProducts: Prod
         ),
       );
       setEditingId(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/products/${id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: draft.name, description: draft.description, price: draft.price, url: draft.url }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setProducts((prev) => prev.map((p) => p.id === id ? data.product : p));
+      setEditingId(null);
     } catch { /* ignore */ }
   };
 
   const handleDelete = async (id: number) => {
     setDeleting(id);
     try {
-      // TODO: DELETE /api/products/:id once GBP write scope is approved
+      if (!isMockMode) {
+        const res = await fetch(`/api/products/${id}`, { method: 'DELETE', credentials: 'include' });
+        if (!res.ok) throw new Error((await res.json()).error);
+      }
       setProducts((prev) => prev.filter((p) => p.id !== id));
     } catch { /* ignore */ }
     finally { setDeleting(null); }

@@ -112,9 +112,11 @@ async function initDB() {
       name TEXT NOT NULL,
       description TEXT DEFAULT '',
       price TEXT DEFAULT '',
+      url TEXT DEFAULT '',
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS url TEXT DEFAULT ''`);
   console.log('✅ DB ready');
 }
 
@@ -523,11 +525,11 @@ app.get('/api/products', requireAuth, async (req, res) => {
 
 app.post('/api/products', requireAuth, async (req, res) => {
   try {
-    const { name, description = '', price = '' } = req.body;
+    const { name, description = '', price = '', url = '' } = req.body;
     if (!name?.trim()) return res.status(400).json({ error: 'Name is required' });
     const { rows } = await pool.query(
-      'INSERT INTO products (client_id, name, description, price) VALUES ($1, $2, $3, $4) RETURNING *',
-      [req.session.clientId, name.trim(), description.trim(), price.trim()]
+      'INSERT INTO products (client_id, name, description, price, url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [req.session.clientId, name.trim(), description.trim(), price.trim(), url.trim()]
     );
     res.json({ product: rows[0] });
   } catch (err) {
@@ -537,14 +539,15 @@ app.post('/api/products', requireAuth, async (req, res) => {
 
 app.patch('/api/products/:id', requireAuth, async (req, res) => {
   try {
-    const { name, description, price } = req.body;
+    const { name, description, price, url } = req.body;
     const { rows } = await pool.query(
       `UPDATE products SET
         name        = COALESCE($1, name),
         description = COALESCE($2, description),
-        price       = COALESCE($3, price)
-       WHERE id = $4 AND client_id = $5 RETURNING *`,
-      [name ?? null, description ?? null, price ?? null, req.params.id, req.session.clientId]
+        price       = COALESCE($3, price),
+        url         = COALESCE($4, url)
+       WHERE id = $5 AND client_id = $6 RETURNING *`,
+      [name ?? null, description ?? null, price ?? null, url ?? null, req.params.id, req.session.clientId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Product not found' });
     res.json({ product: rows[0] });
