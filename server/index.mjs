@@ -188,9 +188,9 @@ async function ensureLocation(client) {
   return name;
 }
 
-async function callClaude(systemPrompt, messages, maxTokens = 400) {
+async function callClaude(systemPrompt, messages, maxTokens = 400, model = 'claude-sonnet-4-6') {
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
+    model,
     max_tokens: maxTokens,
     system: systemPrompt,
     messages,
@@ -488,7 +488,8 @@ async function generatePostForClient(client, overridePostType) {
   }
 
   // 2. GBP photos + description + services (single location fetch)
-  let photoUrl = null;
+  let photos = [];
+  let photoMeta = [];  // descriptive list for Claude to choose from
   let gbpDescription = '';
   let gbpServices = [];
   try {
@@ -499,9 +500,12 @@ async function generatePostForClient(client, overridePostType) {
       google.mybusinessbusinessinformation({ version: 'v1', auth })
         .locations.get({ name: locationName, readMask: 'profile,serviceItems' }),
     ]);
-    const photos = mediaRes.data.mediaItems || [];
-    const pick = photos[Math.floor(Math.random() * photos.length)];
-    if (pick) photoUrl = pick.googleUrl || pick.sourceUrl;
+    photos = (mediaRes.data.mediaItems || []).filter((p) => p.mediaFormat === 'PHOTO' || !p.mediaFormat);
+    photoMeta = photos.slice(0, 20).map((p, i) => {
+      const cat = p.locationAssociation?.category || 'GENERAL';
+      const desc = p.description ? ` — "${p.description}"` : '';
+      return `${i}: ${cat}${desc}`;
+    });
     gbpDescription = locRes.data?.profile?.description || '';
     gbpServices = (locRes.data?.serviceItems || [])
       .filter((s) => s.freeFormServiceItem?.label?.displayName)
@@ -579,6 +583,28 @@ Post type instruction: ${postTypeNote}`;
   const userPrompt = `Write a GBP post for ${client.business_name}, a ${bizLabel} in ${city}. The most searched local query this week is: "${topQuery}". Build the post around this search intent naturally.`;
 
   const postText = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 500);
+
+  // 7. Smart photo picker — match post content to the most relevant GBP photo
+  let photoUrl = null;
+  if (photos.length === 1) {
+    photoUrl = photos[0].googleUrl || photos[0].sourceUrl;
+  } else if (photos.length > 1) {
+    try {
+      const pickPrompt = `Match this Google Business Profile post to the most visually relevant photo.\n\nPost:\n${postText}\n\nAvailable photos (index: CATEGORY — description):\n${photoMeta.join('\n')}\n\nReply with ONLY the index number of the best matching photo. Just the number, nothing else.`;
+      const idxStr = await callClaude('', [{ role: 'user', content: pickPrompt }], 10, 'claude-haiku-4-5-20251001');
+      const idx = parseInt(idxStr.trim(), 10);
+      if (!isNaN(idx) && idx >= 0 && photos[idx]) {
+        photoUrl = photos[idx].googleUrl || photos[idx].sourceUrl;
+      }
+    } catch (e) {
+      console.warn('Photo picker failed:', e.message);
+    }
+    // Fallback to random if picker failed
+    if (!photoUrl) {
+      const pick = photos[Math.floor(Math.random() * photos.length)];
+      if (pick) photoUrl = pick.googleUrl || pick.sourceUrl;
+    }
+  }
 
   const result = await pool.query(
     `INSERT INTO posts (client_id, photo_url, post_text, search_query, status, post_type, auto_approve_at)
