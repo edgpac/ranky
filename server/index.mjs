@@ -117,6 +117,7 @@ async function initDB() {
     )
   `);
   await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS url TEXT DEFAULT ''`);
+  await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS auto_approve_at TIMESTAMPTZ`);
   console.log('✅ DB ready');
 }
 
@@ -390,8 +391,18 @@ app.patch('/api/posts/:id', requireAuth, async (req, res) => {
     const sets = [];
     const vals = [];
     let i = 1;
-    if (text?.trim()) { sets.push(`post_text = $${i++}`); vals.push(text.trim()); }
-    if (status)        { sets.push(`status = $${i++}`);    vals.push(status); }
+    if (text?.trim()) {
+      sets.push(`post_text = $${i++}`);
+      vals.push(text.trim());
+      // Editing resets the auto-approve window to 20 hours from now
+      sets.push(`auto_approve_at = NOW() + INTERVAL '20 hours'`);
+    }
+    if (status) {
+      sets.push(`status = $${i++}`);
+      vals.push(status);
+      // Manual approve/discard clears the timer
+      sets.push(`auto_approve_at = NULL`);
+    }
     vals.push(req.params.id, req.session.clientId);
     const result = await pool.query(
       `UPDATE posts SET ${sets.join(', ')} WHERE id = $${i++} AND client_id = $${i} RETURNING *`,
@@ -488,7 +499,8 @@ Rules:
   const postText = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 500);
 
   const result = await pool.query(
-    `INSERT INTO posts (client_id, photo_url, post_text, search_query, status) VALUES ($1, $2, $3, $4, 'pending') RETURNING *`,
+    `INSERT INTO posts (client_id, photo_url, post_text, search_query, status, auto_approve_at)
+     VALUES ($1, $2, $3, $4, 'pending', NOW() + INTERVAL '24 hours') RETURNING *`,
     [client.id, photoUrl, postText, topQuery]
   );
   return result.rows[0];
@@ -1264,6 +1276,28 @@ cron.schedule('0 9 * * 1,3,5', async () => {
     }
   } catch (e) {
     console.error('Cron error:', e);
+  }
+});
+
+// ─── Hourly auto-approve cron ─────────────────────────────────
+// Posts that have passed their auto_approve_at window without being discarded
+// are automatically marked approved. Once GBP write scope is live, swap
+// status update here for a localPosts.create call to publish directly.
+cron.schedule('0 * * * *', async () => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE posts
+         SET status = 'approved', auto_approve_at = NULL
+       WHERE status = 'pending'
+         AND auto_approve_at IS NOT NULL
+         AND auto_approve_at <= NOW()
+       RETURNING id, client_id`
+    );
+    if (rows.length > 0) {
+      console.log(`⏰ Auto-approved ${rows.length} post(s):`, rows.map((r) => r.id).join(', '));
+    }
+  } catch (e) {
+    console.error('Auto-approve cron error:', e);
   }
 });
 
