@@ -875,6 +875,30 @@ app.get('/api/photos', requireAuth, async (req, res) => {
   }
 });
 
+// Debug: show exactly what the AI photo picker sees for each photo
+app.get('/api/photos/debug', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const client = rows[0];
+    const auth = getClientAuth(client);
+    const locationName = await ensureLocation(client);
+    const mybusiness = google.mybusiness({ version: 'v4', auth });
+    const mediaRes = await mybusiness.accounts.locations.media.list({ parent: locationName });
+    const all = (mediaRes.data.mediaItems || []).filter((p) => p.mediaFormat === 'PHOTO' || !p.mediaFormat);
+    const pickerView = all.slice(0, 20).map((p, i) => ({
+      index: i,
+      category: p.locationAssociation?.category || 'GENERAL',
+      description: p.description || null,
+      url: p.googleUrl || p.sourceUrl || null,
+      pickerLine: `${i}: ${p.locationAssociation?.category || 'GENERAL'}${p.description ? ` — "${p.description}"` : ''}`,
+    }));
+    res.json({ total: all.length, pickerView });
+  } catch (err) {
+    console.error('Photos debug error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/photos/upload', requireAuth, upload.single('photo'), async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
