@@ -596,6 +596,8 @@ export default function Dashboard() {
           {activeTab === 'posts' && (
             <PostsTab
               posts={isGuest ? MOCK_POSTS : posts}
+              postsPerWeek={client?.posts_per_week ?? 3}
+              tone={client?.tone ?? 'Friendly'}
               onPostGenerated={(p) => setPosts((prev) => [p, ...prev])}
               onPostUpdated={(p) => setPosts((prev) => prev.map((x) => x.id === p.id ? p : x))}
               onPostDeleted={(id) => setPosts((prev) => prev.filter((x) => x.id !== id))}

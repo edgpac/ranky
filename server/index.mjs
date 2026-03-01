@@ -383,14 +383,31 @@ app.get('/api/me', requireAuth, async (req, res) => {
 
 app.patch('/api/posts/:id', requireAuth, async (req, res) => {
   try {
-    const { text } = req.body;
-    if (!text?.trim()) return res.status(400).json({ error: 'Text is required' });
+    const { text, status } = req.body;
+    if (!text?.trim() && !status) return res.status(400).json({ error: 'text or status required' });
+    const VALID_STATUS = ['pending', 'approved', 'posted'];
+    if (status && !VALID_STATUS.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+    const sets = [];
+    const vals = [];
+    let i = 1;
+    if (text?.trim()) { sets.push(`post_text = $${i++}`); vals.push(text.trim()); }
+    if (status)        { sets.push(`status = $${i++}`);    vals.push(status); }
+    vals.push(req.params.id, req.session.clientId);
     const result = await pool.query(
-      'UPDATE posts SET post_text = $1 WHERE id = $2 AND client_id = $3 RETURNING *',
-      [text.trim(), req.params.id, req.session.clientId]
+      `UPDATE posts SET ${sets.join(', ')} WHERE id = $${i++} AND client_id = $${i} RETURNING *`,
+      vals
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Post not found' });
     res.json({ post: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/posts/:id', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM posts WHERE id = $1 AND client_id = $2', [req.params.id, req.session.clientId]);
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
