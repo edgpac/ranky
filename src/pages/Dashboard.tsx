@@ -37,6 +37,7 @@ interface Product {
   name: string;
   description: string;
   price: string;
+  url?: string;
 }
 
 const TABS = [
