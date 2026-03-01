@@ -112,6 +112,7 @@ const btnGhost: React.CSSProperties = {
 
 function ReviewCard({ review }: { review: Review }) {
   const [replyText, setReplyText] = useState('');
+  const [aiDraft, setAiDraft] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [localReply, setLocalReply] = useState(review.reviewReply?.comment ?? null);
@@ -122,9 +123,11 @@ function ReviewCard({ review }: { review: Review }) {
   const dateStr = relativeTime(review.createTime);
   const photoCount = review.totalMediaItemCount;
   const metaStr = photoCount ? `${dateStr} · ${photoCount} photo${photoCount > 1 ? 's' : ''}` : dateStr;
+  const firstName = review.reviewer.displayName.split(' ')[0];
 
   const generateReply = async () => {
     setGenerating(true);
+    setAiDraft(null);
     setReplyText('');
     try {
       const res = await fetch('/api/reviews/generate-reply', {
@@ -134,30 +137,31 @@ function ReviewCard({ review }: { review: Review }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setReplyText(data.reply);
+      setAiDraft(data.reply);
     } catch {
-      setReplyText('');
+      // silently fail — user can try again
     } finally {
       setGenerating(false);
     }
   };
 
-  const postReply = async () => {
-    if (!replyText.trim()) return;
+  const postReply = async (text: string) => {
+    if (!text.trim()) return;
     setPosting(true);
     try {
       const res = await fetch('/api/reviews/reply', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reviewName: review.name, replyText }),
+        body: JSON.stringify({ reviewName: review.name, replyText: text }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
     } catch {
       // optimistically update
     } finally {
-      setLocalReply(replyText);
+      setLocalReply(text);
       setLocalReplyTime(new Date().toISOString());
       setReplyText('');
+      setAiDraft(null);
       setPosting(false);
     }
   };
@@ -198,7 +202,7 @@ function ReviewCard({ review }: { review: Review }) {
 
       {/* Reply area */}
       {localReply ? (
-        /* Replied: show subtle indicator */
+        /* Already replied */
         <div
           style={{
             borderTop: '1px solid rgba(255,255,255,0.07)',
@@ -211,7 +215,7 @@ function ReviewCard({ review }: { review: Review }) {
           ✓ Replied {localReplyTime ? relativeTime(localReplyTime) : ''}
         </div>
       ) : generating ? (
-        /* AI generating */
+        /* AI generating spinner */
         <div
           style={{
             display: 'flex', alignItems: 'center', gap: '0.625rem',
@@ -230,9 +234,72 @@ function ReviewCard({ review }: { review: Review }) {
             Claude is writing a reply…
           </p>
         </div>
-      ) : (
-        /* Reply input — always open for unreplied */
+      ) : aiDraft ? (
+        /* AI draft preview — edit or post as-is */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div
+            style={{
+              background: 'rgba(79,142,247,0.07)',
+              border: '1px solid rgba(79,142,247,0.22)',
+              borderRadius: '0.5rem',
+              padding: '0.625rem 0.75rem',
+            }}
+          >
+            <p
+              style={{
+                fontSize: '0.6875rem', fontWeight: 700, color: 'rgba(79,142,247,0.75)',
+                letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem',
+              }}
+            >
+              ✦ AI Draft
+            </p>
+            <p style={{ fontSize: '0.8125rem', lineHeight: 1.55, color: 'rgba(240,244,255,0.82)' }}>
+              {aiDraft}
+            </p>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              style={{ ...btnGhost, padding: '0.3rem 0.75rem', fontSize: '0.8125rem' }}
+              onClick={() => setAiDraft(null)}
+            >
+              Discard
+            </button>
+            <button
+              style={{ ...btnGhost, padding: '0.3rem 0.75rem', fontSize: '0.8125rem' }}
+              onClick={() => { setReplyText(aiDraft); setAiDraft(null); }}
+            >
+              Edit
+            </button>
+            <button
+              style={{ ...btnPrimary, padding: '0.3rem 0.875rem', opacity: posting ? 0.45 : 1 }}
+              onClick={() => postReply(aiDraft)}
+              disabled={posting}
+            >
+              {posting ? 'Posting…' : 'Post Reply'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Manual reply input + generate button */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <button
+            onClick={generateReply}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem',
+              width: '100%',
+              background: 'rgba(79,142,247,0.09)',
+              border: '1px solid rgba(79,142,247,0.25)',
+              borderRadius: '0.5rem',
+              color: 'rgba(79,142,247,0.9)',
+              fontSize: '0.8125rem', fontWeight: 600,
+              padding: '0.5rem 0.75rem',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'background 0.15s',
+            }}
+          >
+            ✦ Generate Reply with AI
+          </button>
           <textarea
             style={{
               background: 'rgba(255,255,255,0.04)',
@@ -248,24 +315,14 @@ function ReviewCard({ review }: { review: Review }) {
               fontFamily: 'inherit',
               transition: 'border-color 0.18s',
             }}
-            rows={2}
-            placeholder={`Write a public reply to ${review.reviewer.displayName.split(' ')[0]}'s review...`}
+            rows={replyText ? 3 : 2}
+            placeholder={`Write a public reply to ${firstName}'s review…`}
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
             onFocus={(e) => { (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(79,142,247,0.45)'; }}
             onBlur={(e) => { (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(255,255,255,0.10)'; }}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}>
-            <button
-              onClick={generateReply}
-              style={{
-                fontSize: '0.75rem', fontWeight: 600, color: 'rgba(79,142,247,0.8)',
-                background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem 0',
-                marginRight: 'auto',
-              }}
-            >
-              ✦ Write with AI
-            </button>
             <button
               style={{ ...btnGhost, padding: '0.3rem 0.75rem', fontSize: '0.8125rem' }}
               onClick={() => setReplyText('')}
@@ -274,7 +331,7 @@ function ReviewCard({ review }: { review: Review }) {
             </button>
             <button
               style={{ ...btnPrimary, padding: '0.3rem 0.875rem', opacity: posting || !replyText.trim() ? 0.45 : 1 }}
-              onClick={postReply}
+              onClick={() => postReply(replyText)}
               disabled={posting || !replyText.trim()}
             >
               {posting ? 'Posting…' : 'Post Reply'}
