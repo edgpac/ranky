@@ -384,6 +384,7 @@ const CATEGORY_OPTIONS = [
   'General Contractor', 'Handyman', 'Electrician', 'Plumber', 'HVAC',
   'Painter', 'Roofer', 'Landscaper', 'Cleaner',
 ];
+const OTHER_SENTINEL = '__other__';
 
 interface Props {
   client: Client | null;
@@ -402,7 +403,14 @@ export default function EditProfileTab({ client, ready, onClientUpdated }: Props
 
   // Local editable fields
   const [businessName, setBusinessName] = useState(client?.business_name || '');
-  const [category, setCategory] = useState(client?.business_type || 'General Contractor');
+  const [category, setCategory] = useState(() => {
+    const bt = client?.business_type || 'General Contractor';
+    return CATEGORY_OPTIONS.includes(bt) ? bt : OTHER_SENTINEL;
+  });
+  const [customCategory, setCustomCategory] = useState(() => {
+    const bt = client?.business_type || '';
+    return CATEGORY_OPTIONS.includes(bt) ? '' : bt;
+  });
   const [tone, setTone] = useState(client?.tone || 'Friendly');
   const [postsPerWeek, setPostsPerWeek] = useState(client?.posts_per_week || 1);
   const [phone, setPhone] = useState(client?.whatsapp || '');
@@ -419,7 +427,14 @@ export default function EditProfileTab({ client, ready, onClientUpdated }: Props
   useEffect(() => {
     if (!client) return;
     setBusinessName(client.business_name || '');
-    setCategory(client.business_type || 'General Contractor');
+    const bt = client.business_type || 'General Contractor';
+    if (CATEGORY_OPTIONS.includes(bt)) {
+      setCategory(bt);
+      setCustomCategory('');
+    } else {
+      setCategory(OTHER_SENTINEL);
+      setCustomCategory(bt);
+    }
     setTone(client.tone || 'Friendly');
     setPostsPerWeek(client.posts_per_week || 1);
     setPhone(client.whatsapp || '');
@@ -443,9 +458,12 @@ export default function EditProfileTab({ client, ready, onClientUpdated }: Props
       .finally(() => setGbpLoading(false));
   }, [ready]);
 
+  // Resolve effective category: use free-text when "Other" is selected
+  const effectiveCategory = category === OTHER_SENTINEL ? customCategory : category;
+
   // Pick template: prefer live GBP category, fall back to local business_type
   const template: ProfileTemplate = resolveTemplate(
-    gbpData?.primaryCategory || client?.business_type || '',
+    gbpData?.primaryCategory || effectiveCategory || '',
   );
 
   const handleSave = async () => {
@@ -458,7 +476,7 @@ export default function EditProfileTab({ client, ready, onClientUpdated }: Props
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           business_name: businessName,
-          business_type: category,
+          business_type: category === OTHER_SENTINEL ? customCategory : category,
           tone,
           posts_per_week: postsPerWeek,
           whatsapp: phone,
@@ -535,6 +553,7 @@ export default function EditProfileTab({ client, ready, onClientUpdated }: Props
         <EditForm
           businessName={businessName} setBusinessName={setBusinessName}
           category={category} setCategory={setCategory}
+          customCategory={customCategory} setCustomCategory={setCustomCategory}
           phone={phone} setPhone={setPhone}
           website={website} setWebsite={setWebsite}
           serviceArea={serviceArea} setServiceArea={setServiceArea}
@@ -557,6 +576,7 @@ export default function EditProfileTab({ client, ready, onClientUpdated }: Props
 interface EditFormProps {
   businessName: string; setBusinessName: (v: string) => void;
   category: string; setCategory: (v: string) => void;
+  customCategory: string; setCustomCategory: (v: string) => void;
   phone: string; setPhone: (v: string) => void;
   website: string; setWebsite: (v: string) => void;
   serviceArea: string; setServiceArea: (v: string) => void;
@@ -571,6 +591,7 @@ interface EditFormProps {
 function EditForm({
   businessName, setBusinessName,
   category, setCategory,
+  customCategory, setCustomCategory,
   phone, setPhone,
   website, setWebsite,
   serviceArea, setServiceArea,
@@ -589,9 +610,29 @@ function EditForm({
         </div>
         <div>
           <label style={labelStyle}>Primary Category</label>
-          <select style={{ ...inputStyle, appearance: 'none' as const }} value={category} onChange={(e) => setCategory(e.target.value)}>
-            {CATEGORY_OPTIONS.map((opt) => <option key={opt} value={opt} style={{ background: '#080d1a' }}>{opt}</option>)}
+          <select
+            style={{ ...inputStyle, appearance: 'none' as const }}
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              if (e.target.value !== OTHER_SENTINEL) setCustomCategory('');
+            }}
+          >
+            {CATEGORY_OPTIONS.map((opt) => (
+              <option key={opt} value={opt} style={{ background: '#080d1a' }}>{opt}</option>
+            ))}
+            <option value={OTHER_SENTINEL} style={{ background: '#080d1a' }}>Other — describe below</option>
           </select>
+          {category === OTHER_SENTINEL && (
+            <input
+              style={{ ...inputStyle, marginTop: '0.5rem' }}
+              value={customCategory}
+              onChange={(e) => setCustomCategory(e.target.value)}
+              placeholder="e.g. Dog walker, Mobile ice cream seller…"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          )}
         </div>
         <div>
           <label style={labelStyle}>Phone</label>

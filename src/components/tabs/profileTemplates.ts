@@ -137,15 +137,17 @@ export const PROFILE_TEMPLATES: Record<TemplateKey, ProfileTemplate> = {
   },
 };
 
-// Keywords that map GBP category display names → template keys
+// Keywords that map GBP category display names or free-text → template keys.
+// Evaluated top-to-bottom; first match wins.
 const KEYWORD_MAP: Array<[string[], TemplateKey]> = [
-  [['restaurant', 'cafe', 'cafeteria', 'bar', 'pub', 'pizza', 'sushi', 'bakery', 'food', 'dining', 'brewery', 'diner', 'bistro', 'buffet', 'noodle', 'taco', 'burger', 'seafood', 'steakhouse'], 'restaurant'],
-  [['hotel', 'motel', 'hostel', 'inn', 'lodge', 'resort', 'bed and breakfast', 'b&b', 'vacation rental'], 'hotel'],
-  [['salon', 'spa', 'barber', 'barbershop', 'beauty', 'nail', 'wax', 'hair', 'massage', 'tattoo', 'estheti'], 'salon'],
-  [['doctor', 'dentist', 'dental', 'clinic', 'medical', 'health', 'physician', 'dermatologist', 'chiropractor', 'optometrist', 'pharmacy', 'therapist', 'pediatrician', 'orthodontist', 'hospital', 'urgent care'], 'doctor'],
-  [['real estate', 'realtor', 'property management', 'broker', 'leasing', 'appraisal', 'mortgage', 'realty'], 'real_estate'],
-  [['store', 'shop', 'boutique', 'market', 'grocery', 'hardware', 'furniture', 'bookstore', 'pet store', 'retail', 'supermarket', 'department store'], 'store'],
-  [['contractor', 'handyman', 'electrician', 'plumber', 'hvac', 'painter', 'roofer', 'landscaper', 'cleaner', 'locksmith', 'pest control', 'remodel', 'carpenter', 'mason', 'window', 'flooring'], 'contractor'],
+  [['restaurant', 'cafe', 'cafeteria', 'bar', 'pub', 'pizza', 'sushi', 'bakery', 'food truck', 'catering', 'dining', 'brewery', 'diner', 'bistro', 'buffet', 'noodle', 'taco', 'burger', 'seafood', 'steakhouse', 'ice cream', 'gelato', 'bbq', 'barbecue', 'grill', 'sandwich', 'breakfast', 'brunch', 'juice bar', 'smoothie', 'coffee', 'dessert', 'pastry', 'donut', 'churro', 'food', 'kitchen'], 'restaurant'],
+  [['hotel', 'motel', 'hostel', 'inn', 'lodge', 'resort', 'bed and breakfast', 'b&b', 'vacation rental', 'airbnb'], 'hotel'],
+  [['salon', 'spa', 'barber', 'barbershop', 'beauty', 'nail', 'wax', 'waxing', 'hair', 'massage', 'tattoo', 'estheti', 'grooming', 'skincare', 'lash', 'eyebrow', 'brow', 'manicure', 'pedicure', 'facial', 'threading', 'permanent makeup', 'microblading'], 'salon'],
+  [['doctor', 'dentist', 'dental', 'clinic', 'medical', 'health', 'physician', 'dermatologist', 'chiropractor', 'optometrist', 'pharmacy', 'therapist', 'pediatrician', 'orthodontist', 'hospital', 'urgent care', 'counseling', 'psychiatr', 'psycholog', 'physical therapy', 'occupational therapy', 'speech therapy', 'nutritionist', 'dietitian', 'acupuncture', 'vision'], 'doctor'],
+  [['real estate', 'realtor', 'property management', 'broker', 'leasing', 'appraisal', 'mortgage', 'realty', 'land developer', 'title company'], 'real_estate'],
+  [['store', 'shop', 'boutique', 'market', 'grocery', 'hardware', 'furniture', 'bookstore', 'pet store', 'retail', 'supermarket', 'department store', 'thrift', 'consignment', 'antique', 'gift shop', 'toy store', 'sporting goods', 'electronics store', 'auto parts', 'vape', 'dispensary', 'nursery', 'garden center'], 'store'],
+  // contractor is last and also the default — covers all service-area businesses
+  [['contractor', 'handyman', 'electrician', 'plumber', 'hvac', 'painter', 'roofer', 'landscaper', 'cleaner', 'cleaning', 'locksmith', 'pest control', 'remodel', 'carpenter', 'mason', 'window', 'flooring', 'tiling', 'drywall', 'insulation', 'fencing', 'irrigation', 'pool service', 'solar', 'generator', 'garage door', 'appliance repair', 'dog walker', 'dog walking', 'pet sit', 'dog sit', 'dog trainer', 'pet trainer', 'animal', 'towing', 'auto repair', 'mechanic', 'moving', 'junk removal', 'hauling', 'delivery', 'courier', 'tutoring', 'coaching', 'instructor', 'music lesson', 'photography', 'videography', 'mobile', 'event planner', 'wedding', 'dj', 'caricature', 'entertainer', 'cleaning service', 'janitorial', 'pressure wash', 'window wash'], 'contractor'],
 ];
 
 /** Normalize any GBP category name or stored business_type → ProfileTemplate */
