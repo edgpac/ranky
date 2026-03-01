@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { resolveTemplate, type ProfileTemplate } from './profileTemplates';
 import ProfileSkeleton from './ProfileSkeleton';
+import SocialLinksSection from './SocialLinksSection';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -477,6 +478,7 @@ export default function EditProfileTab({ client, ready, onClientUpdated }: Props
   };
 
   return (
+    <div>
     <div style={glassCard}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -544,6 +546,8 @@ export default function EditProfileTab({ client, ready, onClientUpdated }: Props
           maxDesc={MAX_DESC}
         />
       )}
+    </div>
+    <SocialLinksSection ready={ready} />
     </div>
   );
 }

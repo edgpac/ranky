@@ -105,6 +105,7 @@ async function initDB() {
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS password_hash TEXT`);
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS review_link TEXT`);
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS city TEXT DEFAULT ''`);
+  await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS social_links JSONB DEFAULT '{}'`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
       id SERIAL PRIMARY KEY,
@@ -963,6 +964,71 @@ app.get('/api/gbp-profile', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('GBP profile fetch error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Social Links ─────────────────────────────────────────────
+
+const GBP_ATTR_MAP = {
+  instagram: 'url_instagram',
+  facebook:  'url_facebook',
+  tiktok:    'url_tiktok',
+  youtube:   'url_youtube',
+  linkedin:  'url_linkedin',
+  x:         'url_twitter',
+};
+const ALLOWED_SOCIAL_KEYS = Object.keys(GBP_ATTR_MAP);
+
+app.get('/api/social-links', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT social_links FROM clients WHERE id = $1', [req.session.clientId]);
+    res.json({ links: rows[0]?.social_links || {} });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/social-links', requireAuth, async (req, res) => {
+  try {
+    const raw = req.body?.links;
+    if (!raw || typeof raw !== 'object') return res.status(400).json({ error: 'links object required' });
+
+    // Whitelist keys and require non-empty string values
+    const clean = {};
+    for (const key of ALLOWED_SOCIAL_KEYS) {
+      const val = typeof raw[key] === 'string' ? raw[key].trim() : '';
+      if (val) clean[key] = val;
+    }
+
+    await pool.query('UPDATE clients SET social_links = $1 WHERE id = $2', [JSON.stringify(clean), req.session.clientId]);
+
+    // Best-effort GBP attribute sync (will fail until write scope is approved)
+    let gbpSynced = false;
+    try {
+      const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+      const client = rows[0];
+      const auth = getClientAuth(client);
+      const locationName = await ensureLocation(client);
+      const bizInfo = google.mybusinessbusinessinformation({ version: 'v1', auth });
+      const attributes = Object.entries(clean).map(([key, url]) => ({
+        name: `attributes/${GBP_ATTR_MAP[key]}`,
+        urlValues: [{ url }],
+      }));
+      if (attributes.length > 0) {
+        await bizInfo.locations.attributes.updateAttributes({
+          name: locationName + '/attributes',
+          attributeMask: Object.keys(clean).map((k) => `attributes/${GBP_ATTR_MAP[k]}`).join(','),
+          requestBody: { name: locationName + '/attributes', attributes },
+        });
+        gbpSynced = true;
+      }
+    } catch (gbpErr) {
+      console.warn('GBP social link sync skipped:', gbpErr.message);
+    }
+
+    res.json({ links: clean, gbpSynced });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
