@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const glassCard: React.CSSProperties = {
@@ -36,6 +38,19 @@ const linkBtn: React.CSSProperties = {
   cursor: 'pointer',
 };
 
+const btnSave: React.CSSProperties = {
+  background: '#25D366',
+  color: 'white',
+  borderRadius: '0.5rem',
+  padding: '0.4rem 0.875rem',
+  fontSize: '0.8125rem',
+  fontWeight: 600,
+  border: 'none',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  whiteSpace: 'nowrap',
+};
+
 // ─── Integration tile ─────────────────────────────────────────────────────────
 
 interface IntegrationProps {
@@ -70,9 +85,112 @@ function IntegrationTile({ icon, label, desc, href, btnLabel }: IntegrationProps
   );
 }
 
+// ─── WhatsApp row ─────────────────────────────────────────────────────────────
+
+function WhatsAppRow({ whatsapp, onSaved }: { whatsapp: string; onSaved: (phone: string) => void }) {
+  const [draft, setDraft] = useState(whatsapp);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const digits = draft.replace(/\D/g, '');
+  const waUrl = digits ? `https://wa.me/${digits}` : null;
+  const isDirty = draft !== whatsapp;
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ whatsapp: draft }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      onSaved(draft);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch { /* non-fatal */ } finally { setSaving(false); }
+  };
+
+  return (
+    <div style={{ paddingTop: '0.875rem' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+        <span style={{ fontSize: '1.5rem', lineHeight: 1, flexShrink: 0, marginTop: '0.1rem' }}>💬</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'rgba(240,244,255,0.88)', margin: 0 }}>
+            WhatsApp
+          </p>
+          <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.35)', margin: '0.15rem 0 0.625rem', lineHeight: 1.4 }}>
+            Enter your number — customers get a direct wa.me link to message you instantly.
+          </p>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <input
+              type="tel"
+              placeholder="+52 123 456 7890"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: 'white',
+                borderRadius: '0.5rem',
+                height: '2.25rem',
+                padding: '0 0.75rem',
+                fontSize: '0.875rem',
+                width: '11rem',
+                outline: 'none',
+                fontFamily: 'inherit',
+              }}
+            />
+
+            {isDirty && (
+              <button
+                style={{ ...btnSave, opacity: saving ? 0.6 : 1 }}
+                onClick={handleSave}
+                disabled={saving || !draft.trim()}
+              >
+                {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save'}
+              </button>
+            )}
+
+            {!isDirty && saved && (
+              <span style={{ fontSize: '0.75rem', color: '#25D366' }}>Saved ✓</span>
+            )}
+
+            {waUrl && (
+              <a
+                href={waUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  ...linkBtn,
+                  color: '#25D366',
+                  background: 'rgba(37,211,102,0.08)',
+                  border: '1px solid rgba(37,211,102,0.22)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                wa.me/{digits} ↗
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Props ────────────────────────────────────────────────────────────────────
+
+interface Props {
+  whatsapp: string;
+  onSaved: (phone: string) => void;
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function BookingsTab() {
+export default function BookingsTab({ whatsapp, onSaved }: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* Header */}
@@ -114,11 +232,7 @@ export default function BookingsTab() {
             href="https://business.google.com"
             target="_blank"
             rel="noreferrer"
-            style={{
-              ...linkBtn,
-              background: 'rgba(79,142,247,0.12)',
-              border: '1px solid rgba(79,142,247,0.28)',
-            }}
+            style={{ ...linkBtn, background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.28)' }}
           >
             Enable Messaging ↗
           </a>
@@ -126,12 +240,7 @@ export default function BookingsTab() {
             href="https://business.google.com/messages"
             target="_blank"
             rel="noreferrer"
-            style={{
-              ...linkBtn,
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.10)',
-              color: 'rgba(240,244,255,0.6)',
-            }}
+            style={{ ...linkBtn, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', color: 'rgba(240,244,255,0.6)' }}
           >
             Open Inbox ↗
           </a>
@@ -173,31 +282,7 @@ export default function BookingsTab() {
             href="https://calendly.com"
             btnLabel="Set up Calendly"
           />
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '1rem',
-            paddingTop: '0.875rem',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1.5rem', lineHeight: 1, flexShrink: 0 }}>💬</span>
-              <div>
-                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'rgba(240,244,255,0.88)', margin: 0 }}>WhatsApp</p>
-                <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.35)', margin: '0.15rem 0 0', lineHeight: 1.4 }}>
-                  Add a WhatsApp link to your profile so customers can message you instantly.
-                </p>
-              </div>
-            </div>
-            <a
-              href="https://wa.me/"
-              target="_blank"
-              rel="noreferrer"
-              style={{ ...linkBtn, whiteSpace: 'nowrap', flexShrink: 0 }}
-            >
-              wa.me link ↗
-            </a>
-          </div>
+          <WhatsAppRow whatsapp={whatsapp} onSaved={onSaved} />
         </div>
       </div>
     </div>

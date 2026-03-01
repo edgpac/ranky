@@ -601,7 +601,12 @@ export default function Dashboard() {
           {activeTab === 'products' && (
             <ProductsTab initialProducts={products} />
           )}
-          {activeTab === 'bookings' && <BookingsTab />}
+          {activeTab === 'bookings' && (
+            <BookingsTab
+              whatsapp={client?.whatsapp || ''}
+              onSaved={(phone) => setClient((c) => c ? { ...c, whatsapp: phone } : c)}
+            />
+          )}
           {activeTab === 'getreviews' && (
             <GetReviewsTab
               reviewLink={client?.review_link || ''}
