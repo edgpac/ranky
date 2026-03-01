@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import EditProfileTab from '../components/tabs/EditProfileTab';
 import ReviewsTab from '../components/tabs/ReviewsTab';
 import PhotosTab from '../components/tabs/PhotosTab';
-import PostsTab from '../components/tabs/PostsTab';
+import PostsTab, { MOCK_POSTS } from '../components/tabs/PostsTab';
 import InsightsTab from '../components/tabs/InsightsTab';
 import ServicesTab from '../components/tabs/ServicesTab';
 import ProductsTab from '../components/tabs/ProductsTab';
@@ -17,6 +17,8 @@ interface Post {
   search_query: string;
   posted_at: string;
   status: 'posted' | 'pending' | 'approved';
+  cta_type?: string;
+  cta_url?: string;
 }
 
 interface Client {
@@ -592,9 +594,10 @@ export default function Dashboard() {
           {activeTab === 'profile' && <EditProfileTab client={client} ready={locationReady} onClientUpdated={setClient} />}
           {activeTab === 'posts' && (
             <PostsTab
-              posts={posts}
+              posts={isGuest ? MOCK_POSTS : posts}
               onPostGenerated={(p) => setPosts((prev) => [p, ...prev])}
               onPostUpdated={(p) => setPosts((prev) => prev.map((x) => x.id === p.id ? p : x))}
+              onPostDeleted={(id) => setPosts((prev) => prev.filter((x) => x.id !== id))}
             />
           )}
           {activeTab === 'products' && (
