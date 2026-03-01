@@ -291,14 +291,15 @@ function ReviewCard({ review }: { review: Review }) {
 type FilterTab = 'all' | 'unreplied' | 'replied';
 
 export default function ReviewsTab({ ready }: { ready: boolean }) {
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [avg, setAvg] = useState<number | null>(null);
-  const [total, setTotal] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState<Review[]>(MOCK_REVIEWS);
+  const [avg, setAvg] = useState<number>(5.0);
+  const [total, setTotal] = useState<number>(MOCK_REVIEWS.length);
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<FilterTab>('all');
 
   useEffect(() => {
-    if (!ready) { setLoading(false); return; }
+    if (!ready) return;
+    setLoading(true);
     fetch('/api/reviews', { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => {
@@ -316,17 +317,6 @@ export default function ReviewsTab({ ready }: { ready: boolean }) {
       .finally(() => setLoading(false));
   }, [ready]);
 
-  if (!ready && !loading) {
-    return (
-      <div style={{ border: '2px dashed rgba(255,255,255,0.15)', borderRadius: '1rem', padding: '3rem', textAlign: 'center' }}>
-        <p style={{ color: 'rgba(240,244,255,0.5)', fontSize: '0.875rem' }}>GBP not connected</p>
-        <p style={{ color: 'rgba(240,244,255,0.35)', fontSize: '0.8125rem', marginTop: '0.5rem' }}>
-          Connect your Google Business Profile to see reviews.
-        </p>
-      </div>
-    );
-  }
-
   if (loading) return (
     <div className="flex justify-center py-20">
       <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin"
@@ -334,8 +324,8 @@ export default function ReviewsTab({ ready }: { ready: boolean }) {
     </div>
   );
 
-  const displayAvg = avg ?? 5.0;
-  const displayTotal = total ?? reviews.length;
+  const displayAvg = avg;
+  const displayTotal = total;
 
   const unreplied = reviews.filter((r) => !r.reviewReply);
   const replied   = reviews.filter((r) => !!r.reviewReply);
