@@ -456,23 +456,61 @@ async function generatePostForClient(client) {
     console.warn('GSC fetch failed:', e.message);
   }
 
-  // 2. GBP photos
+  // 2. GBP photos + description + services (single location fetch)
   let photoUrl = null;
+  let gbpDescription = '';
+  let gbpServices = [];
   try {
     const locationName = await ensureLocation(client);
-    const mybusiness = google.mybusiness({ version: 'v4', auth });
-    const mediaRes = await mybusiness.accounts.locations.media.list({ parent: locationName });
+    const [mediaRes, locRes] = await Promise.all([
+      google.mybusiness({ version: 'v4', auth })
+        .accounts.locations.media.list({ parent: locationName }),
+      google.mybusinessbusinessinformation({ version: 'v1', auth })
+        .locations.get({ name: locationName, readMask: 'profile,serviceItems' }),
+    ]);
     const photos = mediaRes.data.mediaItems || [];
     const pick = photos[Math.floor(Math.random() * photos.length)];
     if (pick) photoUrl = pick.googleUrl || pick.sourceUrl;
+    gbpDescription = locRes.data?.profile?.description || '';
+    gbpServices = (locRes.data?.serviceItems || [])
+      .filter((s) => s.freeFormServiceItem?.label?.displayName)
+      .slice(0, 8)
+      .map((s) => s.freeFormServiceItem.label.displayName);
   } catch (e) {
-    console.warn('GBP photos fetch failed:', e.message);
+    console.warn('GBP fetch failed:', e.message);
   }
 
-  // 3. Claude writes the post
-  const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
-  const systemPrompt = `You are a local business marketing expert specializing in Google Business Profile posts for ${bizLabel}s.
+  // 3. Products from DB
+  let products = [];
+  try {
+    const { rows: pRows } = await pool.query(
+      'SELECT name FROM products WHERE client_id = $1 ORDER BY created_at ASC LIMIT 8',
+      [client.id]
+    );
+    products = pRows.map((p) => p.name);
+  } catch (e) { /* non-fatal */ }
 
+  // 4. Build business context for the prompt
+  const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
+  const city = client.city || 'Los Cabos';
+  const socialLinks = client.social_links || {};
+  const activeSocials = Object.entries(socialLinks)
+    .filter(([, url]) => url)
+    .map(([platform]) => platform.charAt(0).toUpperCase() + platform.slice(1));
+
+  const serviceList = gbpServices.length > 0 ? gbpServices : products;
+  const contextLines = [];
+  if (gbpDescription) contextLines.push(`Business description: "${gbpDescription}"`);
+  if (serviceList.length > 0) contextLines.push(`Key services/products: ${serviceList.join(', ')}`);
+  if (activeSocials.length > 0) contextLines.push(`Active social platforms: ${activeSocials.join(', ')}`);
+
+  const businessContext = contextLines.length > 0
+    ? `\nAbout this business:\n${contextLines.map((l) => `- ${l}`).join('\n')}\n`
+    : '';
+
+  // 5. Claude writes the post
+  const systemPrompt = `You are a local business marketing expert specializing in Google Business Profile posts for ${bizLabel}s.
+${businessContext}
 Always write posts in this exact format:
 
 1. Opening line: A single emoji + a punchy hook sentence targeting a specific customer pain point or audience. No period — keep it sharp.
@@ -486,7 +524,9 @@ Always write posts in this exact format:
 
 4. One sentence explaining the key value or reassurance (why it matters to the customer).
 
-5. Closing CTA: A single line starting with a wrench, phone, or relevant emoji + a direct call to action (e.g. "Message us", "Call us today", "Book online").
+5. Closing CTA: A single line starting with a relevant emoji + a direct call to action (e.g. "Message us", "Call us today", "Book online").
+   - If the business has active social platforms listed above, occasionally end with a social CTA that fits the post naturally (e.g. "Follow us on Instagram for before/after photos" or "Watch our latest work on YouTube").
+   - Never reference a platform that is not listed above.
 
 Rules:
 - 150–220 words total
@@ -495,7 +535,7 @@ Rules:
 - Sound like a real local business owner, not a marketing robot
 - End with action, not a question`;
 
-  const userPrompt = `Write a GBP post for ${client.business_name}, a ${bizLabel} in Los Cabos. The most searched local query this week is: "${topQuery}". Build the post around this search intent naturally.`;
+  const userPrompt = `Write a GBP post for ${client.business_name}, a ${bizLabel} in ${city}. The most searched local query this week is: "${topQuery}". Build the post around this search intent naturally.`;
 
   const postText = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 500);
 
