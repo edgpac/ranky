@@ -19,6 +19,22 @@ interface Service {
   fromGbp?: boolean;
 }
 
+// ─── Mock services (guest / empty state preview) ──────────────────────────────
+
+const MOCK_SERVICES: Service[] = [
+  { id: -1, name: 'Property Setup Services',       desc: 'Furniture assembly, TV mounting, ceiling fan installation',                            price: '',          editing: false },
+  { id: -2, name: 'Vacation Rental Maintenance',   desc: 'Airbnb and VRBO property maintenance — monthly contracts from $300–$1,500',            price: '',          editing: false },
+  { id: -3, name: 'Kitchen Services & Remodeling', desc: 'Complete kitchen services including plumbing, electrical, lighting',                    price: '',          editing: false },
+  { id: -4, name: 'Bathroom Services & Remodeling',desc: 'Toilet unclogging and installation, vanity, shower',                                    price: '',          editing: false },
+  { id: -5, name: 'Plumbing Services',             desc: '24/7 emergency plumbing with 30-minute response',                                      price: 'From $1,100', editing: false },
+  { id: -6, name: 'Electrical Services',           desc: 'Licensed electricians for outlets, lighting, ceiling fans, panel upgrades',             price: 'From $1,100', editing: false },
+  { id: -7, name: 'Drain Cleaning & Unclogging',   desc: 'Professional drain cleaning for clogged sinks, tubs, toilets',                         price: 'From $1,100', editing: false },
+  { id: -8, name: 'Furniture Assembly & TV Mounting', desc: 'Expert assembly (IKEA, Wayfair, Amazon) and professional TV mounting',              price: 'From $1,100', editing: false },
+  { id: -9, name: 'General Handyman Services',     desc: 'Comprehensive handyman services for residential and commercial properties',             price: 'From $1,100', editing: false },
+];
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const inputStyle: React.CSSProperties = {
   background: 'rgba(255,255,255,0.06)',
   border: '1px solid rgba(255,255,255,0.10)',
@@ -28,37 +44,46 @@ const inputStyle: React.CSSProperties = {
   padding: '0 0.75rem',
   fontSize: '0.875rem',
   outline: 'none',
+  fontFamily: 'inherit',
 };
 
 const btnPrimary: React.CSSProperties = {
   background: '#4f8ef7',
   color: 'white',
   borderRadius: '0.5rem',
-  padding: '0.5rem 1rem',
-  fontSize: '0.875rem',
+  padding: '0.4rem 0.875rem',
+  fontSize: '0.8125rem',
   fontWeight: 600,
   border: 'none',
   cursor: 'pointer',
+  fontFamily: 'inherit',
 };
 
 const btnGhost: React.CSSProperties = {
   background: 'transparent',
-  border: '1px solid rgba(255,255,255,0.15)',
-  color: 'rgba(240,244,255,0.7)',
-  borderRadius: '0.5rem',
-  padding: '0.375rem 0.75rem',
-  fontSize: '0.8125rem',
+  border: '1px solid rgba(255,255,255,0.12)',
+  color: 'rgba(240,244,255,0.6)',
+  borderRadius: '0.4rem',
+  padding: '0.25rem 0.625rem',
+  fontSize: '0.75rem',
   cursor: 'pointer',
+  fontFamily: 'inherit',
 };
 
-const btnDanger: React.CSSProperties = {
-  background: 'rgba(239,68,68,0.15)',
-  border: '1px solid rgba(239,68,68,0.3)',
-  color: '#f87171',
-  borderRadius: '0.5rem',
-  padding: '0.375rem 0.75rem',
-  fontSize: '0.8125rem',
+const btnDelete: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid rgba(248,113,113,0.18)',
+  color: 'rgba(248,113,113,0.65)',
+  borderRadius: '0.4rem',
+  width: '1.875rem',
+  height: '1.875rem',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '0.75rem',
   cursor: 'pointer',
+  flexShrink: 0,
+  fontFamily: 'inherit',
 };
 
 let nextId = 200;
@@ -68,7 +93,7 @@ function formatGbpPrice(item: GbpServiceItem): string {
   if (!p) return '';
   const units = parseInt(p.units || '0', 10);
   if (!units) return '';
-  return `$${units}/${p.currencyCode === 'USD' ? 'hr' : p.currencyCode || 'hr'}`;
+  return `$${units.toLocaleString()}`;
 }
 
 function mapGbpServices(items: GbpServiceItem[]): Service[] {
@@ -84,9 +109,12 @@ function mapGbpServices(items: GbpServiceItem[]): Service[] {
     }));
 }
 
+// ─── Service card ─────────────────────────────────────────────────────────────
+
 function ServiceCard({
   svc,
   draft,
+  isMock,
   onEdit,
   onSave,
   onCancel,
@@ -95,6 +123,7 @@ function ServiceCard({
 }: {
   svc: Service;
   draft: { name: string; desc: string; price: string } | undefined;
+  isMock: boolean;
   onEdit: () => void;
   onSave: () => void;
   onCancel: () => void;
@@ -106,26 +135,25 @@ function ServiceCard({
       <div
         style={{
           background: 'rgba(79,142,247,0.05)',
-          border: '1px solid rgba(79,142,247,0.30)',
-          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(79,142,247,0.28)',
           borderRadius: '0.875rem',
-          padding: '1.25rem',
+          padding: '0.875rem 1rem',
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.75rem',
+          gap: '0.625rem',
         }}
       >
-        <div className="flex gap-3">
+        <div style={{ display: 'flex', gap: '0.625rem' }}>
           <input
-            style={{ ...inputStyle, flex: 2, width: '100%' }}
+            style={{ ...inputStyle, flex: 2 }}
             placeholder="Service name"
             value={draft?.name ?? svc.name}
             onChange={(e) => onDraftChange('name', e.target.value)}
             autoFocus
           />
           <input
-            style={{ ...inputStyle, flex: 1, width: '100%' }}
-            placeholder="Price (e.g. $85/hr)"
+            style={{ ...inputStyle, flex: 1 }}
+            placeholder="Price (e.g. From $85)"
             value={draft?.price ?? svc.price}
             onChange={(e) => onDraftChange('price', e.target.value)}
           />
@@ -136,9 +164,9 @@ function ServiceCard({
           value={draft?.desc ?? svc.desc}
           onChange={(e) => onDraftChange('desc', e.target.value)}
         />
-        <div className="flex gap-2 justify-end">
+        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
           <button style={btnGhost} onClick={onCancel}>Cancel</button>
-          <button style={btnPrimary} onClick={onSave}>Save to GBP</button>
+          <button style={btnPrimary} onClick={onSave}>Save</button>
         </div>
       </div>
     );
@@ -147,97 +175,101 @@ function ServiceCard({
   return (
     <div
       style={{
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid rgba(255,255,255,0.10)',
-        backdropFilter: 'blur(8px)',
-        borderRadius: '0.875rem',
-        padding: '1rem 1.25rem',
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: '0.75rem',
+        padding: '0.75rem 0.875rem',
         display: 'flex',
         alignItems: 'center',
-        gap: '1rem',
-        transition: 'background 0.18s, border-color 0.18s',
+        gap: '0.875rem',
+        transition: 'border-color 0.15s',
       }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.08)';
-        (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.18)';
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.05)';
-        (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.10)';
-      }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.13)'; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.07)'; }}
     >
+      {/* Text */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'rgba(240,244,255,0.95)', marginBottom: '0.2rem' }}>
+        <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'rgba(240,244,255,0.92)', lineHeight: 1.3 }}>
           {svc.name}
-        </div>
+        </p>
         {svc.desc && (
-          <div
+          <p
             style={{
               fontSize: '0.8125rem',
-              color: 'rgba(240,244,255,0.5)',
+              color: 'rgba(240,244,255,0.45)',
+              marginTop: '0.15rem',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
             }}
           >
             {svc.desc}
-          </div>
+          </p>
         )}
       </div>
-      <div className="flex items-center gap-2.5 flex-shrink-0">
+
+      {/* Price + actions */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
         {svc.price && (
-          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#34d399' }}>{svc.price}</span>
+          <span
+            style={{
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              color: '#34d399',
+              background: 'rgba(52,211,153,0.08)',
+              border: '1px solid rgba(52,211,153,0.18)',
+              borderRadius: '9999px',
+              padding: '0.15rem 0.55rem',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {svc.price}
+          </span>
         )}
-        <button style={btnGhost} onClick={onEdit}>Edit</button>
-        <button style={btnDanger} onClick={onDelete}>✕</button>
+        {!isMock && <button style={btnGhost} onClick={onEdit}>Edit</button>}
+        {!isMock && (
+          <button style={btnDelete} onClick={onDelete} title="Remove service">
+            ✕
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
+// ─── Main tab ─────────────────────────────────────────────────────────────────
+
 export default function ServicesTab({ ready }: { ready: boolean }) {
-  const [services, setServices] = useState<Service[]>([]);
+  const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
   const [drafts, setDrafts] = useState<Record<number, { name: string; desc: string; price: string }>>({});
-  const [loading, setLoading] = useState(true);
-  const [fromGbp, setFromGbp] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isMockMode, setIsMockMode] = useState(true);
 
   useEffect(() => {
-    if (!ready) { setLoading(false); return; }
+    if (!ready) return;
+    setLoading(true);
     fetch('/api/services', { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => {
         const items: GbpServiceItem[] = d.services || [];
         if (items.length > 0) {
           setServices(mapGbpServices(items));
-          setFromGbp(true);
+          setIsMockMode(false);
+        } else {
+          setServices([]);
+          setIsMockMode(false);
         }
       })
-      .catch(() => {})
+      .catch(() => { setIsMockMode(false); })
       .finally(() => setLoading(false));
   }, [ready]);
 
-  if (!ready) {
-    return (
-      <div
-        style={{
-          border: '2px dashed rgba(255,255,255,0.15)',
-          borderRadius: '1rem',
-          padding: '3rem',
-          textAlign: 'center',
-        }}
-      >
-        <p style={{ color: 'rgba(240,244,255,0.5)', fontSize: '0.875rem' }}>GBP not connected</p>
-        <p style={{ color: 'rgba(240,244,255,0.35)', fontSize: '0.8125rem', marginTop: '0.5rem' }}>
-          Connect your Google Business Profile to manage services.
-        </p>
-      </div>
-    );
-  }
-
   if (loading) return (
     <div className="flex justify-center py-20">
-      <div className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin"
-        style={{ borderColor: '#4f8ef7', borderTopColor: 'transparent' }} />
+      <div
+        className="w-8 h-8 border-4 border-t-transparent rounded-full animate-spin"
+        style={{ borderColor: '#4f8ef7', borderTopColor: 'transparent' }}
+      />
     </div>
   );
 
@@ -277,49 +309,47 @@ export default function ServicesTab({ ready }: { ready: boolean }) {
   };
 
   return (
-    <div className="flex flex-col gap-4">
-      <p style={{ fontSize: '0.8125rem', color: 'rgba(232,238,255,0.45)' }}>
-        Keep your service listings up to date on Google Business Profile so customers always see what you offer.
-      </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>
-            Services{' '}
-            <span style={{ color: 'rgba(240,244,255,0.4)', fontWeight: 400, fontSize: '0.875rem' }}>
-              ({services.length})
-            </span>
-          </h2>
-          {fromGbp && (
-            <p style={{ fontSize: '0.75rem', color: 'rgba(52,211,153,0.8)', marginTop: '0.2rem' }}>
-              Loaded from Google Business Profile
-            </p>
-          )}
-        </div>
-        <button style={btnPrimary} onClick={addService}>+ Add Service</button>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>Services</h2>
+        {!isMockMode && (
+          <button style={btnPrimary} onClick={addService}>+ Add Service</button>
+        )}
       </div>
 
-      {services.length === 0 && (
+      {/* Subtitle */}
+      <p style={{ fontSize: '0.8125rem', color: 'rgba(240,244,255,0.38)', lineHeight: 1.5, marginTop: '-0.25rem' }}>
+        {isMockMode
+          ? 'Connect your GBP to manage services. Edit them here and Ranky will sync to Google.'
+          : 'These services appear on your GBP listing. Edit them here and Ranky will sync to Google.'}
+      </p>
+
+      {/* Service list */}
+      {services.length === 0 && !isMockMode && (
         <div
           style={{
-            border: '2px dashed rgba(255,255,255,0.12)',
-            borderRadius: '1rem',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            borderRadius: '0.875rem',
             padding: '3rem',
             textAlign: 'center',
           }}
         >
-          <p style={{ color: 'rgba(240,244,255,0.4)', fontSize: '0.875rem' }}>
-            No services on your GBP yet. Click "+ Add Service" to get started.
+          <p style={{ color: 'rgba(240,244,255,0.32)', fontSize: '0.875rem' }}>
+            No services yet — click "+ Add Service" to get started.
           </p>
         </div>
       )}
 
-      <div className="flex flex-col gap-2.5">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {services.map((svc) => (
           <ServiceCard
             key={svc.id}
             svc={svc}
             draft={drafts[svc.id]}
+            isMock={isMockMode}
             onEdit={() => startEdit(svc)}
             onSave={() => saveEdit(svc.id)}
             onCancel={() => cancelEdit(svc.id)}
