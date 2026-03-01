@@ -119,6 +119,26 @@ async function initDB() {
   `);
   await pool.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS url TEXT DEFAULT ''`);
   await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS auto_approve_at TIMESTAMPTZ`);
+  await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS post_type TEXT DEFAULT 'standard'`);
+  await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS offer_title TEXT`);
+  await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS event_title TEXT`);
+  await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS event_start TIMESTAMPTZ`);
+  await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS event_end TIMESTAMPTZ`);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS qa_answers (
+      id SERIAL PRIMARY KEY,
+      client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+      question_id TEXT NOT NULL,
+      question_text TEXT NOT NULL,
+      author_name TEXT DEFAULT '',
+      create_time TEXT,
+      answer_text TEXT,
+      status TEXT DEFAULT 'draft',
+      auto_approve_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(client_id, question_id)
+    )
+  `);
   console.log('✅ DB ready');
 }
 
@@ -427,8 +447,10 @@ app.delete('/api/posts/:id', requireAuth, async (req, res) => {
 
 app.post('/api/generate-post', requireAuth, async (req, res) => {
   try {
+    const VALID_POST_TYPES = ['standard', 'offer', 'event'];
+    const postType = VALID_POST_TYPES.includes(req.body?.postType) ? req.body.postType : undefined;
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
-    const post = await generatePostForClient(rows[0]);
+    const post = await generatePostForClient(rows[0], postType);
     res.json({ post });
   } catch (err) {
     console.error('Generate post error:', err);
@@ -436,7 +458,16 @@ app.post('/api/generate-post', requireAuth, async (req, res) => {
   }
 });
 
-async function generatePostForClient(client) {
+// Rotate post type: Mon=OFFER, Wed=STANDARD, Fri=EVENT
+function resolvePostType() {
+  const day = new Date().getDay(); // 0=Sun,1=Mon,...,5=Fri
+  if (day === 1) return 'offer';
+  if (day === 5) return 'event';
+  return 'standard';
+}
+
+async function generatePostForClient(client, overridePostType) {
+  const postType = overridePostType || resolvePostType();
   const auth = getClientAuth(client);
 
   // 1. GSC top query
@@ -508,7 +539,15 @@ async function generatePostForClient(client) {
     ? `\nAbout this business:\n${contextLines.map((l) => `- ${l}`).join('\n')}\n`
     : '';
 
-  // 5. Claude writes the post
+  // 5. Build post type context
+  const postTypeInstructions = {
+    offer: `This is an OFFER post. Include a clear promotional offer or limited-time deal. Add a line like "Valid through [end of month]" or similar. Make it feel urgent but genuine.`,
+    event: `This is an EVENT post. Frame the post around a specific date-relevant service, seasonal event, or local occasion. Include a time-bound hook (e.g. "This weekend", "This month").`,
+    standard: `This is a standard UPDATE post. Focus on a service, recent job, or helpful tip.`,
+  };
+  const postTypeNote = postTypeInstructions[postType] || postTypeInstructions.standard;
+
+  // 6. Claude writes the post
   const systemPrompt = `You are a local business marketing expert specializing in Google Business Profile posts for ${bizLabel}s.
 ${businessContext}
 Always write posts in this exact format:
@@ -533,16 +572,18 @@ Rules:
 - No hashtags
 - No fluff or filler phrases like "In today's world" or "Are you looking for"
 - Sound like a real local business owner, not a marketing robot
-- End with action, not a question`;
+- End with action, not a question
+
+Post type instruction: ${postTypeNote}`;
 
   const userPrompt = `Write a GBP post for ${client.business_name}, a ${bizLabel} in ${city}. The most searched local query this week is: "${topQuery}". Build the post around this search intent naturally.`;
 
   const postText = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 500);
 
   const result = await pool.query(
-    `INSERT INTO posts (client_id, photo_url, post_text, search_query, status, auto_approve_at)
-     VALUES ($1, $2, $3, $4, 'pending', NOW() + INTERVAL '24 hours') RETURNING *`,
-    [client.id, photoUrl, postText, topQuery]
+    `INSERT INTO posts (client_id, photo_url, post_text, search_query, status, post_type, auto_approve_at)
+     VALUES ($1, $2, $3, $4, 'pending', $5, NOW() + INTERVAL '24 hours') RETURNING *`,
+    [client.id, photoUrl, postText, topQuery, postType]
   );
   return result.rows[0];
 }
@@ -1073,6 +1114,140 @@ app.patch('/api/social-links', requireAuth, async (req, res) => {
   }
 });
 
+// ─── Q&A ──────────────────────────────────────────────────────
+// Fetches questions from GBP, stores in qa_answers, returns combined list.
+
+app.get('/api/qa', requireAuth, async (req, res) => {
+  try {
+    const { rows: [client] } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const auth = getClientAuth(client);
+    const locationName = await ensureLocation(client);
+    const mybusiness = google.mybusiness({ version: 'v4', auth });
+
+    let gbpQuestions = [];
+    try {
+      const r = await mybusiness.accounts.locations.questions.list({
+        parent: locationName,
+        pageSize: 20,
+      });
+      gbpQuestions = r.data.questions || [];
+    } catch (e) {
+      console.warn('Q&A GBP fetch failed:', e.message);
+    }
+
+    // Upsert any new questions into local DB
+    for (const q of gbpQuestions) {
+      const qId = q.name.split('/').pop();
+      await pool.query(
+        `INSERT INTO qa_answers (client_id, question_id, question_text, author_name, create_time)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (client_id, question_id) DO NOTHING`,
+        [client.id, qId, q.text || '', q.author?.displayName || '', q.createTime || '']
+      );
+    }
+
+    const { rows } = await pool.query(
+      'SELECT * FROM qa_answers WHERE client_id = $1 ORDER BY created_at DESC',
+      [client.id]
+    );
+    res.json({ questions: rows });
+  } catch (err) {
+    console.error('Q&A fetch error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/qa/generate-answer', requireAuth, async (req, res) => {
+  try {
+    const { questionId } = req.body;
+    if (!questionId) return res.status(400).json({ error: 'questionId required' });
+
+    const { rows: [client] } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const { rows: [qa] } = await pool.query(
+      'SELECT * FROM qa_answers WHERE client_id = $1 AND id = $2',
+      [client.id, questionId]
+    );
+    if (!qa) return res.status(404).json({ error: 'Question not found' });
+
+    const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
+    const systemPrompt = `You are a helpful, professional customer service representative for ${client.business_name}, a ${bizLabel}. Write a concise, friendly answer to a customer question posted on Google. Tone: ${client.tone}. Keep it under 100 words. No hashtags.`;
+    const answerText = await callClaude(systemPrompt, [{ role: 'user', content: `Customer question: "${qa.question_text}"\n\nWrite a helpful answer.` }], 150);
+
+    const { rows: [updated] } = await pool.query(
+      `UPDATE qa_answers SET answer_text = $1, status = 'draft', auto_approve_at = NOW() + INTERVAL '24 hours'
+       WHERE id = $2 AND client_id = $3 RETURNING *`,
+      [answerText, qa.id, client.id]
+    );
+    res.json({ question: updated });
+  } catch (err) {
+    console.error('Q&A generate error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/qa/answer', requireAuth, async (req, res) => {
+  try {
+    const { questionId } = req.body;
+    if (!questionId) return res.status(400).json({ error: 'questionId required' });
+
+    const { rows: [client] } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const { rows: [qa] } = await pool.query(
+      'SELECT * FROM qa_answers WHERE client_id = $1 AND id = $2',
+      [client.id, questionId]
+    );
+    if (!qa || !qa.answer_text) return res.status(400).json({ error: 'No answer draft to post' });
+
+    // Best-effort post to GBP
+    let gbpPosted = false;
+    try {
+      const auth = getClientAuth(client);
+      const locationName = await ensureLocation(client);
+      const mybusiness = google.mybusiness({ version: 'v4', auth });
+      await mybusiness.accounts.locations.questions.answers.upsert({
+        parent: `${locationName}/questions/${qa.question_id}`,
+        requestBody: { answer: { text: qa.answer_text } },
+      });
+      gbpPosted = true;
+    } catch (e) {
+      console.warn('Q&A GBP post failed:', e.message);
+    }
+
+    const { rows: [updated] } = await pool.query(
+      `UPDATE qa_answers SET status = 'posted', auto_approve_at = NULL WHERE id = $1 AND client_id = $2 RETURNING *`,
+      [qa.id, client.id]
+    );
+    res.json({ question: updated, gbpPosted });
+  } catch (err) {
+    console.error('Q&A post error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/qa/:id', requireAuth, async (req, res) => {
+  try {
+    const { answer_text } = req.body;
+    if (!answer_text?.trim()) return res.status(400).json({ error: 'answer_text required' });
+    const { rows: [updated] } = await pool.query(
+      `UPDATE qa_answers SET answer_text = $1, status = 'draft', auto_approve_at = NOW() + INTERVAL '24 hours'
+       WHERE id = $2 AND client_id = $3 RETURNING *`,
+      [answer_text.trim(), req.params.id, req.session.clientId]
+    );
+    if (!updated) return res.status(404).json({ error: 'Not found' });
+    res.json({ question: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/qa/:id', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM qa_answers WHERE id = $1 AND client_id = $2', [req.params.id, req.session.clientId]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Profile Health Audit ─────────────────────────────────────
 
 app.get('/api/audit', requireAuth, async (req, res) => {
@@ -1179,6 +1354,27 @@ app.get('/api/audit', requireAuth, async (req, res) => {
         items.push({ id: 'posts_week', status: 'error', title: 'No posts this week', message: 'No recent posts — inactive profiles rank lower. Check the automation schedule.', tab: 'posts' });
       }
     } catch { /* skip */ }
+
+    // 5. Unanswered Q&A
+    try {
+      const { rows: qaRows } = await pool.query(
+        "SELECT COUNT(*) AS cnt FROM qa_answers WHERE client_id = $1 AND (status = 'unanswered' OR (answer_text IS NULL AND status != 'posted'))",
+        [client.id]
+      );
+      const unansweredQA = parseInt(qaRows[0].cnt, 10);
+      if (unansweredQA > 0) {
+        items.push({ id: 'qa', status: 'warn', title: `${unansweredQA} unanswered Q&A`, message: 'Customer questions on your GBP are waiting — AI will auto-draft answers every 6 hours.', tab: 'qa' });
+      }
+    } catch { /* skip */ }
+
+    // 6. Google Messaging
+    items.push({
+      id: 'messaging',
+      status: 'warn',
+      title: 'Google Messaging not verified',
+      message: 'Enable Google Messaging so customers can contact you directly from Search and Maps.',
+      tab: 'bookings',
+    });
 
     res.json({ items });
   } catch (err) {
@@ -1385,13 +1581,59 @@ cron.schedule('0 9 * * 1,3,5', async () => {
   }
 });
 
+// ─── Q&A automation cron (every 6 hours) ─────────────────────
+// Scans GBP for new questions, generates AI answer drafts, auto-approves after 24h.
+cron.schedule('0 */6 * * *', async () => {
+  console.log('⏰ Q&A cron: scanning for unanswered questions');
+  try {
+    const { rows: clients } = await pool.query("SELECT * FROM clients WHERE subscription_status IN ('active', 'trial')");
+    for (const client of clients) {
+      try {
+        const auth = getClientAuth(client);
+        const locationName = await ensureLocation(client);
+        const mybusiness = google.mybusiness({ version: 'v4', auth });
+        const r = await mybusiness.accounts.locations.questions.list({ parent: locationName, pageSize: 20 });
+        const questions = r.data.questions || [];
+        for (const q of questions) {
+          const qId = q.name.split('/').pop();
+          // Skip if already answered by business
+          if (q.topAnswers?.some((a) => a.author?.type === 'MERCHANT')) continue;
+          // Upsert question
+          const { rows: [row] } = await pool.query(
+            `INSERT INTO qa_answers (client_id, question_id, question_text, author_name, create_time)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (client_id, question_id) DO UPDATE SET question_text = EXCLUDED.question_text
+             RETURNING *`,
+            [client.id, qId, q.text || '', q.author?.displayName || '', q.createTime || '']
+          );
+          // Generate draft if no answer yet
+          if (!row.answer_text) {
+            const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
+            const sysP = `You are a helpful customer service rep for ${client.business_name}, a ${bizLabel}. Write a concise, professional answer in under 80 words. No hashtags.`;
+            const answerText = await callClaude(sysP, [{ role: 'user', content: `Question: "${row.question_text}"` }], 120);
+            await pool.query(
+              `UPDATE qa_answers SET answer_text = $1, status = 'draft', auto_approve_at = NOW() + INTERVAL '24 hours'
+               WHERE id = $2`,
+              [answerText, row.id]
+            );
+          }
+        }
+      } catch (e) {
+        console.warn(`Q&A cron skip ${client.business_name}:`, e.message);
+      }
+    }
+  } catch (e) {
+    console.error('Q&A cron error:', e);
+  }
+});
+
 // ─── Hourly auto-approve cron ─────────────────────────────────
 // Posts that have passed their auto_approve_at window without being discarded
 // are automatically marked approved. Once GBP write scope is live, swap
 // status update here for a localPosts.create call to publish directly.
 cron.schedule('0 * * * *', async () => {
   try {
-    const { rows } = await pool.query(
+    const { rows: posts } = await pool.query(
       `UPDATE posts
          SET status = 'approved', auto_approve_at = NULL
        WHERE status = 'pending'
@@ -1399,8 +1641,20 @@ cron.schedule('0 * * * *', async () => {
          AND auto_approve_at <= NOW()
        RETURNING id, client_id`
     );
-    if (rows.length > 0) {
-      console.log(`⏰ Auto-approved ${rows.length} post(s):`, rows.map((r) => r.id).join(', '));
+    if (posts.length > 0) {
+      console.log(`⏰ Auto-approved ${posts.length} post(s):`, posts.map((r) => r.id).join(', '));
+    }
+    // Auto-approve Q&A answer drafts
+    const { rows: qa } = await pool.query(
+      `UPDATE qa_answers
+         SET status = 'approved', auto_approve_at = NULL
+       WHERE status = 'draft'
+         AND auto_approve_at IS NOT NULL
+         AND auto_approve_at <= NOW()
+       RETURNING id`
+    );
+    if (qa.length > 0) {
+      console.log(`⏰ Auto-approved ${qa.length} Q&A answer(s):`, qa.map((r) => r.id).join(', '));
     }
   } catch (e) {
     console.error('Auto-approve cron error:', e);

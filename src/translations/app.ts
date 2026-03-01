@@ -41,12 +41,13 @@ export const app = {
       tabs: {
         profile:    'Edit Profile',
         reviews:    'Reviews',
+        qa:         'Q&A',
         photos:     'Photos',
         posts:      'Posts',
         insights:   'Performance',
         services:   'Services',
         products:   'Products',
-        bookings:   'Bookings',
+        bookings:   'Messaging',
         getreviews: 'Get Reviews',
       },
       // Category options
@@ -125,6 +126,9 @@ export const app = {
       saving:          'Saving…',
       save:            'Save',
       cancel:          'Cancel',
+      typeStandard:    'Update',
+      typeOffer:       'Offer',
+      typeEvent:       'Event',
     },
 
     // ─── Reviews tab ─────────────────────────────────────────────────────────
@@ -189,10 +193,41 @@ export const app = {
       edit:       'Edit',
     },
 
+    // ─── Q&A tab ──────────────────────────────────────────────────────────────
+    qa: {
+      heading:        'Q&A',
+      subtitle:       'AI-drafted answers for customer questions on your Google Business Profile.',
+      automationLabel:'Q&A Automation',
+      automationSub:  'Every 6 hours — scans for new customer questions, drafts AI answers, auto-approves after 24h',
+      unanswered:     'Unanswered',
+      pendingReview:  'Pending Review',
+      answered:       'Answered',
+      generateAnswer: 'Generate Answer',
+      generating:     'Generating…',
+      postAnswer:     'Post Answer →',
+      posting:        'Posting…',
+      edit:           'Edit',
+      discard:        'Discard',
+      save:           'Save',
+      saving:         'Saving…',
+      cancel:         'Cancel',
+      autoPostsIn:    'auto-posts in',
+      replyPosted:    'Reply posted ✓',
+      empty:          'No customer questions yet — check back after the next automation scan.',
+    },
+
     // ─── Bookings tab ─────────────────────────────────────────────────────────
     bookings: {
-      heading:  'Bookings',
-      subtitle: 'Manage your booking link and appointment settings.',
+      heading:          'Messaging & Scheduling',
+      subtitle:         'Let customers reach you directly from Google Search and Maps.',
+      messagingTitle:   'Google Business Messaging',
+      messagingSub:     'When enabled, customers see a "Message" button on your Google listing and can chat with you directly.',
+      notVerified:      'Not verified',
+      enableMessaging:  'Enable Messaging ↗',
+      openInbox:        'Open Inbox ↗',
+      messagingTip:     '💡 Enable messaging in Google Business Profile Manager. Once active, you\'ll see a "Message" button on your Search and Maps listing.',
+      schedulingTitle:  'Scheduling Integrations',
+      schedulingSub:    'Connect a booking link to your GBP so customers can schedule directly from Google.',
     },
 
     // ─── Edit Profile tab ─────────────────────────────────────────────────────
@@ -442,12 +477,13 @@ export const app = {
       tabs: {
         profile:    'Editar Perfil',
         reviews:    'Reseñas',
+        qa:         'Preguntas',
         photos:     'Fotos',
         posts:      'Publicaciones',
         insights:   'Rendimiento',
         services:   'Servicios',
         products:   'Productos',
-        bookings:   'Reservas',
+        bookings:   'Mensajería',
         getreviews: 'Obtener Reseñas',
       },
       categories: {
@@ -522,6 +558,9 @@ export const app = {
       saving:          'Guardando…',
       save:            'Guardar',
       cancel:          'Cancelar',
+      typeStandard:    'Actualización',
+      typeOffer:       'Oferta',
+      typeEvent:       'Evento',
     },
 
     reviews: {
@@ -582,9 +621,41 @@ export const app = {
       edit:       'Editar',
     },
 
+    // ─── Q&A tab ──────────────────────────────────────────────────────────────
+    qa: {
+      heading:        'Preguntas y Respuestas',
+      subtitle:       'Respuestas generadas por IA para preguntas de clientes en tu Perfil de Negocio de Google.',
+      automationLabel:'Automatización de Q&A',
+      automationSub:  'Cada 6 horas — escanea nuevas preguntas de clientes, redacta respuestas con IA, aprueba automáticamente después de 24h',
+      unanswered:     'Sin Responder',
+      pendingReview:  'Pendiente de Revisión',
+      answered:       'Respondidas',
+      generateAnswer: 'Generar Respuesta',
+      generating:     'Generando…',
+      postAnswer:     'Publicar Respuesta →',
+      posting:        'Publicando…',
+      edit:           'Editar',
+      discard:        'Descartar',
+      save:           'Guardar',
+      saving:         'Guardando…',
+      cancel:         'Cancelar',
+      autoPostsIn:    'se publica automáticamente en',
+      replyPosted:    'Respuesta publicada ✓',
+      empty:          'Aún no hay preguntas de clientes — vuelve después del próximo escaneo de automatización.',
+    },
+
+    // ─── Bookings tab ─────────────────────────────────────────────────────────
     bookings: {
-      heading:  'Reservas',
-      subtitle: 'Gestiona tu enlace de reservas y configuración de citas.',
+      heading:          'Mensajería y Citas',
+      subtitle:         'Permite que los clientes te contacten directamente desde Google Búsqueda y Maps.',
+      messagingTitle:   'Mensajería de Google Business',
+      messagingSub:     'Cuando está habilitado, los clientes ven un botón "Mensaje" en tu listado de Google y pueden chatear contigo directamente.',
+      notVerified:      'No verificado',
+      enableMessaging:  'Habilitar Mensajería ↗',
+      openInbox:        'Abrir Bandeja ↗',
+      messagingTip:     '💡 Habilita la mensajería en el Administrador de Perfil de Negocio de Google. Una vez activo, verás un botón "Mensaje" en tu listado de Búsqueda y Maps.',
+      schedulingTitle:  'Integraciones de Citas',
+      schedulingSub:    'Conecta un enlace de reservas a tu GBP para que los clientes puedan programar directamente desde Google.',
     },
 
     profile: {

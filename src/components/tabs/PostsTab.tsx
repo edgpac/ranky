@@ -59,7 +59,7 @@ function nextCronRun(): string {
 
 // ─── Countdown hook ───────────────────────────────────────────────────────────
 
-function useCountdown(target: string | null | undefined): string | null {
+export function useCountdown(target: string | null | undefined): string | null {
   const [label, setLabel] = useState<string | null>(null);
 
   useEffect(() => {
