@@ -20,7 +20,7 @@ export const landing = {
     why: {
       label: 'WHY HAYVISTA WORKS',
       h2: 'Most businesses lose customers because they\'re invisible on Google.\nNot because they do bad work.',
-      body: 'A great plumber, contractor, or shop owner spends their day doing the job — not writing Google posts. HayVista is the team member who handles that. It knows your services, your area, your photos. It writes the content, picks the right keywords, and publishes — while you focus on the work that actually pays.',
+      body: 'A great plumber, contractor, or shop owner spends their day doing the job — not writing Google posts. HayVista is the team member who handles that. It knows your services, your area, your photos, and your social media presence. It writes the content, picks the right keywords, and publishes — while you focus on the work that actually pays.',
       tiles: [
         { icon: '🧠', label: 'No training needed', desc: 'Reads your GBP and starts working immediately' },
         { icon: '📸', label: 'Uses your real photos', desc: 'Matches job photos to local search queries automatically' },
@@ -40,7 +40,7 @@ export const landing = {
         {
           n: '02', icon: '🧠',
           title: 'Understands your business without being told',
-          desc: 'It studies your real job photos, your services, and what people nearby are actually searching for — then writes content that speaks directly to those customers.',
+          desc: 'It studies your real job photos, services, products, and what people nearby are searching for. It reads your social media presence too — so every post references real content, real services, and drives customers to the right channel.',
         },
         {
           n: '03', icon: '📅',
@@ -76,7 +76,7 @@ export const landing = {
         {
           title: 'CONTENT PUBLISHING',
           items: [
-            { icon: '📝', text: 'Up to 3 posts / week — photo + search-matched copy' },
+            { icon: '📝', text: 'Up to 3 posts / week — AI writes from your real services, photos & social presence' },
             { icon: '🚀', text: 'Published directly to your Google Business Profile' },
             { icon: '🔄', text: 'Rotates formats: updates, offers, event posts, tips' },
           ],
@@ -94,7 +94,7 @@ export const landing = {
           items: [
             { icon: '📸', text: 'Photo SEO tagging — keywords injected before every upload' },
             { icon: '🛠️', text: 'Services list kept current and GBP-optimized' },
-            { icon: '🔗', text: 'Booking & CTA links managed for you' },
+            { icon: '🔗', text: 'Social profiles linked to GBP — Google sees your full content portfolio' },
           ],
         },
         {
@@ -149,7 +149,7 @@ export const landing = {
     why: {
       label: 'POR QUÉ HAYVISTA FUNCIONA',
       h2: 'La mayoría de los negocios pierden clientes porque son invisibles en Google.\nNo porque hagan mal trabajo.',
-      body: 'Un buen plomero, contratista o dueño de tienda pasa su día haciendo el trabajo — no escribiendo publicaciones en Google. HayVista es el miembro del equipo que se encarga de eso. Conoce tus servicios, tu área, tus fotos. Escribe el contenido, elige las palabras clave correctas y publica — mientras tú te enfocas en el trabajo que realmente paga.',
+      body: 'Un buen plomero, contratista o dueño de tienda pasa su día haciendo el trabajo — no escribiendo publicaciones en Google. HayVista es el miembro del equipo que se encarga de eso. Conoce tus servicios, tu área, tus fotos y tu presencia en redes sociales. Escribe el contenido, elige las palabras clave correctas y publica — mientras tú te enfocas en el trabajo que realmente paga.',
       tiles: [
         { icon: '🧠', label: 'Sin capacitación', desc: 'Lee tu GBP y comienza a trabajar de inmediato' },
         { icon: '📸', label: 'Usa tus fotos reales', desc: 'Combina fotos de trabajo con búsquedas locales automáticamente' },
@@ -169,7 +169,7 @@ export const landing = {
         {
           n: '02', icon: '🧠',
           title: 'Entiende tu negocio sin que se lo digas',
-          desc: 'Estudia tus fotos reales de trabajo, tus servicios y lo que la gente cerca realmente busca — luego escribe contenido que habla directamente a esos clientes.',
+          desc: 'Estudia tus fotos reales de trabajo, servicios, productos y lo que la gente cerca realmente busca. También lee tu presencia en redes sociales — para que cada publicación haga referencia a contenido real y dirija a los clientes al canal correcto.',
         },
         {
           n: '03', icon: '📅',
@@ -205,7 +205,7 @@ export const landing = {
         {
           title: 'PUBLICACIÓN DE CONTENIDO',
           items: [
-            { icon: '📝', text: 'Hasta 3 publicaciones / semana — con fotos y búsquedas locales' },
+            { icon: '📝', text: 'Hasta 3 publicaciones / semana — la IA escribe con tus servicios, fotos y redes sociales reales' },
             { icon: '🚀', text: 'Publicado directamente en tu Perfil de Negocio de Google' },
             { icon: '🔄', text: 'Rota formatos: actualizaciones, ofertas, eventos, consejos' },
           ],
@@ -223,7 +223,7 @@ export const landing = {
           items: [
             { icon: '📸', text: 'Etiquetado SEO de fotos — palabras clave antes de cada carga' },
             { icon: '🛠️', text: 'Lista de servicios actualizada y optimizada para GBP' },
-            { icon: '🔗', text: 'Links de reserva y CTA gestionados por ti' },
+            { icon: '🔗', text: 'Redes sociales vinculadas a GBP — Google ve tu portafolio de contenido completo' },
           ],
         },
         {

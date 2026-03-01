@@ -1,7 +1,7 @@
 # HayVista — Project Context for Claude
 
 ## What This Product Is
-HayVista is an AI-powered SaaS that automatically manages Google Business Profile (GBP) content for local businesses (plumbers, contractors, shops). It reads a business's GBP, photos, and local search data, then publishes up to 4 posts/week — all for $17/month.
+HayVista is an AI-powered SaaS that automatically manages Google Business Profile (GBP) content for local businesses (plumbers, contractors, shops). It reads a business's GBP, photos, services, products, social media links, and local search data — then publishes 3 posts/week with AI copy tailored to the real business context — all for $17/month.
 
 **Live URL:** https://hayvista.com
 **Backend (Railway):** https://ranky-production.up.railway.app
@@ -53,11 +53,13 @@ ranky/
 │   │       ├── EditProfileTab.tsx
 │   │       ├── BookingsTab.tsx
 │   │       ├── GetReviewsTab.tsx
-│   │       └── ProductsTab.tsx
+│   │       ├── SocialLinksSection.tsx
+│       └── ProductsTab.tsx
 │   ├── contexts/
 │   │   └── LanguageContext.tsx  # EN/ES language toggle
 │   └── translations/
-│       └── landing.ts           # All landing page copy (EN + ES)
+│       ├── landing.ts           # Landing page copy (EN + ES)
+│       └── app.ts               # All non-landing copy — Dashboard, tabs, sub-pages (EN + ES)
 ├── public/
 │   ├── hayvista-logo.png   # Main logo — used in all navbars (80px)
 │   ├── sitemap.xml         # 5 pages: /, /signup, /privacy, /terms, /faq
@@ -131,7 +133,8 @@ NODE_ENV=production
 
 ### Language Toggle
 - `LanguageContext` provides `lang: 'en' | 'es'`
-- All landing copy lives in `src/translations/landing.ts`
+- Landing copy: `src/translations/landing.ts`
+- All app/dashboard/tab copy: `src/translations/app.ts` — accessed via `useAppT()` hook
 - Both EN and ES must be updated together for any copy change
 
 ### Weekly Email Digest
@@ -143,6 +146,22 @@ NODE_ENV=production
 ### Post Generation Cron
 - Runs Mon/Wed/Fri at 9am via `node-cron`
 - Uses `claude-sonnet-4-6` via Anthropic SDK
+- `generatePostForClient(client)` enriches the Claude prompt with:
+  - GSC top search query for the week (what locals are actually searching)
+  - A random GBP photo URL
+  - GBP business description + service items (from `mybusinessbusinessinformation` v1)
+  - Products from the local `products` DB table (fallback if no GBP services)
+  - Social links from `clients.social_links` — Claude references active platforms in CTAs
+    but never fabricates platforms the business hasn't added
+
+### Social Media Links (`src/components/tabs/SocialLinksSection.tsx`)
+- Rendered as a second card below the main profile card in the Edit Profile tab
+- Platforms: Instagram, Facebook, TikTok, YouTube, LinkedIn, X
+- `GET /api/social-links` — returns `social_links` JSONB from `clients` table
+- `PATCH /api/social-links` — saves to DB + best-effort pushes to GBP URL attributes
+  (`attributes/url_instagram`, `url_facebook`, etc.) — graceful fail until write scope approved
+- Stored in `clients.social_links JSONB DEFAULT '{}'` (migration in `initDB`)
+- Social links are also read by `generatePostForClient` for richer post CTAs
 
 ### Pricing Card
 - Triggered by "Pricing" button in navbar (`pricingOpen` state)
