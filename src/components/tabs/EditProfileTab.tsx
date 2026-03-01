@@ -66,16 +66,19 @@ const inputStyle: React.CSSProperties = {
 };
 
 const labelStyle: React.CSSProperties = {
-  fontSize: '0.75rem',
+  fontSize: '0.6875rem',
   fontWeight: 600,
-  color: 'rgba(240,244,255,0.5)',
-  marginBottom: '0.25rem',
+  color: 'rgba(240,244,255,0.45)',
+  marginBottom: '0.3rem',
   display: 'block',
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
 };
 
 const valueStyle: React.CSSProperties = {
   fontSize: '0.875rem',
-  color: 'rgba(240,244,255,0.85)',
+  color: 'rgba(240,244,255,0.88)',
+  lineHeight: 1.5,
 };
 
 const btnPrimary: React.CSSProperties = {
@@ -183,47 +186,47 @@ export default function EditProfileTab({ client, onClientUpdated }: Props) {
         <div className="grid grid-cols-2 gap-x-8 gap-y-5">
           <div>
             <span style={labelStyle}>Business Name</span>
-            <span style={valueStyle}>{businessName || '—'}</span>
+            <span style={valueStyle}>{businessName || <span style={{ color: 'rgba(240,244,255,0.25)', fontStyle: 'italic' }}>Not set</span>}</span>
           </div>
           <div>
             <span style={labelStyle}>Category</span>
-            <span style={valueStyle}>{category || '—'}</span>
+            <span style={valueStyle}>{category}</span>
           </div>
           <div>
             <span style={labelStyle}>WhatsApp</span>
-            <span style={valueStyle}>{whatsapp || '—'}</span>
+            <span style={valueStyle}>{whatsapp || <span style={{ color: 'rgba(240,244,255,0.25)', fontStyle: 'italic' }}>Not set</span>}</span>
           </div>
           <div>
             <span style={labelStyle}>City / Service Area</span>
-            <span style={valueStyle}>{city || '—'}</span>
-          </div>
-          <div>
-            <span style={labelStyle}>Posts Per Week</span>
-            <span style={valueStyle}>{postsPerWeek}×</span>
-          </div>
-          <div>
-            <span style={labelStyle}>Post Tone</span>
-            <span style={valueStyle}>{tone}</span>
+            <span style={valueStyle}>{city || <span style={{ color: 'rgba(240,244,255,0.25)', fontStyle: 'italic' }}>Not set</span>}</span>
           </div>
           <div className="col-span-2">
             <span style={labelStyle}>Description</span>
-            <span style={valueStyle}>{description || '—'}</span>
+            <span style={valueStyle}>{description || <span style={{ color: 'rgba(240,244,255,0.25)', fontStyle: 'italic' }}>No description added yet</span>}</span>
           </div>
-          <div className="col-span-2">
+          <div>
             <span style={labelStyle}>
               Hours{' '}
-              <span style={{ fontWeight: 400, opacity: 0.5 }}>(editable once GBP scope approved)</span>
+              <span style={{ fontWeight: 400, opacity: 0.5, textTransform: 'none', letterSpacing: 0 }}>(editable once GBP approved)</span>
             </span>
-            <div className="flex flex-col gap-1 mt-1">
+            <div className="flex flex-col gap-0.5 mt-1">
               {DAYS.map((day) => (
-                <div key={day} className="flex gap-4 text-sm">
-                  <span style={{ color: 'rgba(240,244,255,0.6)', width: '96px', flexShrink: 0 }}>{day}</span>
-                  <span style={valueStyle}>
+                <div key={day} className="flex gap-3">
+                  <span style={{ color: 'rgba(240,244,255,0.45)', fontSize: '0.8125rem', width: '84px', flexShrink: 0 }}>{day.slice(0, 3)}</span>
+                  <span style={{ ...valueStyle, fontSize: '0.8125rem' }}>
                     {hours[day].closed ? 'Closed' : `${hours[day].open} – ${hours[day].close}`}
                   </span>
                 </div>
               ))}
             </div>
+          </div>
+          <div>
+            <span style={labelStyle}>Post Schedule</span>
+            <span style={{ ...valueStyle, display: 'block', marginBottom: '0.375rem' }}>
+              {postsPerWeek}× per week
+            </span>
+            <span style={labelStyle}>Tone</span>
+            <span style={valueStyle}>{tone}</span>
           </div>
         </div>
       ) : (
@@ -349,7 +352,7 @@ export default function EditProfileTab({ client, onClientUpdated }: Props) {
           <div>
             <label style={{ ...labelStyle, marginBottom: '0.5rem' }}>
               Regular Hours{' '}
-              <span style={{ fontWeight: 400, color: 'rgba(240,244,255,0.35)', fontSize: '0.7rem' }}>
+              <span style={{ fontWeight: 400, color: 'rgba(240,244,255,0.35)', fontSize: '0.7rem', textTransform: 'none', letterSpacing: 0 }}>
                 (editing available once GBP write scope is approved)
               </span>
             </label>
