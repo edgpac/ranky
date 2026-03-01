@@ -208,8 +208,8 @@ function PostCard({
         {/* Thumbnail */}
         <div
           style={{
-            width: '3.125rem', height: '3.125rem',
-            borderRadius: '0.5rem',
+            width: '4.5rem', height: '4.5rem',
+            borderRadius: '0.625rem',
             flexShrink: 0,
             overflow: 'hidden',
             background: post.photo_url
@@ -273,9 +273,9 @@ function PostCard({
                 style={{
                   fontSize: '0.875rem',
                   color: 'rgba(240,244,255,0.88)',
-                  lineHeight: 1.5,
+                  lineHeight: 1.55,
                   display: '-webkit-box',
-                  WebkitLineClamp: 2,
+                  WebkitLineClamp: 4,
                   WebkitBoxOrient: 'vertical',
                   overflow: 'hidden',
                 } as React.CSSProperties}
@@ -348,6 +348,24 @@ export default function PostsTab({ posts, onPostGenerated, onPostUpdated, onPost
   const [, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState('');
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    setGenerateError('');
+    try {
+      const res = await fetch('/api/generate-post', { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Generation failed');
+      onPostGenerated(data.post);
+    } catch (e: unknown) {
+      setGenerateError(e instanceof Error ? e.message : 'Generation failed');
+      setTimeout(() => setGenerateError(''), 4000);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -391,11 +409,45 @@ export default function PostsTab({ posts, onPostGenerated, onPostUpdated, onPost
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
 
       {/* Header row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
         <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>Posts</h2>
-        <button style={btnPrimary} onClick={() => setShowForm((v) => !v)}>
-          {showForm ? 'Close' : '+ Add Post'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {generateError && (
+            <span style={{ fontSize: '0.75rem', color: '#f87171' }}>{generateError}</span>
+          )}
+          <button
+            style={{
+              ...btnPrimary,
+              background: 'rgba(79,142,247,0.15)',
+              color: '#4f8ef7',
+              border: '1px solid rgba(79,142,247,0.30)',
+              display: 'flex', alignItems: 'center', gap: '0.35rem',
+              opacity: generating ? 0.6 : 1,
+              cursor: generating ? 'default' : 'pointer',
+            }}
+            onClick={handleGenerate}
+            disabled={generating}
+          >
+            {generating ? (
+              <>
+                <span style={{
+                  width: '10px', height: '10px',
+                  border: '2px solid rgba(79,142,247,0.4)',
+                  borderTopColor: '#4f8ef7',
+                  borderRadius: '50%',
+                  display: 'inline-block',
+                  animation: 'spin 0.8s linear infinite',
+                }} />
+                Generating…
+              </>
+            ) : (
+              <>✦ Generate Post</>
+            )}
+          </button>
+          <button style={btnPrimary} onClick={() => setShowForm((v) => !v)}>
+            {showForm ? 'Close' : '+ Add Post'}
+          </button>
+        </div>
       </div>
 
       {/* Add post form */}
