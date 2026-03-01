@@ -637,7 +637,7 @@ export default function Dashboard() {
               )}
               {activeTab === 'reviews'  && <ReviewsTab ready={locationReady} />}
               {activeTab === 'photos'   && <PhotosTab ready={locationReady} />}
-              {activeTab === 'insights' && <InsightsTab businessName={client?.business_name || ''} ready={locationReady} />}
+              {activeTab === 'insights' && <InsightsTab businessName={client?.business_name || ''} ready={locationReady} onNavigate={(tab) => setActiveTab(tab as Parameters<typeof setActiveTab>[0])} />}
               {activeTab === 'services' && <ServicesTab ready={locationReady} />}
             </>
           ) : null}

@@ -955,6 +955,120 @@ app.get('/api/gbp-profile', requireAuth, async (req, res) => {
   }
 });
 
+// ─── Profile Health Audit ─────────────────────────────────────
+
+app.get('/api/audit', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const client = rows[0];
+    const auth = getClientAuth(client);
+    const locationName = await ensureLocation(client);
+    const items = [];
+
+    // 1. Photos count
+    try {
+      const mybusiness = google.mybusiness({ version: 'v4', auth });
+      const mediaRes = await mybusiness.accounts.locations.media.list({ parent: locationName, pageSize: 100 });
+      const count = (mediaRes.data.mediaItems || []).length;
+      if (count >= 10) {
+        items.push({ id: 'photos', status: 'ok', title: `${count} photos`, message: 'Good — AI post generation has plenty of images to work with.', tab: 'photos' });
+      } else if (count >= 5) {
+        items.push({ id: 'photos', status: 'warn', title: `Only ${count} photos`, message: 'Add more photos — AI post generation works best with 10 or more.', tab: 'photos' });
+      } else {
+        items.push({ id: 'photos', status: 'error', title: `Only ${count} photo${count === 1 ? '' : 's'}`, message: 'Critical: AI needs 10+ photos to generate varied, visual posts. Add photos now.', tab: 'photos' });
+      }
+    } catch { items.push({ id: 'photos', status: 'warn', title: 'Photos unavailable', message: 'Could not check photo count — GBP API pending.', tab: 'photos' }); }
+
+    // 2. Reviews: total count + avg rating + unanswered
+    try {
+      const mybusiness = google.mybusiness({ version: 'v4', auth });
+      const reviewsRes = await mybusiness.accounts.locations.reviews.list({ parent: locationName, pageSize: 50 });
+      const reviews = reviewsRes.data.reviews || [];
+      const total = reviewsRes.data.totalReviewCount || reviews.length;
+      const avg = parseFloat(reviewsRes.data.averageRating) || 0;
+      const unanswered = reviews.filter((r) => !r.reviewReply).length;
+
+      if (total >= 10) {
+        items.push({ id: 'review_count', status: 'ok', title: `${total} reviews`, message: 'Strong review volume — keep it up.', tab: 'reviews' });
+      } else if (total >= 5) {
+        items.push({ id: 'review_count', status: 'warn', title: `${total} reviews`, message: 'Getting there — aim for 10+ to build trust with new customers.', tab: 'getreviews' });
+      } else {
+        items.push({ id: 'review_count', status: 'error', title: `Only ${total} review${total === 1 ? '' : 's'}`, message: 'Very few reviews — most competitors have 10+. Share your review link to catch up.', tab: 'getreviews' });
+      }
+
+      if (avg >= 4.2) {
+        items.push({ id: 'avg_rating', status: 'ok', title: `${avg.toFixed(1)} star average`, message: 'Above average for your category — well done.', tab: 'reviews' });
+      } else if (avg >= 3.8) {
+        items.push({ id: 'avg_rating', status: 'warn', title: `${avg.toFixed(1)} star average`, message: 'Slightly below the 4.2 benchmark for top-ranked local businesses.', tab: 'reviews' });
+      } else if (avg > 0) {
+        items.push({ id: 'avg_rating', status: 'error', title: `${avg.toFixed(1)} star average`, message: 'Below competitive threshold — reply to low-star reviews professionally to show responsiveness.', tab: 'reviews' });
+      }
+
+      if (unanswered === 0) {
+        items.push({ id: 'unanswered', status: 'ok', title: 'All reviews answered', message: 'Great — responding to reviews boosts your local ranking.', tab: 'reviews' });
+      } else if (unanswered <= 2) {
+        items.push({ id: 'unanswered', status: 'warn', title: `${unanswered} unanswered review${unanswered > 1 ? 's' : ''}`, message: 'Reply soon — Google rewards businesses that respond to reviews.', tab: 'reviews' });
+      } else {
+        items.push({ id: 'unanswered', status: 'error', title: `${unanswered} unanswered reviews`, message: 'Multiple reviews without replies hurt your ranking. Use AI reply to respond quickly.', tab: 'reviews' });
+      }
+    } catch { items.push({ id: 'reviews', status: 'warn', title: 'Reviews unavailable', message: 'Could not check review data — GBP API pending.', tab: 'reviews' }); }
+
+    // 3. GBP profile completeness
+    try {
+      const bizInfo = google.mybusinessbusinessinformation({ version: 'v1', auth });
+      const loc = await bizInfo.locations.get({ name: locationName, readMask: 'profile,websiteUri,regularHours' });
+      const d = loc.data;
+      const hasDesc = !!(d.profile?.description?.trim());
+      const hasWebsite = !!(d.websiteUri?.trim());
+      const hasHours = !!(d.regularHours?.periods?.length);
+
+      items.push({
+        id: 'description',
+        status: hasDesc ? 'ok' : 'error',
+        title: hasDesc ? 'Business description set' : 'No business description',
+        message: hasDesc ? 'Good — your description helps Google match you to relevant searches.' : 'Missing: add a description to improve how often you appear in search results.',
+        tab: 'profile',
+      });
+      items.push({
+        id: 'website',
+        status: hasWebsite ? 'ok' : 'error',
+        title: hasWebsite ? 'Website linked' : 'No website on your GBP',
+        message: hasWebsite ? 'Website is set — this improves click-through from your profile.' : 'Add your website URL — businesses with websites rank higher in local search.',
+        tab: 'profile',
+      });
+      items.push({
+        id: 'hours',
+        status: hasHours ? 'ok' : 'warn',
+        title: hasHours ? 'Business hours set' : 'Business hours not set',
+        message: hasHours ? 'Hours are set — customers can see when you\'re open.' : 'Set your hours — profiles without hours appear less trustworthy to customers.',
+        tab: 'profile',
+      });
+    } catch { /* skip profile checks if GBP unavailable */ }
+
+    // 4. Posts this week
+    try {
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+      const { rows: recentPosts } = await pool.query(
+        "SELECT COUNT(*) AS cnt FROM posts WHERE client_id = $1 AND posted_at > $2 AND status IN ('posted','approved')",
+        [client.id, weekAgo]
+      );
+      const count = parseInt(recentPosts[0].cnt, 10);
+      if (count >= 2) {
+        items.push({ id: 'posts_week', status: 'ok', title: `${count} posts this week`, message: 'Automation is working — regular posts keep your profile active and visible.', tab: 'posts' });
+      } else if (count === 1) {
+        items.push({ id: 'posts_week', status: 'warn', title: '1 post this week', message: 'Aim for 2–3 posts per week to maximize GBP visibility.', tab: 'posts' });
+      } else {
+        items.push({ id: 'posts_week', status: 'error', title: 'No posts this week', message: 'No recent posts — inactive profiles rank lower. Check the automation schedule.', tab: 'posts' });
+      }
+    } catch { /* skip */ }
+
+    res.json({ items });
+  } catch (err) {
+    console.error('Audit error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Menu (restaurants) ───────────────────────────────────────
 
 app.get('/api/menu', requireAuth, async (req, res) => {
