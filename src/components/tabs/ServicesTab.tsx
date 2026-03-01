@@ -19,14 +19,6 @@ interface Service {
   fromGbp?: boolean;
 }
 
-const glassCard: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.10)',
-  backdropFilter: 'blur(8px)',
-  borderRadius: '1rem',
-  padding: '1.5rem',
-};
-
 const inputStyle: React.CSSProperties = {
   background: 'rgba(255,255,255,0.06)',
   border: '1px solid rgba(255,255,255,0.10)',
@@ -92,6 +84,117 @@ function mapGbpServices(items: GbpServiceItem[]): Service[] {
     }));
 }
 
+function ServiceCard({
+  svc,
+  draft,
+  onEdit,
+  onSave,
+  onCancel,
+  onDelete,
+  onDraftChange,
+}: {
+  svc: Service;
+  draft: { name: string; desc: string; price: string } | undefined;
+  onEdit: () => void;
+  onSave: () => void;
+  onCancel: () => void;
+  onDelete: () => void;
+  onDraftChange: (field: 'name' | 'desc' | 'price', value: string) => void;
+}) {
+  if (svc.editing) {
+    return (
+      <div
+        style={{
+          background: 'rgba(79,142,247,0.05)',
+          border: '1px solid rgba(79,142,247,0.30)',
+          backdropFilter: 'blur(8px)',
+          borderRadius: '0.875rem',
+          padding: '1.25rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.75rem',
+        }}
+      >
+        <div className="flex gap-3">
+          <input
+            style={{ ...inputStyle, flex: 2, width: '100%' }}
+            placeholder="Service name"
+            value={draft?.name ?? svc.name}
+            onChange={(e) => onDraftChange('name', e.target.value)}
+            autoFocus
+          />
+          <input
+            style={{ ...inputStyle, flex: 1, width: '100%' }}
+            placeholder="Price (e.g. $85/hr)"
+            value={draft?.price ?? svc.price}
+            onChange={(e) => onDraftChange('price', e.target.value)}
+          />
+        </div>
+        <input
+          style={{ ...inputStyle, width: '100%' }}
+          placeholder="Short description"
+          value={draft?.desc ?? svc.desc}
+          onChange={(e) => onDraftChange('desc', e.target.value)}
+        />
+        <div className="flex gap-2 justify-end">
+          <button style={btnGhost} onClick={onCancel}>Cancel</button>
+          <button style={btnPrimary} onClick={onSave}>Save to GBP</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid rgba(255,255,255,0.10)',
+        backdropFilter: 'blur(8px)',
+        borderRadius: '0.875rem',
+        padding: '1rem 1.25rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '1rem',
+        transition: 'background 0.18s, border-color 0.18s',
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.08)';
+        (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.18)';
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.05)';
+        (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.10)';
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'rgba(240,244,255,0.95)', marginBottom: '0.2rem' }}>
+          {svc.name}
+        </div>
+        {svc.desc && (
+          <div
+            style={{
+              fontSize: '0.8125rem',
+              color: 'rgba(240,244,255,0.5)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {svc.desc}
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-2.5 flex-shrink-0">
+        {svc.price && (
+          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#34d399' }}>{svc.price}</span>
+        )}
+        <button style={btnGhost} onClick={onEdit}>Edit</button>
+        <button style={btnDanger} onClick={onDelete}>✕</button>
+      </div>
+    </div>
+  );
+}
+
 export default function ServicesTab({ ready }: { ready: boolean }) {
   const [services, setServices] = useState<Service[]>([]);
   const [drafts, setDrafts] = useState<Record<number, { name: string; desc: string; price: string }>>({});
@@ -108,7 +211,6 @@ export default function ServicesTab({ ready }: { ready: boolean }) {
           setServices(mapGbpServices(items));
           setFromGbp(true);
         }
-        // if 0 GBP services, list stays empty — user can add manually
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -175,13 +277,12 @@ export default function ServicesTab({ ready }: { ready: boolean }) {
   };
 
   return (
-    <div>
-      {/* Section description */}
-      <p style={{ fontSize: '0.8125rem', color: 'rgba(232,238,255,0.45)', marginBottom: '1rem' }}>
+    <div className="flex flex-col gap-4">
+      <p style={{ fontSize: '0.8125rem', color: 'rgba(232,238,255,0.45)' }}>
         Keep your service listings up to date on Google Business Profile so customers always see what you offer.
       </p>
 
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between">
         <div>
           <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>
             Services{' '}
@@ -198,84 +299,33 @@ export default function ServicesTab({ ready }: { ready: boolean }) {
         <button style={btnPrimary} onClick={addService}>+ Add Service</button>
       </div>
 
-      <div style={glassCard}>
-        {services.length === 0 && (
-          <p style={{ color: 'rgba(240,244,255,0.4)', fontSize: '0.875rem', textAlign: 'center', padding: '2rem 0' }}>
-            No services found on your GBP. Click "Add Service" to get started.
+      {services.length === 0 && (
+        <div
+          style={{
+            border: '2px dashed rgba(255,255,255,0.12)',
+            borderRadius: '1rem',
+            padding: '3rem',
+            textAlign: 'center',
+          }}
+        >
+          <p style={{ color: 'rgba(240,244,255,0.4)', fontSize: '0.875rem' }}>
+            No services on your GBP yet. Click "+ Add Service" to get started.
           </p>
-        )}
-        {services.map((svc, idx) => (
-          <div
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2.5">
+        {services.map((svc) => (
+          <ServiceCard
             key={svc.id}
-            style={{
-              borderBottom: idx < services.length - 1 ? '1px solid rgba(255,255,255,0.07)' : 'none',
-              padding: '0.875rem 0',
-            }}
-          >
-            {svc.editing ? (
-              <div className="flex flex-col gap-3">
-                <div className="flex gap-3">
-                  <input
-                    style={{ ...inputStyle, flex: 2 }}
-                    placeholder="Service name"
-                    value={drafts[svc.id]?.name ?? svc.name}
-                    onChange={(e) => updateDraft(svc.id, 'name', e.target.value)}
-                    autoFocus
-                  />
-                  <input
-                    style={{ ...inputStyle, flex: 1 }}
-                    placeholder="Price (e.g. $85/hr)"
-                    value={drafts[svc.id]?.price ?? svc.price}
-                    onChange={(e) => updateDraft(svc.id, 'price', e.target.value)}
-                  />
-                </div>
-                <input
-                  style={{ ...inputStyle, width: '100%' }}
-                  placeholder="Short description"
-                  value={drafts[svc.id]?.desc ?? svc.desc}
-                  onChange={(e) => updateDraft(svc.id, 'desc', e.target.value)}
-                />
-                <div className="flex gap-2 justify-end">
-                  <button style={btnGhost} onClick={() => cancelEdit(svc.id)}>Cancel</button>
-                  <button style={btnPrimary} onClick={() => saveEdit(svc.id)}>Save</button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <span style={{ fontWeight: 500, color: 'rgba(240,244,255,0.9)', fontSize: '0.875rem' }}>
-                    {svc.name}
-                  </span>
-                  {svc.desc && (
-                    <span
-                      style={{
-                        color: 'rgba(240,244,255,0.5)',
-                        fontSize: '0.8125rem',
-                        marginLeft: '0.75rem',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        maxWidth: '20rem',
-                        display: 'inline-block',
-                        verticalAlign: 'middle',
-                      }}
-                    >
-                      {svc.desc}
-                    </span>
-                  )}
-                </div>
-                {svc.price && (
-                  <span style={{ color: '#34d399', fontWeight: 600, fontSize: '0.875rem', flexShrink: 0 }}>
-                    {svc.price}
-                  </span>
-                )}
-                <div className="flex gap-1.5 ml-2 flex-shrink-0">
-                  <button style={btnGhost} onClick={() => startEdit(svc)}>Edit</button>
-                  <button style={btnDanger} onClick={() => deleteService(svc.id)}>Delete</button>
-                </div>
-              </div>
-            )}
-          </div>
+            svc={svc}
+            draft={drafts[svc.id]}
+            onEdit={() => startEdit(svc)}
+            onSave={() => saveEdit(svc.id)}
+            onCancel={() => cancelEdit(svc.id)}
+            onDelete={() => deleteService(svc.id)}
+            onDraftChange={(field, value) => updateDraft(svc.id, field, value)}
+          />
         ))}
       </div>
     </div>
