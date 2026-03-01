@@ -854,6 +854,87 @@ app.get('/api/services', requireAuth, async (req, res) => {
   }
 });
 
+// ─── GBP Profile (full location data for Edit Profile tab) ──────────────────
+
+/** GBP day names → display order */
+const GBP_DAYS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+
+/** Parse GBP regularHours.periods[] → { MONDAY: { closed, open, close }, ... } */
+function parseGbpPeriods(periods = []) {
+  const result = {};
+  GBP_DAYS.forEach((d) => { result[d] = { closed: true, open: '00:00', close: '00:00' }; });
+  periods.forEach(({ openDay, openTime, closeTime }) => {
+    if (openDay && openTime && closeTime) {
+      result[openDay] = { closed: false, open: openTime, close: closeTime };
+    }
+  });
+  return result;
+}
+
+/** Parse GBP moreHours[] → { hoursTypeId: { MONDAY: {...}, ... }, ... } */
+function parseMoreHours(moreHours = []) {
+  const result = {};
+  moreHours.forEach(({ hoursTypeId, periods }) => {
+    if (!hoursTypeId) return;
+    result[hoursTypeId] = parseGbpPeriods(periods);
+  });
+  return result;
+}
+
+/** Parse GBP serviceArea → readable string */
+function parseServiceArea(serviceArea) {
+  if (!serviceArea) return '';
+  if (serviceArea.places?.placeInfos?.length) {
+    return serviceArea.places.placeInfos.map((p) => p.placeName || p.name).filter(Boolean).join(', ');
+  }
+  if (serviceArea.radius?.radiusKm) return `${Math.round(serviceArea.radius.radiusKm)} km radius`;
+  return '';
+}
+
+/** Format GBP PostalAddress → single-line string */
+function formatGbpAddress(addr) {
+  if (!addr) return '';
+  const parts = [
+    (addr.addressLines || []).join(', '),
+    addr.locality,
+    addr.administrativeArea,
+    addr.postalCode,
+  ].filter(Boolean);
+  return parts.join(', ');
+}
+
+app.get('/api/gbp-profile', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const client = rows[0];
+    const auth = getClientAuth(client);
+    const locationName = await ensureLocation(client);
+    const bizInfo = google.mybusinessbusinessinformation({ version: 'v1', auth });
+    const loc = await bizInfo.locations.get({
+      name: locationName,
+      readMask: 'name,title,phoneNumbers,websiteUri,profile,regularHours,moreHours,serviceArea,storefrontAddress,categories,openInfo',
+    });
+    const d = loc.data;
+    res.json({
+      businessName:         d.title || '',
+      phone:                d.phoneNumbers?.primaryPhone || '',
+      additionalPhones:     d.phoneNumbers?.additionalPhones || [],
+      website:              d.websiteUri || '',
+      description:          d.profile?.description || '',
+      hours:                parseGbpPeriods(d.regularHours?.periods),
+      moreHours:            parseMoreHours(d.moreHours),
+      serviceArea:          parseServiceArea(d.serviceArea),
+      address:              formatGbpAddress(d.storefrontAddress),
+      primaryCategory:      d.categories?.primaryCategory?.displayName || '',
+      additionalCategories: (d.categories?.additionalCategories || []).map((c) => c.displayName),
+      isOpen:               d.openInfo?.status === 'OPEN',
+    });
+  } catch (err) {
+    console.error('GBP profile fetch error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Menu (restaurants) ───────────────────────────────────────
 
 app.get('/api/menu', requireAuth, async (req, res) => {

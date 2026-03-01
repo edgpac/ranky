@@ -589,7 +589,7 @@ export default function Dashboard() {
       >
         <div className="max-w-3xl mx-auto">
 
-          {activeTab === 'profile' && <EditProfileTab client={client} onClientUpdated={setClient} />}
+          {activeTab === 'profile' && <EditProfileTab client={client} ready={locationReady} onClientUpdated={setClient} />}
           {activeTab === 'posts' && (
             <PostsTab
               posts={posts}
