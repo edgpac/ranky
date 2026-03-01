@@ -187,8 +187,8 @@ function AutomationCard({
           </p>
           <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.38)', lineHeight: 1.5 }}>
             Next run: {nextCronRun()} —{' '}
-            <span style={{ color: 'rgba(251,191,36,0.7)', fontWeight: 600 }}>
-              review pending posts before they publish automatically
+            <span style={{ color: 'rgba(240,244,255,0.45)' }}>
+              review and approve posts before they go live on Google
             </span>
           </p>
 
