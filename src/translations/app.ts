@@ -12,6 +12,7 @@ export const app = {
       privacy:   'Privacy Policy',
       terms:     'Terms of Service',
       faq:       'FAQ',
+      about:     'About',
     },
 
     // ─── Dashboard shell ──────────────────────────────────────────────────────
@@ -451,6 +452,7 @@ export const app = {
       privacy:   'Política de Privacidad',
       terms:     'Términos de Servicio',
       faq:       'Preguntas Frecuentes',
+      about:     'Acerca de',
     },
 
     dash: {

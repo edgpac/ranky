@@ -57,6 +57,7 @@ export default function SubPageLayout({ children }: Props) {
           <a href="/privacy" className="hover:underline">{t.privacy}</a>
           <a href="/terms" className="hover:underline">{t.terms}</a>
           <a href="/faq" className="hover:underline">{t.faq}</a>
+          <a href="/about" className="hover:underline">{t.about}</a>
         </div>
       </footer>
 
