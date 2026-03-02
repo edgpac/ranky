@@ -1,7 +1,10 @@
 import 'dotenv/config';
 import express from 'express';
 import session from 'express-session';
+import connectPgSimple from 'connect-pg-simple';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 import sharp from 'sharp';
 import { google } from 'googleapis';
@@ -52,19 +55,45 @@ const SCOPES = [
 
 // ─── Middleware ───────────────────────────────────────────────
 app.use(cors({ origin: process.env.FRONTEND_URL, credentials: true }));
+app.use(helmet());
 app.use(express.json());
-app.use(express.raw({ type: 'application/json' }));
+// Note: express.raw is only applied locally on the Stripe webhook route, not globally
 app.use('/uploads', express.static(UPLOADS_DIR));
+
+const PgSession = connectPgSimple(session);
 app.use(session({
+  store: new PgSession({ pool, createTableIfMissing: true }),
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
+    httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 30 * 24 * 60 * 60 * 1000,
   },
 }));
+
+// ─── Rate Limiters ────────────────────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later' },
+});
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many AI requests, please slow down' },
+});
+app.use('/auth/login', authLimiter);
+app.use('/auth/signup', authLimiter);
+app.use('/api/generate-post', aiLimiter);
+app.use('/api/reviews/generate-reply', aiLimiter);
+app.use('/api/photos/upload', aiLimiter);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
@@ -413,7 +442,8 @@ app.get('/auth/google/callback', async (req, res) => {
 });
 
 app.post('/auth/presignup', (req, res) => {
-  req.session.pendingSignup = req.body;
+  const { name, businessName, businessType, whatsapp, tone, postsPerWeek } = req.body;
+  req.session.pendingSignup = { name, businessName, businessType, whatsapp, tone, postsPerWeek };
   res.json({ ok: true });
 });
 
@@ -440,10 +470,12 @@ app.post('/auth/signup', async (req, res) => {
     const clientId = result.rows[0].id;
     req.session.clientId = clientId;
     const token = jwt.sign({ clientId }, process.env.SESSION_SECRET, { expiresIn: '30d' });
-    res.json({ ok: true, token });
+    const isProd = process.env.NODE_ENV === 'production';
+    res.setHeader('Set-Cookie', `hayvista_token=${token}; Path=/; Max-Age=${30 * 24 * 3600}; HttpOnly; SameSite=${isProd ? 'None' : 'Lax'}${isProd ? '; Secure' : ''}`);
+    res.json({ ok: true });
   } catch (err) {
     console.error('Signup error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -461,16 +493,18 @@ app.post('/auth/login', async (req, res) => {
     const clientId = rows[0].id;
     req.session.clientId = clientId;
     const token = jwt.sign({ clientId }, process.env.SESSION_SECRET, { expiresIn: '30d' });
-    res.json({ ok: true, token });
+    const isProd = process.env.NODE_ENV === 'production';
+    res.setHeader('Set-Cookie', `hayvista_token=${token}; Path=/; Max-Age=${30 * 24 * 3600}; HttpOnly; SameSite=${isProd ? 'None' : 'Lax'}${isProd ? '; Secure' : ''}`);
+    res.json({ ok: true });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
 app.post('/auth/logout', (req, res) => {
   req.session.destroy(() => {});
-  res.setHeader('Set-Cookie', 'hayvista_token=; path=/; max-age=0; SameSite=Strict');
+  res.setHeader('Set-Cookie', 'hayvista_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict');
   res.json({ ok: true });
 });
 
@@ -552,8 +586,12 @@ app.get('/api/permission-check', requireAuth, async (req, res) => {
 });
 
 // ─── /api/me ─────────────────────────────────────────────────
+const SAFE_CLIENT_COLUMNS = `id, email, name, business_name, whatsapp, tone, business_type,
+  posts_per_week, subscription_status, review_link, city, social_links,
+  gbp_account_name, created_at`;
+
 app.get('/api/me', requireAuth, async (req, res) => {
-  const client = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+  const client = await pool.query(`SELECT ${SAFE_CLIENT_COLUMNS} FROM clients WHERE id = $1`, [req.session.clientId]);
   const posts = await pool.query('SELECT * FROM posts WHERE client_id = $1 ORDER BY posted_at DESC LIMIT 20', [req.session.clientId]);
   const products = await pool.query('SELECT * FROM products WHERE client_id = $1 ORDER BY created_at ASC', [req.session.clientId]);
   res.json({ client: client.rows[0], posts: posts.rows, products: products.rows });
@@ -590,7 +628,7 @@ app.patch('/api/posts/:id', requireAuth, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ error: 'Post not found' });
     res.json({ post: result.rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -599,7 +637,7 @@ app.delete('/api/posts/:id', requireAuth, async (req, res) => {
     await pool.query('DELETE FROM posts WHERE id = $1 AND client_id = $2', [req.params.id, req.session.clientId]);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -612,7 +650,7 @@ app.post('/api/generate-post', requireAuth, async (req, res) => {
     res.json({ post });
   } catch (err) {
     console.error('Generate post error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -792,10 +830,16 @@ Post type instruction: ${postTypeNote}`;
 
 // ─── Profile ─────────────────────────────────────────────────
 
+const VALID_TONES = ['Friendly', 'Professional', 'Bilingual'];
+const VALID_BUSINESS_TYPES = Object.keys(BUSINESS_TYPE_LABELS);
+
 app.patch('/api/profile', requireAuth, async (req, res) => {
   try {
     const { business_name, business_type, tone, posts_per_week, whatsapp, review_link, city } = req.body;
-    const { rows } = await pool.query(
+    if (tone && !VALID_TONES.includes(tone)) return res.status(400).json({ error: 'Invalid tone' });
+    if (business_type && !VALID_BUSINESS_TYPES.includes(business_type)) return res.status(400).json({ error: 'Invalid business type' });
+    const safePosts = posts_per_week != null ? Math.min(Math.max(parseInt(posts_per_week, 10) || 1, 1), 7) : null;
+    await pool.query(
       `UPDATE clients SET
         business_name  = COALESCE($1, business_name),
         business_type  = COALESCE($2, business_type),
@@ -804,21 +848,23 @@ app.patch('/api/profile', requireAuth, async (req, res) => {
         whatsapp       = COALESCE($5, whatsapp),
         review_link    = COALESCE($6, review_link),
         city           = COALESCE($7, city)
-       WHERE id = $8 RETURNING *`,
+       WHERE id = $8`,
       [
         business_name ?? null,
         business_type ?? null,
         tone ?? null,
-        posts_per_week ?? null,
+        safePosts,
         whatsapp ?? null,
         review_link ?? null,
         city ?? null,
         req.session.clientId,
       ]
     );
+    const { rows } = await pool.query(`SELECT ${SAFE_CLIENT_COLUMNS} FROM clients WHERE id = $1`, [req.session.clientId]);
     res.json({ client: rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Profile update error:', err);
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -832,7 +878,7 @@ app.get('/api/products', requireAuth, async (req, res) => {
     );
     res.json({ products: rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -846,7 +892,7 @@ app.post('/api/products', requireAuth, async (req, res) => {
     );
     res.json({ product: rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -865,7 +911,7 @@ app.patch('/api/products/:id', requireAuth, async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Product not found' });
     res.json({ product: rows[0] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -878,7 +924,7 @@ app.delete('/api/products/:id', requireAuth, async (req, res) => {
     if (!rowCount) return res.status(404).json({ error: 'Product not found' });
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -935,7 +981,7 @@ app.get('/api/reviews', requireAuth, async (req, res) => {
     }
   } catch (err) {
     console.error('Reviews fetch error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -951,7 +997,7 @@ app.post('/api/reviews/generate-reply', requireAuth, async (req, res) => {
     res.json({ reply });
   } catch (err) {
     console.error('Generate reply error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -966,7 +1012,7 @@ app.patch('/api/reviews/pending-reply', requireAuth, async (req, res) => {
     );
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -979,7 +1025,7 @@ app.delete('/api/reviews/pending-reply/:reviewId', requireAuth, async (req, res)
     );
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -987,7 +1033,7 @@ app.delete('/api/reviews/pending-reply/:reviewId', requireAuth, async (req, res)
 app.post('/api/reviews/pending-reply/:reviewId/post-now', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT pr.*, c.access_token, c.refresh_token, c.location_name
+      `SELECT pr.*, c.google_access_token, c.google_refresh_token, c.gbp_account_name
        FROM pending_replies pr
        JOIN clients c ON c.id = pr.client_id
        WHERE pr.client_id = $1 AND pr.review_id = $2 AND pr.status = 'pending'`,
@@ -995,7 +1041,7 @@ app.post('/api/reviews/pending-reply/:reviewId/post-now', requireAuth, async (re
     );
     if (!rows[0]) return res.status(404).json({ error: 'No pending reply found' });
     const pending = rows[0];
-    const client = { id: req.session.clientId, access_token: pending.access_token, refresh_token: pending.refresh_token, location_name: pending.location_name };
+    const client = { id: req.session.clientId, google_access_token: pending.google_access_token, google_refresh_token: pending.google_refresh_token, gbp_account_name: pending.gbp_account_name };
     const auth = getClientAuth(client);
     const mybusiness = google.mybusiness({ version: 'v4', auth });
     await mybusiness.accounts.locations.reviews.updateReply({
@@ -1009,25 +1055,30 @@ app.post('/api/reviews/pending-reply/:reviewId/post-now', requireAuth, async (re
     res.json({ ok: true });
   } catch (err) {
     console.error('Post-now error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
 app.post('/api/reviews/reply', requireAuth, async (req, res) => {
   try {
     const { reviewName, replyText } = req.body;
+    if (!reviewName || !replyText?.trim()) return res.status(400).json({ error: 'reviewName and replyText required' });
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
     const client = rows[0];
+    const locationName = await ensureLocation(client);
+    if (!reviewName.startsWith(locationName)) {
+      return res.status(403).json({ error: 'Review does not belong to your location' });
+    }
     const auth = getClientAuth(client);
     const mybusiness = google.mybusiness({ version: 'v4', auth });
     await mybusiness.accounts.locations.reviews.updateReply({
       name: reviewName,
-      requestBody: { comment: replyText },
+      requestBody: { comment: replyText.trim() },
     });
     res.json({ ok: true });
   } catch (err) {
     console.error('Post reply error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1090,7 +1141,7 @@ app.get('/api/insights', requireAuth, async (req, res) => {
     res.json({ insights: insightsData, gscQueries });
   } catch (err) {
     console.error('Insights error:', err);
-    res.status(500).json({ error: err.message, insights: null, gscQueries: [] });
+    res.status(500).json({ error: 'An internal error occurred', insights: null, gscQueries: [] });
   }
 });
 
@@ -1128,15 +1179,29 @@ app.get('/api/photos', requireAuth, async (req, res) => {
     setImmediate(() => labelPhotosInBackground(client, photos, bizLabel));
   } catch (err) {
     console.error('Photos fetch error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
+
+// Only allow Google / HayVista CDN URLs to prevent stored SSRF
+function isAllowedPhotoUrl(url) {
+  try {
+    const { protocol, hostname } = new URL(url);
+    return protocol === 'https:' && (
+      hostname.endsWith('.googleapis.com') ||
+      hostname.endsWith('.googleusercontent.com') ||
+      hostname.endsWith('.hayvista.com') ||
+      hostname.endsWith('.railway.app')
+    );
+  } catch { return false; }
+}
 
 // Save a user-written (or user-confirmed) description for a GBP photo
 app.patch('/api/photos/label', requireAuth, async (req, res) => {
   try {
     const { photo_url, media_name, description } = req.body;
     if (!photo_url) return res.status(400).json({ error: 'photo_url required' });
+    if (!isAllowedPhotoUrl(photo_url)) return res.status(400).json({ error: 'Invalid photo URL' });
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
     const client = rows[0];
     const trimmed = (description || '').trim() || null;
@@ -1169,7 +1234,7 @@ app.patch('/api/photos/label', requireAuth, async (req, res) => {
     res.json({ ok: true, gbpUpdated });
   } catch (err) {
     console.error('Photo label error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1215,7 +1280,7 @@ app.get('/api/photos/debug', requireAuth, async (req, res) => {
     res.json({ total: all.length, labeled, pickerView });
   } catch (err) {
     console.error('Photos debug error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1312,7 +1377,7 @@ Return ONLY a JSON object, no markdown:
     });
   } catch (err) {
     console.error('Photo upload error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1327,7 +1392,7 @@ app.delete('/api/photos/:mediaName', requireAuth, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('Delete photo error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1353,7 +1418,7 @@ app.get('/api/services', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('Services fetch error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1434,7 +1499,7 @@ app.get('/api/gbp-profile', requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error('GBP profile fetch error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1455,7 +1520,7 @@ app.get('/api/social-links', requireAuth, async (req, res) => {
     const { rows } = await pool.query('SELECT social_links FROM clients WHERE id = $1', [req.session.clientId]);
     res.json({ links: rows[0]?.social_links || {} });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1499,7 +1564,7 @@ app.patch('/api/social-links', requireAuth, async (req, res) => {
 
     res.json({ links: clean, gbpSynced });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1542,7 +1607,7 @@ app.get('/api/qa', requireAuth, async (req, res) => {
     res.json({ questions: rows });
   } catch (err) {
     console.error('Q&A fetch error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1570,7 +1635,7 @@ app.post('/api/qa/generate-answer', requireAuth, async (req, res) => {
     res.json({ question: updated });
   } catch (err) {
     console.error('Q&A generate error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1608,7 +1673,7 @@ app.post('/api/qa/answer', requireAuth, async (req, res) => {
     res.json({ question: updated, gbpPosted });
   } catch (err) {
     console.error('Q&A post error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1624,7 +1689,7 @@ app.patch('/api/qa/:id', requireAuth, async (req, res) => {
     if (!updated) return res.status(404).json({ error: 'Not found' });
     res.json({ question: updated });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1633,7 +1698,7 @@ app.delete('/api/qa/:id', requireAuth, async (req, res) => {
     await pool.query('DELETE FROM qa_answers WHERE id = $1 AND client_id = $2', [req.params.id, req.session.clientId]);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1768,7 +1833,7 @@ app.get('/api/audit', requireAuth, async (req, res) => {
     res.json({ items });
   } catch (err) {
     console.error('Audit error:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -1788,7 +1853,7 @@ app.get('/api/menu', requireAuth, async (req, res) => {
     res.json({ menu: menuRes.data });
   } catch (err) {
     console.error('Menu fetch error:', err);
-    res.status(500).json({ error: err.message, menu: null });
+    res.status(500).json({ error: 'An internal error occurred', menu: null });
   }
 });
 
@@ -1796,7 +1861,11 @@ app.get('/api/menu', requireAuth, async (req, res) => {
 
 app.post('/api/stripe/create-checkout', requireAuth, async (req, res) => {
   const { priceId } = req.body;
-  const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+  const allowedPriceIds = new Set([process.env.STRIPE_STARTER_PRICE_ID].filter(Boolean));
+  if (!priceId || !allowedPriceIds.has(priceId)) {
+    return res.status(400).json({ error: 'Invalid price' });
+  }
+  const { rows } = await pool.query(`SELECT ${SAFE_CLIENT_COLUMNS} FROM clients WHERE id = $1`, [req.session.clientId]);
   const client = rows[0];
   let customerId = client.stripe_customer_id;
   if (!customerId) {
@@ -1838,6 +1907,8 @@ app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async
 // Uses Resend (resend.com) — free tier covers 3,000 emails/month.
 // TO ENABLE: set RESEND_API_KEY in Railway env vars, then uncomment the cron.schedule below.
 
+const escHtml = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
 async function sendWeeklyDigest() {
   if (!resend) { console.log('⏭️  Digest skipped — RESEND_API_KEY not set'); return; }
 
@@ -1862,8 +1933,8 @@ async function sendWeeklyDigest() {
 
       const postRows = posts.map((p) => `
         <tr style="border-bottom:1px solid #1e2740">
-          <td style="padding:12px 16px;color:#e8eeff;font-size:14px;line-height:1.5">${p.post_text}</td>
-          <td style="padding:12px 16px;color:#4f8ef7;font-size:12px;white-space:nowrap">${p.search_query || '—'}</td>
+          <td style="padding:12px 16px;color:#e8eeff;font-size:14px;line-height:1.5">${escHtml(p.post_text)}</td>
+          <td style="padding:12px 16px;color:#4f8ef7;font-size:12px;white-space:nowrap">${escHtml(p.search_query) || '—'}</td>
           <td style="padding:12px 16px;color:rgba(232,238,255,0.45);font-size:12px;white-space:nowrap">${new Date(p.posted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
         </tr>`).join('');
 
@@ -2047,14 +2118,14 @@ cron.schedule('0 * * * *', async () => {
     }
     // Auto-post pending review replies whose timer has expired
     const { rows: pendingReplies } = await pool.query(
-      `SELECT pr.*, c.access_token, c.refresh_token, c.location_name, c.business_name
+      `SELECT pr.*, c.google_access_token, c.google_refresh_token, c.gbp_account_name, c.business_name
        FROM pending_replies pr
        JOIN clients c ON c.id = pr.client_id
        WHERE pr.status = 'pending' AND pr.auto_post_at <= NOW()`
     );
     for (const pending of pendingReplies) {
       try {
-        const client = { id: pending.client_id, access_token: pending.access_token, refresh_token: pending.refresh_token, location_name: pending.location_name };
+        const client = { id: pending.client_id, google_access_token: pending.google_access_token, google_refresh_token: pending.google_refresh_token, gbp_account_name: pending.gbp_account_name };
         const auth = getClientAuth(client);
         const mybusiness = google.mybusiness({ version: 'v4', auth });
         await mybusiness.accounts.locations.reviews.updateReply({
