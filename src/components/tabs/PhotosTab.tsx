@@ -40,7 +40,16 @@ const CATEGORIES = [
 
 // ─── Mock photos (guest / empty state preview) ────────────────────────────────
 
-const MOCK_ICONS = ['🔨', '💡', '🚿', '🌊', '⚡', '🔩', '📺', '🏠', '🪚', '🎨', '🪛', '🏗️'];
+const MOCK_GRADIENTS = [
+  'linear-gradient(135deg, rgba(79,142,247,0.18) 0%, rgba(52,211,153,0.10) 100%)',
+  'linear-gradient(135deg, rgba(251,191,36,0.16) 0%, rgba(249,115,22,0.10) 100%)',
+  'linear-gradient(135deg, rgba(167,139,250,0.18) 0%, rgba(79,142,247,0.10) 100%)',
+  'linear-gradient(135deg, rgba(52,211,153,0.16) 0%, rgba(79,142,247,0.10) 100%)',
+  'linear-gradient(135deg, rgba(249,115,22,0.16) 0%, rgba(251,191,36,0.10) 100%)',
+  'linear-gradient(135deg, rgba(236,72,153,0.14) 0%, rgba(167,139,250,0.10) 100%)',
+  'linear-gradient(135deg, rgba(79,142,247,0.14) 0%, rgba(236,72,153,0.10) 100%)',
+  'linear-gradient(135deg, rgba(52,211,153,0.18) 0%, rgba(167,139,250,0.10) 100%)',
+];
 
 const MOCK_PHOTOS: PhotoItem[] = [
   {
@@ -157,7 +166,6 @@ function PhotoCard({
   onLabelSaved: (url: string, description: string) => void;
 }) {
   const imgUrl = photo.thumbnailUrl || photo.googleUrl || photo.sourceUrl;
-  const icon = MOCK_ICONS[index % MOCK_ICONS.length];
   const viewUrl = photo.googleUrl || photo.sourceUrl;
   const category = photo.locationAssociation?.category;
 
@@ -214,22 +222,39 @@ function PhotoCard({
           position: 'relative',
           background: imgUrl
             ? undefined
-            : 'linear-gradient(135deg, rgba(79,142,247,0.08) 0%, rgba(52,211,153,0.06) 100%)',
+            : MOCK_GRADIENTS[index % MOCK_GRADIENTS.length],
           borderBottom: '1px solid rgba(255,255,255,0.05)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '2.25rem',
           overflow: 'hidden',
         }}
       >
         {imgUrl ? (
           <img src={imgUrl} alt={photo.displayName || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
-          icon
+          /* Camera icon placeholder — matches the polish of Posts/Reviews tabs */
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem', opacity: 0.45 }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
+            </svg>
+          </div>
         )}
-        {/* Category badge */}
-        {category && (
+        {/* Sample badge for mocks */}
+        {isMock && (
+          <span style={{
+            position: 'absolute', top: '0.4rem', right: '0.4rem',
+            fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.05em',
+            textTransform: 'uppercase', color: 'rgba(240,244,255,0.55)',
+            background: 'rgba(0,0,0,0.40)', borderRadius: '0.25rem',
+            padding: '0.1rem 0.35rem',
+          }}>
+            Sample
+          </span>
+        )}
+        {/* Category badge for real photos */}
+        {category && !isMock && (
           <span
             style={{
               position: 'absolute',
@@ -267,7 +292,22 @@ function PhotoCard({
           {photo.displayName || `Photo ${index + 1}`}
         </p>
 
-        {/* AI / user description label section */}
+        {/* Mock description text (shown instead of AI label section) */}
+        {isMock && photo.description && (
+          <p style={{
+            fontSize: '0.72rem',
+            color: 'rgba(240,244,255,0.38)',
+            lineHeight: 1.45,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical' as const,
+            overflow: 'hidden',
+          }}>
+            {photo.description}
+          </p>
+        )}
+
+        {/* AI / user description label section (real photos only) */}
         {!isMock && (
           <div style={{ marginTop: '0.15rem' }}>
             {editing ? (
