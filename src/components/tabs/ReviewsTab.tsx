@@ -1,8 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ReviewAuthor {
   displayName: string;
   profilePhotoUrl?: string;
+}
+
+interface PendingReply {
+  draftText: string;
+  autoPostAt: string; // ISO timestamp
 }
 
 interface Review {
@@ -15,6 +20,7 @@ interface Review {
   updateTime: string;
   reviewReply?: { comment: string; updateTime: string };
   totalMediaItemCount?: number;
+  pendingReply?: PendingReply | null;
 }
 
 const STAR_MAP: Record<string, number> = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4, FIVE: 5 };
@@ -29,6 +35,10 @@ const MOCK_REVIEWS: Review[] = [
     createTime: new Date(Date.now() - 7 * 86400000).toISOString(),
     updateTime: new Date(Date.now() - 7 * 86400000).toISOString(),
     totalMediaItemCount: 1,
+    pendingReply: {
+      draftText: "Thank you for the kind words! It was a pleasure helping with the art hanging and faucet. We take pride in leaving every space tidy — call us anytime you need a hand.",
+      autoPostAt: new Date(Date.now() + 18 * 3600000).toISOString(),
+    },
   },
   {
     name: 'accounts/123/locations/456/reviews/r2',
@@ -78,6 +88,15 @@ function starStr(n: number) {
   return '★'.repeat(n) + '☆'.repeat(5 - n);
 }
 
+function formatCountdown(msLeft: number): string {
+  if (msLeft <= 0) return 'Posting soon…';
+  const h = Math.floor(msLeft / 3600000);
+  const m = Math.floor((msLeft % 3600000) / 60000);
+  if (h > 0) return `${h}h ${m}m`;
+  const s = Math.floor((msLeft % 60000) / 1000);
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const card: React.CSSProperties = {
@@ -108,6 +127,65 @@ const btnGhost: React.CSSProperties = {
   cursor: 'pointer',
 };
 
+const btnDanger: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid rgba(239,68,68,0.35)',
+  color: 'rgba(239,68,68,0.75)',
+  borderRadius: '0.5rem',
+  padding: '0.375rem 0.75rem',
+  fontSize: '0.8125rem',
+  cursor: 'pointer',
+};
+
+// ─── Countdown banner ─────────────────────────────────────────────────────────
+
+function CountdownBanner({ autoPostAt }: { autoPostAt: string }) {
+  const [msLeft, setMsLeft] = useState(() => new Date(autoPostAt).getTime() - Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setMsLeft(new Date(autoPostAt).getTime() - Date.now());
+    }, 1000);
+    return () => clearInterval(id);
+  }, [autoPostAt]);
+
+  const total = 24 * 3600000;
+  const progress = Math.max(0, Math.min(1, msLeft / total));
+
+  return (
+    <div
+      style={{
+        background: 'rgba(251,191,36,0.07)',
+        border: '1px solid rgba(251,191,36,0.22)',
+        borderRadius: '0.5rem',
+        padding: '0.5rem 0.75rem',
+        marginBottom: '0.5rem',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
+        <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'rgba(251,191,36,0.85)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+          ⏱ Auto-posting in
+        </span>
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(251,191,36,0.9)', fontVariantNumeric: 'tabular-nums' }}>
+          {formatCountdown(msLeft)}
+        </span>
+      </div>
+      {/* Progress bar */}
+      <div style={{ height: '3px', background: 'rgba(251,191,36,0.15)', borderRadius: '9999px', overflow: 'hidden' }}>
+        <div
+          style={{
+            height: '100%',
+            width: `${progress * 100}%`,
+            background: 'rgba(251,191,36,0.6)',
+            borderRadius: '9999px',
+            transition: 'width 1s linear',
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── Review card ──────────────────────────────────────────────────────────────
 
 function ReviewCard({ review }: { review: Review }) {
@@ -118,6 +196,13 @@ function ReviewCard({ review }: { review: Review }) {
   const [localReply, setLocalReply] = useState(review.reviewReply?.comment ?? null);
   const [localReplyTime, setLocalReplyTime] = useState(review.reviewReply?.updateTime ?? null);
 
+  // Pending auto-reply state
+  const [pending, setPending] = useState<PendingReply | null>(review.pendingReply ?? null);
+  const [editingDraft, setEditingDraft] = useState(false);
+  const [editDraftText, setEditDraftText] = useState('');
+  const [savingDraft, setSavingDraft] = useState(false);
+
+  const reviewId = review.name.split('/').pop() ?? review.reviewId;
   const stars = STAR_MAP[review.starRating] ?? 5;
   const initial = review.reviewer.displayName?.[0]?.toUpperCase() || '?';
   const dateStr = relativeTime(review.createTime);
@@ -139,7 +224,7 @@ function ReviewCard({ review }: { review: Review }) {
       if (!res.ok) throw new Error(data.error);
       setAiDraft(data.reply);
     } catch {
-      // silently fail — user can try again
+      // silently fail
     } finally {
       setGenerating(false);
     }
@@ -155,14 +240,62 @@ function ReviewCard({ review }: { review: Review }) {
         body: JSON.stringify({ reviewName: review.name, replyText: text }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
+      // Cancel pending draft if one exists
+      if (pending) {
+        await fetch(`/api/reviews/pending-reply/${reviewId}`, { method: 'DELETE', credentials: 'include' });
+        setPending(null);
+      }
     } catch {
-      // optimistically update
+      // optimistic update regardless
     } finally {
       setLocalReply(text);
       setLocalReplyTime(new Date().toISOString());
       setReplyText('');
       setAiDraft(null);
       setPosting(false);
+    }
+  };
+
+  const cancelAutoPost = async () => {
+    await fetch(`/api/reviews/pending-reply/${reviewId}`, { method: 'DELETE', credentials: 'include' });
+    setPending(null);
+  };
+
+  const postNow = async () => {
+    setPosting(true);
+    try {
+      const res = await fetch(`/api/reviews/pending-reply/${reviewId}/post-now`, {
+        method: 'POST', credentials: 'include',
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
+      setLocalReply(pending!.draftText);
+      setLocalReplyTime(new Date().toISOString());
+      setPending(null);
+    } catch {
+      // optimistic update
+      setLocalReply(pending!.draftText);
+      setLocalReplyTime(new Date().toISOString());
+      setPending(null);
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const saveDraftEdit = async () => {
+    if (!editDraftText.trim()) return;
+    setSavingDraft(true);
+    try {
+      await fetch('/api/reviews/pending-reply', {
+        method: 'PATCH', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewId, draftText: editDraftText }),
+      });
+      setPending((prev) => prev ? { ...prev, draftText: editDraftText } : prev);
+      setEditingDraft(false);
+    } catch {
+      // silently fail
+    } finally {
+      setSavingDraft(false);
     }
   };
 
@@ -214,6 +347,89 @@ function ReviewCard({ review }: { review: Review }) {
         >
           ✓ Replied {localReplyTime ? relativeTime(localReplyTime) : ''}
         </div>
+      ) : pending ? (
+        /* ── Auto-reply pending: countdown + draft preview ── */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <CountdownBanner autoPostAt={pending.autoPostAt} />
+
+          {editingDraft ? (
+            /* Inline edit */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <textarea
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(79,142,247,0.45)',
+                  borderRadius: '0.5rem',
+                  color: 'white',
+                  fontSize: '0.8125rem',
+                  padding: '0.5rem 0.75rem',
+                  resize: 'none',
+                  outline: 'none',
+                  width: '100%',
+                  lineHeight: 1.5,
+                  fontFamily: 'inherit',
+                }}
+                rows={4}
+                value={editDraftText}
+                onChange={(e) => setEditDraftText(e.target.value)}
+                autoFocus
+              />
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <button style={{ ...btnGhost, padding: '0.3rem 0.75rem' }} onClick={() => setEditingDraft(false)}>
+                  Cancel
+                </button>
+                <button
+                  style={{ ...btnPrimary, padding: '0.3rem 0.875rem', opacity: savingDraft ? 0.45 : 1 }}
+                  onClick={saveDraftEdit}
+                  disabled={savingDraft}
+                >
+                  {savingDraft ? 'Saving…' : 'Save Draft'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Draft preview */
+            <div
+              style={{
+                background: 'rgba(79,142,247,0.07)',
+                border: '1px solid rgba(79,142,247,0.18)',
+                borderRadius: '0.5rem',
+                padding: '0.625rem 0.75rem',
+              }}
+            >
+              <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'rgba(79,142,247,0.75)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
+                ✦ AI Draft
+              </p>
+              <p style={{ fontSize: '0.8125rem', lineHeight: 1.55, color: 'rgba(240,244,255,0.82)' }}>
+                {pending.draftText}
+              </p>
+            </div>
+          )}
+
+          {!editingDraft && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                style={{ ...btnDanger, padding: '0.3rem 0.75rem' }}
+                onClick={cancelAutoPost}
+              >
+                Cancel Auto-Post
+              </button>
+              <button
+                style={{ ...btnGhost, padding: '0.3rem 0.75rem' }}
+                onClick={() => { setEditDraftText(pending.draftText); setEditingDraft(true); }}
+              >
+                Edit
+              </button>
+              <button
+                style={{ ...btnPrimary, padding: '0.3rem 0.875rem', opacity: posting ? 0.45 : 1 }}
+                onClick={postNow}
+                disabled={posting}
+              >
+                {posting ? 'Posting…' : 'Post Now'}
+              </button>
+            </div>
+          )}
+        </div>
       ) : generating ? (
         /* AI generating spinner */
         <div
@@ -235,7 +451,7 @@ function ReviewCard({ review }: { review: Review }) {
           </p>
         </div>
       ) : aiDraft ? (
-        /* AI draft preview — edit or post as-is */
+        /* Manual AI draft preview */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <div
             style={{
@@ -245,12 +461,7 @@ function ReviewCard({ review }: { review: Review }) {
               padding: '0.625rem 0.75rem',
             }}
           >
-            <p
-              style={{
-                fontSize: '0.6875rem', fontWeight: 700, color: 'rgba(79,142,247,0.75)',
-                letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem',
-              }}
-            >
+            <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'rgba(79,142,247,0.75)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.375rem' }}>
               ✦ AI Draft
             </p>
             <p style={{ fontSize: '0.8125rem', lineHeight: 1.55, color: 'rgba(240,244,255,0.82)' }}>
@@ -258,23 +469,13 @@ function ReviewCard({ review }: { review: Review }) {
             </p>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}>
-            <button
-              style={{ ...btnGhost, padding: '0.3rem 0.75rem', fontSize: '0.8125rem' }}
-              onClick={() => setAiDraft(null)}
-            >
+            <button style={{ ...btnGhost, padding: '0.3rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => setAiDraft(null)}>
               Discard
             </button>
-            <button
-              style={{ ...btnGhost, padding: '0.3rem 0.75rem', fontSize: '0.8125rem' }}
-              onClick={() => { setReplyText(aiDraft); setAiDraft(null); }}
-            >
+            <button style={{ ...btnGhost, padding: '0.3rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => { setReplyText(aiDraft); setAiDraft(null); }}>
               Edit
             </button>
-            <button
-              style={{ ...btnPrimary, padding: '0.3rem 0.875rem', opacity: posting ? 0.45 : 1 }}
-              onClick={() => postReply(aiDraft)}
-              disabled={posting}
-            >
+            <button style={{ ...btnPrimary, padding: '0.3rem 0.875rem', opacity: posting ? 0.45 : 1 }} onClick={() => postReply(aiDraft)} disabled={posting}>
               {posting ? 'Posting…' : 'Post Reply'}
             </button>
           </div>
@@ -323,10 +524,7 @@ function ReviewCard({ review }: { review: Review }) {
             onBlur={(e) => { (e.target as HTMLTextAreaElement).style.borderColor = 'rgba(255,255,255,0.10)'; }}
           />
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}>
-            <button
-              style={{ ...btnGhost, padding: '0.3rem 0.75rem', fontSize: '0.8125rem' }}
-              onClick={() => setReplyText('')}
-            >
+            <button style={{ ...btnGhost, padding: '0.3rem 0.75rem', fontSize: '0.8125rem' }} onClick={() => setReplyText('')}>
               Discard
             </button>
             <button
@@ -384,7 +582,9 @@ export default function ReviewsTab({ ready }: { ready: boolean }) {
   const displayAvg = avg;
   const displayTotal = total;
 
-  const unreplied = reviews.filter((r) => !r.reviewReply);
+  // A review is "unreplied" if it has no posted reply AND no pending auto-reply
+  const unreplied = reviews.filter((r) => !r.reviewReply && !r.pendingReply);
+  const pending   = reviews.filter((r) => !r.reviewReply && !!r.pendingReply);
   const replied   = reviews.filter((r) => !!r.reviewReply);
 
   const filteredReviews = filter === 'unreplied' ? unreplied
@@ -403,7 +603,18 @@ export default function ReviewsTab({ ready }: { ready: boolean }) {
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'rgba(240,244,255,0.95)' }}>Reviews</h2>
-        <button style={btnGhost}>Filter</button>
+        {pending.length > 0 && (
+          <span
+            style={{
+              fontSize: '0.6875rem', fontWeight: 700,
+              background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.28)',
+              color: 'rgba(251,191,36,0.9)', borderRadius: '9999px',
+              padding: '0.2rem 0.625rem', letterSpacing: '0.04em',
+            }}
+          >
+            {pending.length} auto-replying
+          </span>
+        )}
       </div>
 
       {/* Rating summary */}

@@ -154,6 +154,20 @@ async function initDB() {
   await pool.query(`
     ALTER TABLE photo_labels ADD COLUMN IF NOT EXISTS user_description TEXT
   `);
+  // ─── Pending review reply drafts ────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pending_replies (
+      id SERIAL PRIMARY KEY,
+      client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+      review_name TEXT NOT NULL,
+      review_id TEXT NOT NULL,
+      draft_text TEXT NOT NULL,
+      auto_post_at TIMESTAMPTZ NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(client_id, review_id)
+    )
+  `);
   console.log('✅ DB ready');
 }
 
@@ -248,6 +262,65 @@ async function describePhotoWithVision(base64, mimeType, businessName, bizLabel)
  * Background job: label up to `limit` unlabeled photos for a client using Claude Vision.
  * Fires and forgets — caller does NOT await this.
  */
+// ─── Build reply system prompt (shared by manual + auto-draft) ────────────────
+function buildReplySystemPrompt(client) {
+  const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
+  const city = client.city || '';
+  const locationLine = city ? ` serving ${city}` : '';
+  return `You are the owner of ${client.business_name}, a ${bizLabel}${locationLine}. Write a genuine, reputation-protecting, SEO-aware reply to a Google review.
+
+Follow these three steps:
+
+STEP 1 — DETECT REVIEWER TONE: Casual | Formal | Technical | Emotional | Angry | Enthusiastic
+Mirror it exactly. A casual reviewer gets a warm, conversational reply. A technical reviewer (contractor noting materials, chef discussing technique, foodie mentioning pairings) gets a reply that matches their vocabulary and knowledge level.
+
+STEP 2 — DETECT REVIEWER INTENT and respond accordingly:
+- Praise → Reinforce the specific detail they mentioned, express genuine gratitude, invite them back.
+- Complaint → Acknowledge their specific frustration calmly, take ownership, offer a concrete resolution, invite direct contact.
+- Mixed → Validate the positive, address the concern directly, show commitment to improving.
+- Question → Answer clearly and invite them to reach out for more detail.
+- Technical critique → Respond with equal expertise; show you understand the issue at a professional level.
+
+STEP 3 — WEAVE IN ONE SUBTLE LOCAL SIGNAL:
+Mention the specific service performed${city ? ` and the location (${city})` : ''} naturally in the reply — never as a keyword dump.
+✓ Right: "We're glad the electrical panel upgrade${city ? ` in ${city}` : ''} went smoothly."
+✗ Wrong: "Thank you for choosing the best electrician in ${city || 'your area'}!"
+
+Hard rules:
+- NEVER start with "Thank you for your review" — engage with what they actually said.
+- Under 80 words.
+- Tone: ${client.tone}.
+- No hashtags, no emojis.
+- Never be defensive, never argue, never dismiss.`;
+}
+
+// ─── Auto-draft pending replies for unreplied reviews (background) ─────────────
+async function generatePendingReplies(client, reviews, _mybusiness, autoPostHours = 24) {
+  try {
+    const systemPrompt = buildReplySystemPrompt(client);
+    for (const review of reviews.slice(0, 10)) {
+      try {
+        const reviewId = review.name.split('/').pop();
+        const stars = { ONE: '1/5', TWO: '2/5', THREE: '3/5', FOUR: '4/5', FIVE: '5/5' }[review.starRating] || review.starRating;
+        const userPrompt = `Rating: ${stars} stars\nReview: "${review.comment || '(no written comment, just a star rating)'}"`;
+        const draftText = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 200);
+        const autoPostAt = new Date(Date.now() + autoPostHours * 3600 * 1000).toISOString();
+        await pool.query(
+          `INSERT INTO pending_replies (client_id, review_name, review_id, draft_text, auto_post_at)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (client_id, review_id) DO NOTHING`,
+          [client.id, review.name, reviewId, draftText, autoPostAt]
+        );
+        console.log(`[auto-reply] drafted reply for review ${reviewId} (client ${client.id})`);
+      } catch (e) {
+        console.warn(`[auto-reply] failed to draft for review ${review.name}:`, e.message);
+      }
+    }
+  } catch (e) {
+    console.warn('[auto-reply] generatePendingReplies error:', e.message);
+  }
+}
+
 async function labelPhotosInBackground(client, photos, bizLabel, limit = 5) {
   try {
     const photoUrls = photos.slice(0, 20).map((p) => p.googleUrl || p.sourceUrl).filter(Boolean);
@@ -823,11 +896,43 @@ app.get('/api/reviews', requireAuth, async (req, res) => {
       orderBy: 'updateTime desc',
       pageSize: 50,
     });
+    const reviews = reviewsRes.data.reviews || [];
+
+    // Load pending reply drafts for this client
+    const { rows: pendingRows } = await pool.query(
+      `SELECT review_id, draft_text, auto_post_at, status FROM pending_replies
+       WHERE client_id = $1 AND status = 'pending'`,
+      [client.id]
+    );
+    const pendingMap = Object.fromEntries(pendingRows.map((r) => [r.review_id, r]));
+
+    // Enrich reviews with their pending draft (if any)
+    const enriched = reviews.map((r) => {
+      const reviewId = r.name.split('/').pop();
+      const pending = pendingMap[reviewId];
+      return {
+        ...r,
+        pendingReply: pending
+          ? { draftText: pending.draft_text, autoPostAt: pending.auto_post_at }
+          : null,
+      };
+    });
+
     res.json({
-      reviews: reviewsRes.data.reviews || [],
+      reviews: enriched,
       averageRating: reviewsRes.data.averageRating,
       totalReviewCount: reviewsRes.data.totalReviewCount,
     });
+
+    // Background: generate drafts for unreplied reviews that don't have one yet
+    const needsDraft = reviews.filter((r) => {
+      if (r.reviewReply) return false;
+      const reviewId = r.name.split('/').pop();
+      return !pendingMap[reviewId];
+    });
+    if (needsDraft.length > 0) {
+      setImmediate(() => generatePendingReplies(client, needsDraft, mybusiness));
+    }
   } catch (err) {
     console.error('Reviews fetch error:', err);
     res.status(500).json({ error: err.message });
@@ -839,43 +944,71 @@ app.post('/api/reviews/generate-reply', requireAuth, async (req, res) => {
     const { review } = req.body;
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
     const client = rows[0];
-    const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
-
-    const city = client.city || '';
-    const locationLine = city ? ` serving ${city}` : '';
-    const systemPrompt = `You are the owner of ${client.business_name}, a ${bizLabel}${locationLine}. Write a genuine, reputation-protecting, SEO-aware reply to a Google review.
-
-Follow these three steps:
-
-STEP 1 — DETECT REVIEWER TONE: Casual | Formal | Technical | Emotional | Angry | Enthusiastic
-Mirror it exactly. A casual reviewer gets a warm, conversational reply. A technical reviewer (contractor noting materials, chef discussing technique, foodie mentioning pairings) gets a reply that matches their vocabulary and knowledge level.
-
-STEP 2 — DETECT REVIEWER INTENT and respond accordingly:
-- Praise → Reinforce the specific detail they mentioned, express genuine gratitude, invite them back.
-- Complaint → Acknowledge their specific frustration calmly, take ownership, offer a concrete resolution, invite direct contact.
-- Mixed → Validate the positive, address the concern directly, show commitment to improving.
-- Question → Answer clearly and invite them to reach out for more detail.
-- Technical critique → Respond with equal expertise; show you understand the issue at a professional level.
-
-STEP 3 — WEAVE IN ONE SUBTLE LOCAL SIGNAL:
-Mention the specific service performed${city ? ` and the location (${city})` : ''} naturally in the reply — never as a keyword dump.
-✓ Right: "We're glad the electrical panel upgrade${city ? ` in ${city}` : ''} went smoothly."
-✗ Wrong: "Thank you for choosing the best electrician in ${city || 'your area'}!"
-
-Hard rules:
-- NEVER start with "Thank you for your review" — engage with what they actually said.
-- Under 80 words.
-- Tone: ${client.tone}.
-- No hashtags, no emojis.
-- Never be defensive, never argue, never dismiss.`;
-
+    const systemPrompt = buildReplySystemPrompt(client);
     const stars = { ONE: '1/5', TWO: '2/5', THREE: '3/5', FOUR: '4/5', FIVE: '5/5' }[review.starRating] || review.starRating;
     const userPrompt = `Rating: ${stars} stars\nReview: "${review.comment || '(no written comment, just a star rating)'}"`;
-
     const reply = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 200);
     res.json({ reply });
   } catch (err) {
     console.error('Generate reply error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update the draft text for a pending reply (user edits before auto-post)
+app.patch('/api/reviews/pending-reply', requireAuth, async (req, res) => {
+  try {
+    const { reviewId, draftText } = req.body;
+    if (!reviewId || !draftText?.trim()) return res.status(400).json({ error: 'reviewId and draftText required' });
+    await pool.query(
+      `UPDATE pending_replies SET draft_text = $1 WHERE client_id = $2 AND review_id = $3 AND status = 'pending'`,
+      [draftText.trim(), req.session.clientId, reviewId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Cancel auto-post for a pending reply
+app.delete('/api/reviews/pending-reply/:reviewId', requireAuth, async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE pending_replies SET status = 'cancelled' WHERE client_id = $1 AND review_id = $2 AND status = 'pending'`,
+      [req.session.clientId, req.params.reviewId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Post a pending reply immediately (don't wait for the timer)
+app.post('/api/reviews/pending-reply/:reviewId/post-now', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT pr.*, c.access_token, c.refresh_token, c.location_name
+       FROM pending_replies pr
+       JOIN clients c ON c.id = pr.client_id
+       WHERE pr.client_id = $1 AND pr.review_id = $2 AND pr.status = 'pending'`,
+      [req.session.clientId, req.params.reviewId]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'No pending reply found' });
+    const pending = rows[0];
+    const client = { id: req.session.clientId, access_token: pending.access_token, refresh_token: pending.refresh_token, location_name: pending.location_name };
+    const auth = getClientAuth(client);
+    const mybusiness = google.mybusiness({ version: 'v4', auth });
+    await mybusiness.accounts.locations.reviews.updateReply({
+      name: pending.review_name,
+      requestBody: { comment: pending.draft_text },
+    });
+    await pool.query(
+      `UPDATE pending_replies SET status = 'posted' WHERE id = $1`,
+      [pending.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Post-now error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1911,6 +2044,31 @@ cron.schedule('0 * * * *', async () => {
     );
     if (qa.length > 0) {
       console.log(`⏰ Auto-approved ${qa.length} Q&A answer(s):`, qa.map((r) => r.id).join(', '));
+    }
+    // Auto-post pending review replies whose timer has expired
+    const { rows: pendingReplies } = await pool.query(
+      `SELECT pr.*, c.access_token, c.refresh_token, c.location_name, c.business_name
+       FROM pending_replies pr
+       JOIN clients c ON c.id = pr.client_id
+       WHERE pr.status = 'pending' AND pr.auto_post_at <= NOW()`
+    );
+    for (const pending of pendingReplies) {
+      try {
+        const client = { id: pending.client_id, access_token: pending.access_token, refresh_token: pending.refresh_token, location_name: pending.location_name };
+        const auth = getClientAuth(client);
+        const mybusiness = google.mybusiness({ version: 'v4', auth });
+        await mybusiness.accounts.locations.reviews.updateReply({
+          name: pending.review_name,
+          requestBody: { comment: pending.draft_text },
+        });
+        await pool.query(`UPDATE pending_replies SET status = 'posted' WHERE id = $1`, [pending.id]);
+        console.log(`⏰ Auto-posted reply for review ${pending.review_id} (${pending.business_name})`);
+      } catch (e) {
+        console.warn(`⏰ Auto-post failed for review ${pending.review_id}:`, e.message);
+      }
+    }
+    if (pendingReplies.length > 0) {
+      console.log(`⏰ Processed ${pendingReplies.length} auto-reply job(s)`);
     }
   } catch (e) {
     console.error('Auto-approve cron error:', e);
