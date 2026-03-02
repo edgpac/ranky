@@ -1,8 +1,27 @@
+import { useEffect } from 'react';
 import SubPageLayout from '../components/SubPageLayout';
 import { useAppT } from '../contexts/LanguageContext';
 
 export default function FaqPage() {
   const t = useAppT().faq;
+
+  useEffect(() => {
+    const schema = {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: t.faqs.map((faq) => ({
+        '@type': 'Question',
+        name: faq.q,
+        acceptedAnswer: { '@type': 'Answer', text: faq.a },
+      })),
+    };
+    const el = document.createElement('script');
+    el.type = 'application/ld+json';
+    el.id = 'faq-schema';
+    el.textContent = JSON.stringify(schema);
+    document.head.appendChild(el);
+    return () => { document.getElementById('faq-schema')?.remove(); };
+  }, [t.faqs]);
 
   return (
     <SubPageLayout>

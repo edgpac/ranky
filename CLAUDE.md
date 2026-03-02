@@ -235,6 +235,14 @@ All three automation engines follow the same pattern:
 
 ---
 
+## AI Engine Discovery
+
+- **`public/llms.txt`** — plain-text product summary for LLM crawlers (Perplexity, ChatGPT, Claude, etc.)
+- **JSON-LD in `index.html`** — `SoftwareApplication` + `Organization` schemas served on every page
+- **FAQPage JSON-LD** — injected dynamically in `FaqPage.tsx` via `useEffect` (10 Q&As as `Question`/`Answer` pairs)
+- **`robots.txt`** — explicitly permits GPTBot, ClaudeBot, PerplexityBot, Google-Extended, ChatGPT-User, anthropic-ai, cohere-ai + blocks `/dashboard` and `/auth/`
+- **SPA rendering gap** — site is a client-side React SPA; non-JS crawlers see `<div id="root"></div>`. Most modern AI crawlers (Perplexity, ChatGPT, Google AI Overview) execute JavaScript so impact is limited, but a future SSG migration (e.g. `vite-react-ssg`) would fully close this gap. Requires changing `main.tsx` to use `ViteReactSSG` and refactoring App.tsx to export a routes array.
+
 ## SEO & GSC
 
 - **Sitemap:** https://hayvista.com/sitemap.xml (submitted to GSC, status: Success, 6 pages incl. /about)

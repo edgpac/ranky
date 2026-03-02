@@ -1,0 +1,55 @@
+# HayVista
+
+> AI-powered Google Business Profile automation for local businesses — $17/month.
+
+HayVista is a SaaS product that fully automates Google Business Profile (GBP) management for local businesses. It connects to a business's GBP via Google OAuth, reads real profile data, and runs three parallel automation engines around the clock.
+
+## What HayVista Does
+
+### Post Engine (runs Mon, Wed, Fri at 9 AM)
+- Reads that week's top search queries from Google Search Console
+- Picks the most relevant photo using Claude Haiku computer vision
+- Writes a GBP post in the business's tone using Claude AI (Sonnet)
+- Holds the post in a 24-hour review window — owner can edit, discard, or publish immediately
+- If untouched after 24 hours, the post publishes to Google automatically
+
+### Review Reply Engine (triggered on every new customer review)
+- Generates an AI-drafted reply for every incoming Google review
+- Detects the reviewer's tone (casual, technical, angry, enthusiastic) and mirrors it
+- Mentions the specific service and location naturally for local SEO value
+- 24-hour review window — owner can edit, cancel, or post immediately
+- If untouched after 24 hours, the reply goes live on Google automatically
+
+### Q&A Engine (scans every 6 hours)
+- Scans Google Business Q&A for unanswered customer questions
+- Drafts AI answers grounded in the business's real services, hours, and context
+- 24-hour review window — same controls as posts and reviews
+- If untouched after 24 hours, the answer posts to the profile automatically
+
+## Additional Features
+- SEO photo uploads: photos are enriched with AI-generated EXIF metadata before uploading to GBP
+- Editable photo descriptions: users can label photos; labels sync to GBP so Google indexes them
+- Profile editor: update hours, services, description with 7 business-type templates (contractor, restaurant, store, salon, hotel, medical, real estate)
+- Social links sync: Instagram, Facebook, TikTok, YouTube, LinkedIn — syncs to GBP URL attributes
+- Performance insights: weekly Google Search Console data — impressions, clicks, top queries
+- Weekly email digest: summary of GBP performance delivered every Monday
+
+## Pricing
+- $17/month, no contracts, cancel anytime
+- Everything included in one plan
+
+## Business Types Supported
+General Contractors, Plumbers, Electricians, HVAC, Landscapers, Restaurants, Cafes, Bars, Bakeries, Hair Salons, Barbershops, Spas, Nail Studios, Hotels, Motels, Bed & Breakfasts, Doctors, Dentists, Clinics, Therapists, Real Estate Agents, Property Managers, Realtors, Retail Stores, Boutiques, Markets
+
+## Technical Stack
+- AI: Anthropic Claude (claude-sonnet-4-6 for posts/replies, claude-haiku-4-5 for photo labeling)
+- GBP integration: Google Business Profile API (official, OAuth-authorized)
+- Search data: Google Search Console API
+- Frontend: React + TypeScript + Vite + Tailwind CSS (deployed on Vercel)
+- Backend: Node.js + Express (deployed on Railway)
+- Database: PostgreSQL
+
+## Contact
+- Website: https://hayvista.com
+- Email: hayvista@gmail.com
+- Location: Cabo San Lucas, Baja California Sur, Mexico
