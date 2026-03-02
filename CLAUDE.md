@@ -1,7 +1,7 @@
 # HayVista — Project Context for Claude
 
 ## What This Product Is
-HayVista is an AI-powered SaaS that automatically manages Google Business Profile (GBP) content for local businesses (plumbers, contractors, shops). It reads a business's GBP, photos, services, products, social media links, and local search data — then publishes 3 posts/week with AI copy tailored to the real business context — all for $17/month.
+HayVista is an AI-powered SaaS that fully automates Google Business Profile (GBP) management for local businesses. Three automation engines run in parallel: a **post engine** (Mon/Wed/Fri), a **review engine** (triggered on every new review), and a **Q&A engine** (every 6 hours). Every action is AI-drafted, held in a 24-hour review window, and auto-posted if untouched — all for $17/month.
 
 **Live URL:** https://hayvista.com
 **Backend (Railway):** https://ranky-production.up.railway.app
@@ -41,9 +41,11 @@ ranky/
 │   │   ├── Dashboard.tsx       # Main app — guest mode + authenticated mode
 │   │   ├── PrivacyPage.tsx     # Uses SubPageLayout
 │   │   ├── TermsPage.tsx       # Uses SubPageLayout
-│   │   └── FaqPage.tsx         # 10 GBP/SEO FAQs — Uses SubPageLayout
+│   │   ├── FaqPage.tsx         # 10 GBP/SEO FAQs — Uses SubPageLayout
+│   │   └── AboutPage.tsx       # Product capability page — Uses SubPageLayout
 │   ├── components/
-│   │   ├── SubPageLayout.tsx   # Shared nav + footer for Privacy, Terms, FAQ
+│   │   ├── SubPageLayout.tsx       # Shared nav + footer for Privacy, Terms, FAQ, About
+│   │   ├── CountdownBanner.tsx     # Shared 24h countdown banner + useCountdown hook (Posts, Q&A, Reviews)
 │   │   └── tabs/               # Dashboard tab components
 │   │       ├── PostsTab.tsx
 │   │       ├── ReviewsTab.tsx
@@ -82,6 +84,7 @@ ranky/
 | `/privacy` | PrivacyPage |
 | `/terms` | TermsPage |
 | `/faq` | FaqPage — 10 GBP/SEO questions, linked from footer |
+| `/about` | AboutPage — product capabilities + three automation engines |
 
 ---
 
@@ -143,6 +146,16 @@ NODE_ENV=production
 - Cron is **commented out** — uncomment after Google API review approves
 - DNS records for `hayvista.com` already added to GoDaddy (DKIM, MX, SPF)
 
+### 24-Hour Automation Pattern (Posts, Q&A, Reviews)
+All three automation engines follow the same pattern:
+1. AI draft is generated and stored in DB with `auto_post_at = NOW() + 24h`
+2. Frontend shows `<CountdownBanner>` (yellow bar + draining progress, from `src/components/CountdownBanner.tsx`)
+3. User controls: **Edit** (inline textarea) | **Cancel/Discard** | **Post/Publish Now** (skips timer)
+4. Hourly cron picks up any row where `auto_post_at <= NOW()` and posts to GBP
+- Posts: `auto_approve_at` column on `posts` table — currently marks `status = 'approved'` (GBP publish pending write-scope approval)
+- Q&A: `auto_approve_at` column on `qa_answers` table — posts answer to GBP via `mybusiness…qa.create`
+- Reviews: `pending_replies` table (`client_id`, `review_id`, `draft_text`, `auto_post_at`, `status`) — posts reply via `reviews.updateReply`
+
 ### Post Generation Cron
 - Runs Mon/Wed/Fri at 9am via `node-cron`
 - Uses `claude-sonnet-4-6` via Anthropic SDK
@@ -155,6 +168,15 @@ NODE_ENV=production
 - **Smart photo picker:** after post text is generated, a Haiku call picks the most
   relevant photo by matching post content to `photoMeta` descriptors
 - **photoMeta priority:** `user_description` → `ai_description` → GBP caption → category only
+
+### Review Auto-Reply (`pending_replies` DB table)
+- `GET /api/reviews` — enriches each review with its `pendingReply: { draftText, autoPostAt }` from `pending_replies`
+- Background job: for any unreplied review with no pending draft, calls `generatePendingReplies()` via `setImmediate`
+- `generatePendingReplies()` uses `buildReplySystemPrompt(client)` (shared with manual generate-reply route)
+- `PATCH /api/reviews/pending-reply` — user edits the draft text before auto-post window closes
+- `DELETE /api/reviews/pending-reply/:reviewId` — cancels auto-post (status → 'cancelled')
+- `POST /api/reviews/pending-reply/:reviewId/post-now` — posts immediately, sets status → 'posted'
+- Hourly cron auto-posts all `pending_replies` where `auto_post_at <= NOW() AND status = 'pending'`
 
 ### Photo Labels (`photo_labels` DB table)
 - Stores AI Vision descriptions + user-written descriptions per photo URL
@@ -215,7 +237,7 @@ NODE_ENV=production
 
 ## SEO & GSC
 
-- **Sitemap:** https://hayvista.com/sitemap.xml (submitted to GSC, status: Success, 5 pages)
+- **Sitemap:** https://hayvista.com/sitemap.xml (submitted to GSC, status: Success, 6 pages incl. /about)
 - **robots.txt:** https://hayvista.com/robots.txt
 - **Verification tag:** `aUdXm81wc2h6sDHytOQNfY3qfDPfVpxnH0qZ1AUTUW8`
 - **GSC property:** `sc-domain:hayvista.com` (domain property — verified ✅ via DNS TXT record)
