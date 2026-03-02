@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useCountdown } from './PostsTab';
+import { CountdownBanner } from '../CountdownBanner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -196,7 +196,6 @@ function QACard({
   const [discarding, setDiscarding] = useState(false);
   const [error, setError] = useState('');
 
-  const countdown = useCountdown(item.status === 'draft' ? item.auto_approve_at : null);
   const isDraft = item.status === 'draft' || item.status === 'approved';
   const isPosted = item.status === 'posted';
   const isUnanswered = !item.answer_text && item.status === 'unanswered';
@@ -303,17 +302,6 @@ function QACard({
                 ✓ Answered
               </span>
             )}
-            {isDraft && countdown && (
-              <span style={{
-                fontSize: '0.6875rem', fontWeight: 700,
-                padding: '0.15rem 0.5rem', borderRadius: '9999px',
-                background: 'rgba(251,191,36,0.10)',
-                border: '1px solid rgba(251,191,36,0.25)',
-                color: '#fbbf24',
-              }}>
-                ⏱ auto-posts in {countdown}
-              </span>
-            )}
             {isUnanswered && (
               <span style={{
                 fontSize: '0.6875rem', fontWeight: 700,
@@ -331,6 +319,11 @@ function QACard({
           </p>
         </div>
       </div>
+
+      {/* Countdown banner for draft answers */}
+      {isDraft && item.auto_approve_at && (
+        <CountdownBanner autoPostAt={item.auto_approve_at} label="Auto-posting answer in" />
+      )}
 
       {/* Answer area */}
       {!isUnanswered && item.answer_text && (

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { CountdownBanner } from '../CountdownBanner';
 
 interface ReviewAuthor {
   displayName: string;
@@ -88,15 +89,6 @@ function starStr(n: number) {
   return '★'.repeat(n) + '☆'.repeat(5 - n);
 }
 
-function formatCountdown(msLeft: number): string {
-  if (msLeft <= 0) return 'Posting soon…';
-  const h = Math.floor(msLeft / 3600000);
-  const m = Math.floor((msLeft % 3600000) / 60000);
-  if (h > 0) return `${h}h ${m}m`;
-  const s = Math.floor((msLeft % 60000) / 1000);
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-}
-
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const card: React.CSSProperties = {
@@ -136,55 +128,6 @@ const btnDanger: React.CSSProperties = {
   fontSize: '0.8125rem',
   cursor: 'pointer',
 };
-
-// ─── Countdown banner ─────────────────────────────────────────────────────────
-
-function CountdownBanner({ autoPostAt }: { autoPostAt: string }) {
-  const [msLeft, setMsLeft] = useState(() => new Date(autoPostAt).getTime() - Date.now());
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setMsLeft(new Date(autoPostAt).getTime() - Date.now());
-    }, 1000);
-    return () => clearInterval(id);
-  }, [autoPostAt]);
-
-  const total = 24 * 3600000;
-  const progress = Math.max(0, Math.min(1, msLeft / total));
-
-  return (
-    <div
-      style={{
-        background: 'rgba(251,191,36,0.07)',
-        border: '1px solid rgba(251,191,36,0.22)',
-        borderRadius: '0.5rem',
-        padding: '0.5rem 0.75rem',
-        marginBottom: '0.5rem',
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
-        <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'rgba(251,191,36,0.85)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-          ⏱ Auto-posting in
-        </span>
-        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(251,191,36,0.9)', fontVariantNumeric: 'tabular-nums' }}>
-          {formatCountdown(msLeft)}
-        </span>
-      </div>
-      {/* Progress bar */}
-      <div style={{ height: '3px', background: 'rgba(251,191,36,0.15)', borderRadius: '9999px', overflow: 'hidden' }}>
-        <div
-          style={{
-            height: '100%',
-            width: `${progress * 100}%`,
-            background: 'rgba(251,191,36,0.6)',
-            borderRadius: '9999px',
-            transition: 'width 1s linear',
-          }}
-        />
-      </div>
-    </div>
-  );
-}
 
 // ─── Review card ──────────────────────────────────────────────────────────────
 

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { CountdownBanner, useCountdown } from '../CountdownBanner';
 
 interface Post {
   id: number;
@@ -55,31 +56,6 @@ function nextCronRun(): string {
     }
   }
   return 'Monday at 9 AM';
-}
-
-// ─── Countdown hook ───────────────────────────────────────────────────────────
-
-export function useCountdown(target: string | null | undefined): string | null {
-  const [label, setLabel] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!target) { setLabel(null); return; }
-
-    const tick = () => {
-      const ms = new Date(target).getTime() - Date.now();
-      if (ms <= 0) { setLabel('Approving…'); return; }
-      const totalMins = Math.floor(ms / 60000);
-      const h = Math.floor(totalMins / 60);
-      const m = totalMins % 60;
-      setLabel(h > 0 ? `${h}h ${m}m` : `${m}m`);
-    };
-
-    tick();
-    const id = setInterval(tick, 30000); // refresh every 30s
-    return () => clearInterval(id);
-  }, [target]);
-
-  return label;
 }
 
 // ─── Mock posts (guest preview) ───────────────────────────────────────────────
@@ -307,7 +283,6 @@ function PostCard({
 
   const isMock = post.id < 0;
   const isPending = post.status === 'pending';
-  const countdown = useCountdown(isPending ? post.auto_approve_at : null);
 
   const patchPost = async (payload: { text?: string; status?: string }) => {
     if (isMock) {
@@ -376,18 +351,6 @@ function PostCard({
             <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'rgba(240,244,255,0.92)', lineHeight: 1.2 }}>
               {isPending ? 'Pending Review' : post.status === 'approved' ? 'Approved' : 'Published'}
             </p>
-            {isPending && countdown && (
-              <span style={{
-                fontSize: '0.6875rem', fontWeight: 700,
-                padding: '0.15rem 0.5rem',
-                borderRadius: '9999px',
-                background: 'rgba(251,191,36,0.10)',
-                border: '1px solid rgba(251,191,36,0.25)',
-                color: '#fbbf24',
-              }}>
-                ⏱ auto-approves in {countdown}
-              </span>
-            )}
           </div>
           {/* Keyword chip */}
           {post.search_query && (
@@ -409,6 +372,11 @@ function PostCard({
           {relativeTime(post.posted_at)}
         </span>
       </div>
+
+      {/* Countdown banner for pending posts */}
+      {isPending && post.auto_approve_at && (
+        <CountdownBanner autoPostAt={post.auto_approve_at} label="Auto-publishing in" />
+      )}
 
       {/* Photo */}
       {post.photo_url && (
@@ -472,7 +440,7 @@ function PostCard({
                   Edit
                 </button>
                 <button onClick={approve} disabled={approving} style={{ ...btnApprove, opacity: approving ? 0.5 : 1 }}>
-                  {approving ? 'Approving…' : 'Approve ✓'}
+                  {approving ? 'Publishing…' : 'Publish Now'}
                 </button>
               </>
             ) : (
