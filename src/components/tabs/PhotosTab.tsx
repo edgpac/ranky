@@ -11,9 +11,12 @@ interface PhotoItem {
   sourceUrl?: string;
   locationAssociation?: { category: string };
   createTime?: string;
-  // Enriched display fields (populated from mock or extracted from GBP metadata)
+  // Enriched display fields
   displayName?: string;
   description?: string;
+  // AI Vision label + user-edited label from photo_labels DB
+  aiDescription?: string | null;
+  userDescription?: string | null;
 }
 
 // ─── Pagination constant ──────────────────────────────────────────────────────
@@ -144,17 +147,51 @@ function PhotoCard({
   isMock,
   deleting,
   onDelete,
+  onLabelSaved,
 }: {
   photo: PhotoItem;
   index: number;
   isMock: boolean;
   deleting: boolean;
   onDelete: () => void;
+  onLabelSaved: (url: string, description: string) => void;
 }) {
   const imgUrl = photo.thumbnailUrl || photo.googleUrl || photo.sourceUrl;
   const icon = MOCK_ICONS[index % MOCK_ICONS.length];
   const viewUrl = photo.googleUrl || photo.sourceUrl;
   const category = photo.locationAssociation?.category;
+
+  // Label state
+  const effectiveLabel = photo.userDescription || photo.aiDescription || null;
+  const labelSource: 'user' | 'ai' | null = photo.userDescription ? 'user' : photo.aiDescription ? 'ai' : null;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = () => {
+    setDraft(photo.userDescription || photo.aiDescription || '');
+    setEditing(true);
+  };
+
+  const saveLabel = async () => {
+    if (!viewUrl) return;
+    setSaving(true);
+    try {
+      await fetch('/api/photos/label', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ photo_url: viewUrl, description: draft }),
+      });
+      onLabelSaved(viewUrl, draft);
+      setEditing(false);
+    } catch (e) {
+      // Non-fatal: close anyway
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div
@@ -229,20 +266,106 @@ function PhotoCard({
         >
           {photo.displayName || `Photo ${index + 1}`}
         </p>
-        {photo.description && (
-          <p
-            style={{
-              fontSize: '0.75rem',
-              color: 'rgba(240,244,255,0.38)',
-              lineHeight: 1.45,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical' as const,
-              overflow: 'hidden',
-            }}
-          >
-            {photo.description}
-          </p>
+
+        {/* AI / user description label section */}
+        {!isMock && (
+          <div style={{ marginTop: '0.15rem' }}>
+            {editing ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <textarea
+                  autoFocus
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder="Describe this photo for Claude — e.g. MLS #4821, 3 bed 2 bath lot on Mesa Rd"
+                  rows={3}
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(79,142,247,0.35)',
+                    borderRadius: '0.4rem',
+                    color: 'rgba(240,244,255,0.9)',
+                    fontSize: '0.75rem',
+                    padding: '0.35rem 0.5rem',
+                    resize: 'vertical' as const,
+                    fontFamily: 'inherit',
+                    lineHeight: 1.45,
+                    width: '100%',
+                    outline: 'none',
+                    boxSizing: 'border-box' as const,
+                  }}
+                />
+                <div style={{ display: 'flex', gap: '0.35rem' }}>
+                  <button
+                    style={{ ...btnPrimary, fontSize: '0.7rem', padding: '0.2rem 0.6rem', opacity: saving ? 0.55 : 1 }}
+                    onClick={saveLabel}
+                    disabled={saving}
+                  >
+                    {saving ? '…' : 'Save'}
+                  </button>
+                  <button
+                    style={{ ...btnGhost, fontSize: '0.7rem', padding: '0.2rem 0.6rem' }}
+                    onClick={() => setEditing(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.35rem' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {effectiveLabel ? (
+                    <p
+                      style={{
+                        fontSize: '0.72rem',
+                        color: labelSource === 'user' ? 'rgba(52,211,153,0.75)' : 'rgba(240,244,255,0.32)',
+                        lineHeight: 1.4,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical' as const,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '0.6rem',
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                          marginRight: '0.3rem',
+                          color: labelSource === 'user' ? '#34d399' : '#4f8ef7',
+                          background: labelSource === 'user' ? 'rgba(52,211,153,0.10)' : 'rgba(79,142,247,0.12)',
+                          borderRadius: '0.2rem',
+                          padding: '0.05rem 0.3rem',
+                        }}
+                      >
+                        {labelSource === 'user' ? 'Custom' : 'AI'}
+                      </span>
+                      {effectiveLabel}
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: '0.72rem', color: 'rgba(240,244,255,0.2)', fontStyle: 'italic' }}>
+                      No description yet
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={startEdit}
+                  title="Edit description"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'rgba(240,244,255,0.28)',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    padding: '0.1rem 0.2rem',
+                    flexShrink: 0,
+                    lineHeight: 1,
+                  }}
+                >
+                  ✏️
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -527,6 +650,8 @@ export default function PhotosTab({ ready }: { ready: boolean }) {
           displayName: p.locationAssociation?.category
             ? p.locationAssociation.category.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
             : 'Photo',
+          aiDescription: p.aiDescription ?? null,
+          userDescription: p.userDescription ?? null,
         }));
         setPhotos(fetched);
         setIsMockMode(false);
@@ -560,6 +685,14 @@ export default function PhotosTab({ ready }: { ready: boolean }) {
   const handleUploaded = (photo: PhotoItem) => {
     setPhotos((prev) => [photo, ...prev]);
     setShowUpload(false);
+  };
+
+  const handleLabelSaved = (url: string, description: string) => {
+    setPhotos((prev) => prev.map((p) => {
+      const photoUrl = p.googleUrl || p.sourceUrl;
+      if (photoUrl !== url) return p;
+      return { ...p, userDescription: description || null };
+    }));
   };
 
   if (loading) return (
@@ -637,6 +770,7 @@ export default function PhotosTab({ ready }: { ready: boolean }) {
               isMock={isMockMode}
               deleting={deleting === photo.name}
               onDelete={() => handleDelete(photo)}
+              onLabelSaved={handleLabelSaved}
             />
           ))}
         </div>

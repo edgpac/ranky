@@ -145,9 +145,14 @@ async function initDB() {
       client_id INTEGER REFERENCES clients(id) ON DELETE CASCADE,
       photo_url TEXT NOT NULL,
       ai_description TEXT NOT NULL,
+      user_description TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(client_id, photo_url)
     )
+  `);
+  // Idempotent migration: add user_description column if it was created without it
+  await pool.query(`
+    ALTER TABLE photo_labels ADD COLUMN IF NOT EXISTS user_description TEXT
   `);
   console.log('✅ DB ready');
 }
@@ -582,26 +587,27 @@ async function generatePostForClient(client, overridePostType) {
     ]);
     photos = (mediaRes.data.mediaItems || []).filter((p) => p.mediaFormat === 'PHOTO' || !p.mediaFormat);
 
-    // Load AI labels from DB to enhance photo descriptions for the picker
+    // Load labels from DB (user_description preferred over ai_description)
     const photoSlice = photos.slice(0, 20);
     const photoUrlsForLabels = photoSlice.map((p) => p.googleUrl || p.sourceUrl).filter(Boolean);
-    let aiLabelMap = {};
+    let labelMap = {};
     if (photoUrlsForLabels.length > 0) {
       try {
         const { rows: labelRows } = await pool.query(
-          'SELECT photo_url, ai_description FROM photo_labels WHERE client_id = $1 AND photo_url = ANY($2)',
+          'SELECT photo_url, ai_description, user_description FROM photo_labels WHERE client_id = $1 AND photo_url = ANY($2)',
           [client.id, photoUrlsForLabels]
         );
-        aiLabelMap = Object.fromEntries(labelRows.map((r) => [r.photo_url, r.ai_description]));
+        // user_description wins if set; otherwise fall back to ai_description
+        labelMap = Object.fromEntries(labelRows.map((r) => [r.photo_url, r.user_description || r.ai_description]));
       } catch (e) { /* non-fatal */ }
     }
 
     photoMeta = photoSlice.map((p, i) => {
       const url = p.googleUrl || p.sourceUrl;
       const cat = p.locationAssociation?.category || 'GENERAL';
-      const aiDesc = url && aiLabelMap[url] ? ` — "${aiLabelMap[url]}"` : '';
-      const gbpDesc = !aiDesc && p.description ? ` — "${p.description}"` : '';
-      return `${i}: ${cat}${aiDesc || gbpDesc}`;
+      const dbDesc = url && labelMap[url] ? ` — "${labelMap[url]}"` : '';
+      const gbpDesc = !dbDesc && p.description ? ` — "${p.description}"` : '';
+      return `${i}: ${cat}${dbDesc || gbpDesc}`;
     });
     gbpDescription = locRes.data?.profile?.description || '';
     gbpServices = (locRes.data?.serviceItems || [])
@@ -966,12 +972,48 @@ app.get('/api/photos', requireAuth, async (req, res) => {
     const mybusiness = google.mybusiness({ version: 'v4', auth });
     const mediaRes = await mybusiness.accounts.locations.media.list({ parent: locationName });
     const photos = mediaRes.data.mediaItems || [];
-    res.json({ photos });
+
+    // Enrich each photo with AI + user labels from DB
+    const urls = photos.map((p) => p.googleUrl || p.sourceUrl).filter(Boolean);
+    let labelMap = {};
+    if (urls.length > 0) {
+      const { rows: labelRows } = await pool.query(
+        'SELECT photo_url, ai_description, user_description FROM photo_labels WHERE client_id = $1 AND photo_url = ANY($2)',
+        [client.id, urls]
+      );
+      labelMap = Object.fromEntries(labelRows.map((r) => [r.photo_url, { aiDescription: r.ai_description, userDescription: r.user_description }]));
+    }
+    const enriched = photos.map((p) => {
+      const url = p.googleUrl || p.sourceUrl;
+      const label = (url && labelMap[url]) || {};
+      return { ...p, aiDescription: label.aiDescription || null, userDescription: label.userDescription || null };
+    });
+
+    res.json({ photos: enriched });
     // Trigger background Vision labeling without blocking the response
     const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
     setImmediate(() => labelPhotosInBackground(client, photos, bizLabel));
   } catch (err) {
     console.error('Photos fetch error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Save a user-written (or user-confirmed) description for a GBP photo
+app.patch('/api/photos/label', requireAuth, async (req, res) => {
+  try {
+    const { photo_url, description } = req.body;
+    if (!photo_url) return res.status(400).json({ error: 'photo_url required' });
+    const clientId = req.session.clientId;
+    await pool.query(
+      `INSERT INTO photo_labels (client_id, photo_url, ai_description, user_description)
+       VALUES ($1, $2, '', $3)
+       ON CONFLICT (client_id, photo_url) DO UPDATE SET user_description = EXCLUDED.user_description`,
+      [clientId, photo_url, (description || '').trim() || null]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Photo label error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -988,30 +1030,34 @@ app.get('/api/photos/debug', requireAuth, async (req, res) => {
     const all = (mediaRes.data.mediaItems || []).filter((p) => p.mediaFormat === 'PHOTO' || !p.mediaFormat);
     const photoSlice = all.slice(0, 20);
     const urls = photoSlice.map((p) => p.googleUrl || p.sourceUrl).filter(Boolean);
-    let aiLabelMap = {};
+    let dbLabelMap = {};
     if (urls.length > 0) {
       const { rows: labelRows } = await pool.query(
-        'SELECT photo_url, ai_description FROM photo_labels WHERE client_id = $1 AND photo_url = ANY($2)',
+        'SELECT photo_url, ai_description, user_description FROM photo_labels WHERE client_id = $1 AND photo_url = ANY($2)',
         [client.id, urls]
       );
-      aiLabelMap = Object.fromEntries(labelRows.map((r) => [r.photo_url, r.ai_description]));
+      dbLabelMap = Object.fromEntries(labelRows.map((r) => [r.photo_url, { ai: r.ai_description, user: r.user_description }]));
     }
     const pickerView = photoSlice.map((p, i) => {
       const url = p.googleUrl || p.sourceUrl || null;
       const cat = p.locationAssociation?.category || 'GENERAL';
-      const aiDesc = url && aiLabelMap[url] ? aiLabelMap[url] : null;
+      const label = (url && dbLabelMap[url]) || {};
+      const userDesc = label.user || null;
+      const aiDesc = label.ai || null;
       const gbpDesc = p.description || null;
-      const effectiveDesc = aiDesc || gbpDesc;
+      const effectiveDesc = userDesc || aiDesc || gbpDesc;
       return {
         index: i,
         category: cat,
         gbpDescription: gbpDesc,
         aiDescription: aiDesc,
+        userDescription: userDesc,
         url,
         pickerLine: `${i}: ${cat}${effectiveDesc ? ` — "${effectiveDesc}"` : ''}`,
       };
     });
-    res.json({ total: all.length, labeled: Object.keys(aiLabelMap).length, pickerView });
+    const labeled = Object.values(dbLabelMap).filter((l) => l.ai || l.user).length;
+    res.json({ total: all.length, labeled, pickerView });
   } catch (err) {
     console.error('Photos debug error:', err);
     res.status(500).json({ error: err.message });
