@@ -1002,16 +1002,38 @@ app.get('/api/photos', requireAuth, async (req, res) => {
 // Save a user-written (or user-confirmed) description for a GBP photo
 app.patch('/api/photos/label', requireAuth, async (req, res) => {
   try {
-    const { photo_url, description } = req.body;
+    const { photo_url, media_name, description } = req.body;
     if (!photo_url) return res.status(400).json({ error: 'photo_url required' });
-    const clientId = req.session.clientId;
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const client = rows[0];
+    const trimmed = (description || '').trim() || null;
+
+    // 1. Save to HayVista DB (used by Claude post picker)
     await pool.query(
       `INSERT INTO photo_labels (client_id, photo_url, ai_description, user_description)
        VALUES ($1, $2, '', $3)
        ON CONFLICT (client_id, photo_url) DO UPDATE SET user_description = EXCLUDED.user_description`,
-      [clientId, photo_url, (description || '').trim() || null]
+      [client.id, photo_url, trimmed]
     );
-    res.json({ ok: true });
+
+    // 2. Also push description to GBP so Google reads it (best-effort)
+    let gbpUpdated = false;
+    if (media_name && trimmed) {
+      try {
+        const auth = getClientAuth(client);
+        const mybusiness = google.mybusiness({ version: 'v4', auth });
+        await mybusiness.accounts.locations.media.patch({
+          name: media_name,
+          updateMask: 'description',
+          requestBody: { description: trimmed },
+        });
+        gbpUpdated = true;
+      } catch (e) {
+        console.warn('GBP media.patch failed (non-fatal):', e.message);
+      }
+    }
+
+    res.json({ ok: true, gbpUpdated });
   } catch (err) {
     console.error('Photo label error:', err);
     res.status(500).json({ error: err.message });

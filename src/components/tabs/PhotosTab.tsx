@@ -181,7 +181,7 @@ function PhotoCard({
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ photo_url: viewUrl, description: draft }),
+        body: JSON.stringify({ photo_url: viewUrl, media_name: photo.name, description: draft }),
       });
       onLabelSaved(viewUrl, draft);
       setEditing(false);
