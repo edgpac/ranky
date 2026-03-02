@@ -431,6 +431,7 @@ export default function LandingPage() {
           <a href="/privacy" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">{t.footer.privacy}</a>
           <a href="/terms" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">{t.footer.terms}</a>
           <a href="/faq" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">FAQ</a>
+          <a href="/about" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">About</a>
         </div>
       </footer>
     </div>
