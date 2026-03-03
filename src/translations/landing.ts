@@ -22,7 +22,7 @@ export const landing = {
       h2: 'Most businesses lose customers because they\'re invisible on Google.\nNot because they do bad work.',
       body: 'A great plumber, contractor, or shop owner spends their day doing the job — not writing Google posts. HayVista is the team member who handles that. It knows your services, your area, your photos, and your social media presence. It writes the content, picks the right keywords, and publishes — and builds a deeper understanding of your business with every post, review, and answer it handles.',
       tiles: [
-        { icon: '🧠', label: 'Gets smarter over time', desc: 'Builds a persistent memory of your voice, services, and what works — reads it before every post, reply, and answer' },
+        { icon: '🧠', label: 'Gets smarter over time', desc: 'Builds a persistent memory of your brand tone, services, and what works — reads it before every post, reply, and answer' },
         { icon: '📸', label: 'Uses your real photos', desc: 'Matches job photos to local search queries automatically' },
         { icon: '📅', label: 'Never misses a week', desc: 'Publishes up to 3× per week — within Google\'s limits' },
         { icon: '📧', label: 'Keeps you in the loop', desc: 'Weekly email recap of everything published' },
@@ -40,7 +40,7 @@ export const landing = {
         {
           n: '02', icon: '🧠',
           title: 'Understands your business without being told',
-          desc: 'It studies your photos, services, and what locals are actually searching for. Then it builds a persistent memory document — your voice, top services, what performs, recurring customer themes. Every post, reply, and Q&A answer reads that memory first, so everything sounds like the same brand and gets sharper the longer it runs.',
+          desc: 'It studies your photos, services, and what locals are actually searching for. Then it builds a persistent memory document — your brand tone, top services, what performs, recurring customer themes. Every post, reply, and Q&A answer reads that memory first, so everything sounds like the same brand and gets sharper the longer it runs.',
         },
         {
           n: '03', icon: '📅',
@@ -102,7 +102,7 @@ export const landing = {
           items: [
             { icon: '🔍', text: 'Tracks what locals are searching near your location' },
             { icon: '📊', text: 'Weekly GBP report — views, searches, calls tracked' },
-            { icon: '🧠', text: 'Business memory — Claude builds a persistent profile of your voice, top services, and what\'s working. Gets sharper with every generation.' },
+            { icon: '🧠', text: 'Business memory — Claude builds a persistent profile of your brand tone, top services, and what\'s working. Gets sharper with every generation.' },
           ],
         },
         {
@@ -151,7 +151,7 @@ export const landing = {
       h2: 'La mayoría de los negocios pierden clientes porque son invisibles en Google.\nNo porque hagan mal trabajo.',
       body: 'Un buen plomero, contratista o dueño de tienda pasa su día haciendo el trabajo — no escribiendo publicaciones en Google. HayVista es el miembro del equipo que se encarga de eso. Conoce tus servicios, tu área, tus fotos y tu presencia en redes sociales. Escribe el contenido, elige las palabras clave correctas y publica — y construye un conocimiento más profundo de tu negocio con cada publicación, reseña y respuesta que maneja.',
       tiles: [
-        { icon: '🧠', label: 'Aprende con el tiempo', desc: 'Construye una memoria persistente de tu voz, servicios y lo que funciona — la lee antes de cada publicación, respuesta y pregunta' },
+        { icon: '🧠', label: 'Aprende con el tiempo', desc: 'Construye una memoria persistente de el tono de tu marca, servicios y lo que funciona — la lee antes de cada publicación, respuesta y pregunta' },
         { icon: '📸', label: 'Usa tus fotos reales', desc: 'Combina fotos de trabajo con búsquedas locales automáticamente' },
         { icon: '📅', label: 'Nunca falta una semana', desc: 'Publica hasta 3× por semana — dentro de los límites de Google' },
         { icon: '📧', label: 'Te mantiene informado', desc: 'Resumen semanal por email de todo lo publicado' },
@@ -169,7 +169,7 @@ export const landing = {
         {
           n: '02', icon: '🧠',
           title: 'Entiende tu negocio sin que se lo digas',
-          desc: 'Estudia tus fotos, servicios y lo que los locales realmente buscan. Luego construye un documento de memoria persistente — tu voz, principales servicios, lo que funciona, temas recurrentes de clientes. Cada publicación, respuesta y pregunta lee esa memoria primero, para que todo suene como la misma marca y mejore cuanto más tiempo corre.',
+          desc: 'Estudia tus fotos, servicios y lo que los locales realmente buscan. Luego construye un documento de memoria persistente — el tono de tu marca, principales servicios, lo que funciona, temas recurrentes de clientes. Cada publicación, respuesta y pregunta lee esa memoria primero, para que todo suene como la misma marca y mejore cuanto más tiempo corre.',
         },
         {
           n: '03', icon: '📅',
@@ -231,7 +231,7 @@ export const landing = {
           items: [
             { icon: '🔍', text: 'Rastrea lo que buscan los locales cerca de tu negocio' },
             { icon: '📊', text: 'Informe semanal de GBP — vistas, búsquedas y llamadas' },
-            { icon: '🧠', text: 'Memoria del negocio — Claude construye un perfil persistente de tu voz, principales servicios y lo que funciona. Mejora con cada generación.' },
+            { icon: '🧠', text: 'Memoria del negocio — Claude construye un perfil persistente de el tono de tu marca, principales servicios y lo que funciona. Mejora con cada generación.' },
           ],
         },
         {

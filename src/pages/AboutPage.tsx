@@ -15,7 +15,7 @@ export default function AboutPage() {
             HayVista is not a tool that asks you to do things. It's a system that does them for you — and asks your permission before anything goes live on Google. Connect your Google Business Profile once, and three automation engines run in parallel: one publishes posts grounded in real search data, one drafts and posts replies to every customer review, and one answers every Q&amp;A question on your profile. Every action is written by Claude AI, tailored to your actual business, and held in a 24-hour review window before going live. Edit it, skip it, or do nothing — it handles itself.
           </p>
           <p className="text-slate-700 leading-relaxed text-sm">
-            HayVista reads your real GBP data — your photos, services, business hours, and the search queries locals are actually typing into Google — and uses all of it as context for every piece of AI-generated content. Posts are matched to your most relevant photo using computer vision. Replies mirror the tone of the reviewer. Answers are grounded in your actual services. Beyond the initial read, HayVista builds a persistent memory document for your business: your voice, top services, what content has performed, recurring customer themes, and patterns in your reviews. Claude reads this before every generation — so posts, replies, and answers don't just sound consistent, they get measurably more accurate the longer you use the platform. Whether you're a contractor, restaurant, salon, real estate agent, or hotel, HayVista recognizes your business type and surfaces the right fields automatically — all for $17/month. No agency. No steep learning curve. Just a business profile that keeps getting sharper.
+            HayVista reads your real GBP data — your photos, services, business hours, and the search queries locals are actually typing into Google — and uses all of it as context for every piece of AI-generated content. Posts are matched to your most relevant photo using computer vision. Replies mirror the tone of the reviewer. Answers are grounded in your actual services. Beyond the initial read, HayVista builds a persistent memory document for your business: your brand tone, top services, what content has performed, recurring customer themes, and patterns in your reviews. Claude reads this before every generation — so posts, replies, and answers don't just sound consistent, they get measurably more accurate the longer you use the platform. Whether you're a contractor, restaurant, salon, real estate agent, or hotel, HayVista recognizes your business type and surfaces the right fields automatically — all for $17/month. No agency. No steep learning curve. Just a business profile that keeps getting sharper.
           </p>
         </section>
 
@@ -111,14 +111,14 @@ const ENGINES = [
     color: 'rgba(79,142,247,0.12)',
     title: 'Post engine — Mon, Wed, Fri at 9 AM',
     schedule: 'Schedule: 3×/week · 24-hour approval window · auto-publishes if untouched',
-    body: 'Claude reads that week\'s top search queries from Google Search Console, picks the most relevant photo using computer vision, and writes a GBP post in your business\'s tone. It reads your business memory before writing — so posts reflect your established voice, your top services, and what has performed well. A 24-hour window opens — edit it, discard it, or publish it immediately. Do nothing and it goes live automatically.',
+    body: 'Claude reads that week\'s top search queries from Google Search Console, picks the most relevant photo using computer vision, and writes a GBP post in your business\'s tone. It reads your business memory before writing — so posts reflect your established brand tone, your top services, and what has performed well. A 24-hour window opens — edit it, discard it, or publish it immediately. Do nothing and it goes live automatically.',
   },
   {
     icon: '⭐',
     color: 'rgba(251,191,36,0.12)',
     title: 'Review engine — triggered on every new review',
     schedule: 'Trigger: new review · 24-hour reply window · auto-posts reply if untouched',
-    body: 'The moment a customer review comes in, Claude drafts a tailored reply. It reads your business memory to match the voice and service references you\'ve established — so replies don\'t just sound polished, they sound like you. It detects the reviewer\'s tone — casual, technical, angry, enthusiastic — and mirrors it. Mentions the specific service and location naturally for local SEO. A 24-hour window opens. Edit it, cancel it, or post immediately. Untouched: it goes live on Google automatically.',
+    body: 'The moment a customer review comes in, Claude drafts a tailored reply. It reads your business memory to match the brand tone and service references you\'ve established — so replies don\'t just sound polished, they sound like you. It detects the reviewer\'s tone — casual, technical, angry, enthusiastic — and mirrors it. Mentions the specific service and location naturally for local SEO. A 24-hour window opens. Edit it, cancel it, or post immediately. Untouched: it goes live on Google automatically.',
   },
   {
     icon: '❓',
@@ -133,7 +133,7 @@ const FEATURES = [
   {
     icon: '🧠',
     title: 'Business memory',
-    body: 'Claude builds a persistent knowledge document for your business — your voice, top services, review patterns, Q&A themes, and what content has worked. Every AI generation reads it first. The longer you use HayVista, the more accurate and consistent the output becomes.',
+    body: 'Claude builds a persistent knowledge document for your business — your brand tone, top services, review patterns, Q&A themes, and what content has worked. Every AI generation reads it first. The longer you use HayVista, the more accurate and consistent the output becomes.',
   },
   {
     icon: '📸',
