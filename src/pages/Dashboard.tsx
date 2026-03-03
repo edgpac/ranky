@@ -11,6 +11,7 @@ import ProductsTab from '../components/tabs/ProductsTab';
 import BookingsTab from '../components/tabs/BookingsTab';
 import QATab from '../components/tabs/QATab';
 import GetReviewsTab from '../components/tabs/GetReviewsTab';
+import MemoryTab from '../components/tabs/MemoryTab';
 
 interface Post {
   id: number;
@@ -53,6 +54,7 @@ const TABS = [
   { id: 'products' },
   { id: 'bookings' },
   { id: 'getreviews' },
+  { id: 'memory' },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -68,16 +70,17 @@ const TAB_ICONS: Record<TabId, React.ReactNode> = {
   products:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>,
   bookings:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
   getreviews: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
+  memory:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><circle cx="18" cy="4" r="3" fill="currentColor" stroke="none" opacity="0.5"/></svg>,
 };
 
 const SECTIONS_BY_CATEGORY: Record<string, TabId[]> = {
-  contractor:  ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'services', 'products', 'bookings', 'getreviews'],
-  restaurant:  ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'products', 'bookings', 'getreviews'],
-  store:       ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'products', 'getreviews'],
-  salon:       ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'services', 'bookings', 'getreviews'],
-  hotel:       ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'services', 'bookings', 'getreviews'],
-  doctor:      ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'services', 'bookings', 'getreviews'],
-  real_estate: ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'services', 'getreviews'],
+  contractor:  ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'services', 'products', 'bookings', 'getreviews', 'memory'],
+  restaurant:  ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'products', 'bookings', 'getreviews', 'memory'],
+  store:       ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'products', 'getreviews', 'memory'],
+  salon:       ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'services', 'bookings', 'getreviews', 'memory'],
+  hotel:       ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'services', 'bookings', 'getreviews', 'memory'],
+  doctor:      ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'services', 'bookings', 'getreviews', 'memory'],
+  real_estate: ['profile', 'reviews', 'qa', 'photos', 'posts', 'insights', 'services', 'getreviews', 'memory'],
 };
 
 
@@ -374,7 +377,7 @@ export default function Dashboard() {
 
   const bizType = client?.business_type && client.business_type !== 'general' ? client.business_type : 'Business';
 
-  const freeTabIds: TabId[] = ['profile', 'posts', 'products', 'bookings', 'getreviews'];
+  const freeTabIds: TabId[] = ['profile', 'posts', 'products', 'bookings', 'getreviews', 'memory'];
   const tabNeedsGbp = !freeTabIds.includes(activeTab);
 
   return (
@@ -613,6 +616,7 @@ export default function Dashboard() {
               onReviewLinkSaved={(link) => setClient((c) => c ? { ...c, review_link: link } : c)}
             />
           )}
+          {activeTab === 'memory' && !isGuest && <MemoryTab />}
 
           {tabNeedsGbp && !locationReady && !isGuest ? (
             <GbpGate connectState={connectState} cooldown={cooldown} onRetry={runPermissionCheck} isGuest={isGuest} />

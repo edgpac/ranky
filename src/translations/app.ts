@@ -50,6 +50,7 @@ export const app = {
         products:   'Products',
         bookings:   'Messaging',
         getreviews: 'Get Reviews',
+        memory:     'AI Memory',
       },
       // Category options
       categories: {
@@ -238,6 +239,21 @@ export const app = {
       cancel:    'Cancel',
       edit:      'Edit',
       notSet:    'Not set',
+    },
+
+    // ─── AI Memory tab ────────────────────────────────────────────────────────
+    memory: {
+      heading:      'AI Memory',
+      subtitle:     'A living document Claude reads before every post, reply, and answer — so its output gets smarter over time.',
+      loading:      'Loading memory…',
+      bootstrapping:'Building your business memory…',
+      bootstrapSub: 'Claude is reading your profile, services, and history. This takes about 10 seconds.',
+      editBtn:      'Edit',
+      saveBtn:      'Save',
+      saving:       'Saving…',
+      cancelBtn:    'Cancel',
+      lastUpdated:  'Last updated',
+      empty:        'No memory yet. Generate a post, reply to a review, or answer a Q&A to start building context.',
     },
 
     // ─── Signup page ──────────────────────────────────────────────────────────
@@ -487,6 +503,7 @@ export const app = {
         products:   'Productos',
         bookings:   'Mensajería',
         getreviews: 'Obtener Reseñas',
+        memory:     'Memoria IA',
       },
       categories: {
         contractor:  'Contratista General / Mantenimiento',
@@ -666,6 +683,21 @@ export const app = {
       cancel:    'Cancelar',
       edit:      'Editar',
       notSet:    'No establecido',
+    },
+
+    // ─── AI Memory tab ────────────────────────────────────────────────────────
+    memory: {
+      heading:      'Memoria IA',
+      subtitle:     'Un documento vivo que Claude lee antes de cada publicación, respuesta y pregunta — para que sus resultados mejoren con el tiempo.',
+      loading:      'Cargando memoria…',
+      bootstrapping:'Construyendo la memoria de tu negocio…',
+      bootstrapSub: 'Claude está leyendo tu perfil, servicios e historial. Esto toma unos 10 segundos.',
+      editBtn:      'Editar',
+      saveBtn:      'Guardar',
+      saving:       'Guardando…',
+      cancelBtn:    'Cancelar',
+      lastUpdated:  'Última actualización',
+      empty:        'Aún no hay memoria. Genera una publicación, responde a una reseña o contesta una pregunta para comenzar a construir contexto.',
     },
 
     signup: {

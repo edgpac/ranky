@@ -197,6 +197,16 @@ async function initDB() {
       UNIQUE(client_id, review_id)
     )
   `);
+  // ─── Per-client AI business memory ───────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS business_memory (
+      id         SERIAL PRIMARY KEY,
+      client_id  INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+      content    TEXT NOT NULL DEFAULT '',
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(client_id)
+    )
+  `);
   console.log('✅ DB ready');
 }
 
@@ -292,10 +302,14 @@ async function describePhotoWithVision(base64, mimeType, businessName, bizLabel)
  * Fires and forgets — caller does NOT await this.
  */
 // ─── Build reply system prompt (shared by manual + auto-draft) ────────────────
-function buildReplySystemPrompt(client) {
+async function buildReplySystemPrompt(client) {
   const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
   const city = client.city || '';
   const locationLine = city ? ` serving ${city}` : '';
+  const businessMemory = await getBusinessMemory(client.id);
+  const memorySection = businessMemory
+    ? `\n\n## What we know about this business\n${businessMemory}`
+    : '';
   return `You are the owner of ${client.business_name}, a ${bizLabel}${locationLine}. Write a genuine, reputation-protecting, SEO-aware reply to a Google review.
 
 Follow these three steps:
@@ -320,13 +334,13 @@ Hard rules:
 - Under 80 words.
 - Tone: ${client.tone}.
 - No hashtags, no emojis.
-- Never be defensive, never argue, never dismiss.`;
+- Never be defensive, never argue, never dismiss.${memorySection}`;
 }
 
 // ─── Auto-draft pending replies for unreplied reviews (background) ─────────────
 async function generatePendingReplies(client, reviews, _mybusiness, autoPostHours = 24) {
   try {
-    const systemPrompt = buildReplySystemPrompt(client);
+    const systemPrompt = await buildReplySystemPrompt(client);
     for (const review of reviews.slice(0, 10)) {
       try {
         const reviewId = review.name.split('/').pop();
@@ -347,6 +361,202 @@ async function generatePendingReplies(client, reviews, _mybusiness, autoPostHour
     }
   } catch (e) {
     console.warn('[auto-reply] generatePendingReplies error:', e.message);
+  }
+}
+
+// ─── Business Memory Helpers ──────────────────────────────────
+
+/**
+ * Fetch the client's business memory from DB.
+ * Returns '' on any error or if no row exists — graceful no-op for all callers.
+ * Hard-trimmed to 2000 chars (~500 tokens) before injection into prompts.
+ */
+async function getBusinessMemory(clientId) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT content FROM business_memory WHERE client_id = $1',
+      [clientId]
+    );
+    if (!rows[0]?.content) return '';
+    const raw = rows[0].content;
+    if (raw.length <= 2000) return raw;
+    const trimmed = raw.slice(0, 2000);
+    const lastNewline = trimmed.lastIndexOf('\n');
+    return (lastNewline > 1500 ? trimmed.slice(0, lastNewline) : trimmed) + '\n[...memory truncated]';
+  } catch (e) {
+    console.warn('[memory] getBusinessMemory error (non-fatal):', e.message);
+    return '';
+  }
+}
+
+/**
+ * One-time bootstrap: builds the initial business memory document using Sonnet.
+ * Assembles data from GBP, products, post history, and reply history.
+ * Idempotent — safe to call multiple times (ON CONFLICT DO UPDATE).
+ */
+async function bootstrapMemory(client) {
+  try {
+    const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
+
+    // 1. Products from DB
+    const { rows: productRows } = await pool.query(
+      'SELECT name, description FROM products WHERE client_id = $1 ORDER BY created_at ASC LIMIT 10',
+      [client.id]
+    );
+
+    // 2. GBP description + services (best-effort)
+    let gbpDescription = '';
+    let gbpServices = [];
+    try {
+      const auth = getClientAuth(client);
+      const locationName = await ensureLocation(client);
+      const locRes = await google.mybusinessbusinessinformation({ version: 'v1', auth })
+        .locations.get({ name: locationName, readMask: 'profile,serviceItems' });
+      gbpDescription = locRes.data?.profile?.description || '';
+      gbpServices = (locRes.data?.serviceItems || [])
+        .filter((s) => s.freeFormServiceItem?.label?.displayName)
+        .slice(0, 8)
+        .map((s) => s.freeFormServiceItem.label.displayName);
+    } catch (e) {
+      console.warn('[memory] bootstrap GBP fetch skipped:', e.message);
+    }
+
+    // 3. Top 5 search queries used in past posts
+    const { rows: queryRows } = await pool.query(
+      `SELECT search_query, COUNT(*) AS cnt FROM posts
+       WHERE client_id = $1 AND search_query IS NOT NULL
+       GROUP BY search_query ORDER BY cnt DESC LIMIT 5`,
+      [client.id]
+    );
+
+    // 4. Last 3 posted review replies
+    const { rows: replyRows } = await pool.query(
+      `SELECT draft_text FROM pending_replies
+       WHERE client_id = $1 AND status = 'posted'
+       ORDER BY created_at DESC LIMIT 3`,
+      [client.id]
+    );
+
+    const serviceList = gbpServices.length > 0 ? gbpServices : productRows.map((p) => p.name);
+    const socialLinks = client.social_links || {};
+    const activeSocials = Object.entries(socialLinks).filter(([, v]) => v).map(([k]) => k);
+
+    const inputSummary = [
+      `Business: ${client.business_name}`,
+      `Type: ${bizLabel}`,
+      `City: ${client.city || 'unknown'}`,
+      `Tone setting: ${client.tone || 'Friendly'}`,
+      gbpDescription ? `GBP description: "${gbpDescription}"` : null,
+      serviceList.length > 0 ? `Services/products: ${serviceList.join(', ')}` : null,
+      activeSocials.length > 0 ? `Active social platforms: ${activeSocials.join(', ')}` : null,
+      queryRows.length > 0 ? `Top search queries used in posts: ${queryRows.map((r) => r.search_query).join(', ')}` : null,
+      replyRows.length > 0 ? `Sample review replies posted: ${replyRows.map((r) => r.draft_text.slice(0, 120)).join(' | ')}` : null,
+    ].filter(Boolean).join('\n');
+
+    const systemPrompt = `You are writing a concise internal business memory document for an AI content system. This document will be injected into future AI prompts to ensure consistency. Write dense, specific facts — not instructions or marketing copy.
+
+Output ONLY the markdown document, no preamble or explanation. Keep it under 450 words. Use these exact section headers:
+
+## Business Identity
+## Voice & Tone
+## Top Services
+## What Has Worked
+## Review Patterns
+## Q&A Themes`;
+
+    const content = await callClaude(
+      systemPrompt,
+      [{ role: 'user', content: `Generate the business memory document for this business:\n\n${inputSummary}` }],
+      600
+    );
+
+    await pool.query(
+      `INSERT INTO business_memory (client_id, content, updated_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (client_id) DO UPDATE SET content = EXCLUDED.content, updated_at = NOW()`,
+      [client.id, content]
+    );
+    console.log(`[memory] bootstrapped for client ${client.id}`);
+    return content;
+  } catch (e) {
+    console.warn('[memory] bootstrapMemory error:', e.message);
+    return '';
+  }
+}
+
+/**
+ * Background update: append learnings after a post is generated.
+ * Uses Haiku — cheap and fast. Fires via setImmediate, never blocks generation.
+ */
+async function updateMemoryAfterPost(client, post) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT content FROM business_memory WHERE client_id = $1',
+      [client.id]
+    );
+    if (!rows[0]?.content) return;
+    const updated = await callClaude(
+      `You maintain a business memory document for an AI content system. A new GBP post was just generated. Update ONLY the "What Has Worked" and "Top Services" sections with brief factual notes — do not repeat what is already there. Keep additions under 50 words total. Return the COMPLETE updated document.`,
+      [{ role: 'user', content: `Current memory:\n${rows[0].content}\n\nNew post:\nSearch query: "${post.search_query || 'none'}"\nPost type: ${post.post_type || 'standard'}\nPost text: "${(post.post_text || '').slice(0, 300)}"` }],
+      700,
+      'claude-haiku-4-5-20251001'
+    );
+    await pool.query(
+      'UPDATE business_memory SET content = $1, updated_at = NOW() WHERE client_id = $2',
+      [updated, client.id]
+    );
+  } catch (e) {
+    console.warn('[memory] updateMemoryAfterPost error (non-fatal):', e.message);
+  }
+}
+
+/**
+ * Background update: append learnings after a review reply is posted.
+ */
+async function updateMemoryAfterReply(client, reviewStars, reviewText, replyText) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT content FROM business_memory WHERE client_id = $1',
+      [client.id]
+    );
+    if (!rows[0]?.content) return;
+    const updated = await callClaude(
+      `You maintain a business memory document for an AI content system. A review reply was just posted to Google. Update ONLY the "Review Patterns" section with brief factual notes about sentiment or recurring themes — do not repeat existing notes. Keep additions under 40 words. Return the COMPLETE updated document.`,
+      [{ role: 'user', content: `Current memory:\n${rows[0].content}\n\nReview: ${reviewStars}/5 stars — "${(reviewText || '(no comment)').slice(0, 200)}"\nOur reply: "${(replyText || '').slice(0, 200)}"` }],
+      700,
+      'claude-haiku-4-5-20251001'
+    );
+    await pool.query(
+      'UPDATE business_memory SET content = $1, updated_at = NOW() WHERE client_id = $2',
+      [updated, client.id]
+    );
+  } catch (e) {
+    console.warn('[memory] updateMemoryAfterReply error (non-fatal):', e.message);
+  }
+}
+
+/**
+ * Background update: append learnings after a Q&A answer is posted.
+ */
+async function updateMemoryAfterQA(client, questionText, answerText) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT content FROM business_memory WHERE client_id = $1',
+      [client.id]
+    );
+    if (!rows[0]?.content) return;
+    const updated = await callClaude(
+      `You maintain a business memory document for an AI content system. A Q&A answer was just posted to Google. Update ONLY the "Q&A Themes" section with brief factual notes about recurring question topics — do not repeat existing notes. Keep additions under 40 words. Return the COMPLETE updated document.`,
+      [{ role: 'user', content: `Current memory:\n${rows[0].content}\n\nQuestion: "${(questionText || '').slice(0, 200)}"\nAnswer: "${(answerText || '').slice(0, 200)}"` }],
+      700,
+      'claude-haiku-4-5-20251001'
+    );
+    await pool.query(
+      'UPDATE business_memory SET content = $1, updated_at = NOW() WHERE client_id = $2',
+      [updated, client.id]
+    );
+  } catch (e) {
+    console.warn('[memory] updateMemoryAfterQA error (non-fatal):', e.message);
   }
 }
 
@@ -766,8 +976,13 @@ async function generatePostForClient(client, overridePostType) {
   const postTypeNote = postTypeInstructions[postType] || postTypeInstructions.standard;
 
   // 6. Claude writes the post
+  const businessMemory = await getBusinessMemory(client.id);
+  const memorySection = businessMemory
+    ? `\n## Business Memory (reference only)\n${businessMemory}\n`
+    : '';
+
   const systemPrompt = `You are a local business marketing expert specializing in Google Business Profile posts for ${bizLabel}s.
-${businessContext}
+${businessContext}${memorySection}
 Always write posts in this exact format:
 
 1. Opening line: A single emoji + a punchy hook sentence targeting a specific customer pain point or audience. No period — keep it sharp.
@@ -825,7 +1040,9 @@ Post type instruction: ${postTypeNote}`;
      VALUES ($1, $2, $3, $4, 'pending', $5, NOW() + INTERVAL '24 hours') RETURNING *`,
     [client.id, photoUrl, postText, topQuery, postType]
   );
-  return result.rows[0];
+  const savedPost = result.rows[0];
+  setImmediate(() => updateMemoryAfterPost(client, savedPost));
+  return savedPost;
 }
 
 // ─── Profile ─────────────────────────────────────────────────
@@ -990,7 +1207,7 @@ app.post('/api/reviews/generate-reply', requireAuth, async (req, res) => {
     const { review } = req.body;
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
     const client = rows[0];
-    const systemPrompt = buildReplySystemPrompt(client);
+    const systemPrompt = await buildReplySystemPrompt(client);
     const stars = { ONE: '1/5', TWO: '2/5', THREE: '3/5', FOUR: '4/5', FIVE: '5/5' }[review.starRating] || review.starRating;
     const userPrompt = `Rating: ${stars} stars\nReview: "${review.comment || '(no written comment, just a star rating)'}"`;
     const reply = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 200);
@@ -1053,6 +1270,9 @@ app.post('/api/reviews/pending-reply/:reviewId/post-now', requireAuth, async (re
       [pending.id]
     );
     res.json({ ok: true });
+    // Update memory with this reply in background
+    const replyClient = { id: req.session.clientId, google_access_token: pending.google_access_token, google_refresh_token: pending.google_refresh_token, gbp_account_name: pending.gbp_account_name };
+    setImmediate(() => updateMemoryAfterReply(replyClient, null, null, pending.draft_text));
   } catch (err) {
     console.error('Post-now error:', err);
     res.status(500).json({ error: 'An internal error occurred' });
@@ -1568,6 +1788,47 @@ app.patch('/api/social-links', requireAuth, async (req, res) => {
   }
 });
 
+// ─── Business Memory ──────────────────────────────────────────
+
+app.get('/api/memory', requireAuth, async (req, res) => {
+  try {
+    const { rows: [client] } = await pool.query(
+      'SELECT * FROM clients WHERE id = $1', [req.session.clientId]
+    );
+    const { rows } = await pool.query(
+      'SELECT content, updated_at FROM business_memory WHERE client_id = $1',
+      [client.id]
+    );
+    if (rows[0]) {
+      return res.json({ memory: rows[0].content, updatedAt: rows[0].updated_at });
+    }
+    // No memory yet — bootstrap in background, return bootstrapping state
+    setImmediate(() => bootstrapMemory(client));
+    res.json({ memory: null, updatedAt: null, bootstrapping: true });
+  } catch (err) {
+    console.error('Memory fetch error:', err);
+    res.status(500).json({ error: 'An internal error occurred' });
+  }
+});
+
+app.patch('/api/memory', requireAuth, async (req, res) => {
+  try {
+    const { content } = req.body;
+    if (typeof content !== 'string') return res.status(400).json({ error: 'content required' });
+    const trimmed = content.slice(0, 6000);
+    await pool.query(
+      `INSERT INTO business_memory (client_id, content, updated_at)
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (client_id) DO UPDATE SET content = EXCLUDED.content, updated_at = NOW()`,
+      [req.session.clientId, trimmed]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Memory update error:', err);
+    res.status(500).json({ error: 'An internal error occurred' });
+  }
+});
+
 // ─── Q&A ──────────────────────────────────────────────────────
 // Fetches questions from GBP, stores in qa_answers, returns combined list.
 
@@ -1624,7 +1885,9 @@ app.post('/api/qa/generate-answer', requireAuth, async (req, res) => {
     if (!qa) return res.status(404).json({ error: 'Question not found' });
 
     const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
-    const systemPrompt = `You are a helpful, professional customer service representative for ${client.business_name}, a ${bizLabel}. Write a concise, friendly answer to a customer question posted on Google. Tone: ${client.tone}. Keep it under 100 words. No hashtags.`;
+    const qaMemory = await getBusinessMemory(client.id);
+    const qaMemoryNote = qaMemory ? `\n\nContext about this business:\n${qaMemory.split('\n').slice(0, 20).join('\n')}` : '';
+    const systemPrompt = `You are a helpful, professional customer service representative for ${client.business_name}, a ${bizLabel}. Write a concise, friendly answer to a customer question posted on Google. Tone: ${client.tone}. Keep it under 100 words. No hashtags.${qaMemoryNote}`;
     const answerText = await callClaude(systemPrompt, [{ role: 'user', content: `Customer question: "${qa.question_text}"\n\nWrite a helpful answer.` }], 150);
 
     const { rows: [updated] } = await pool.query(
@@ -1671,6 +1934,7 @@ app.post('/api/qa/answer', requireAuth, async (req, res) => {
       [qa.id, client.id]
     );
     res.json({ question: updated, gbpPosted });
+    setImmediate(() => updateMemoryAfterQA(client, qa.question_text, qa.answer_text));
   } catch (err) {
     console.error('Q&A post error:', err);
     res.status(500).json({ error: 'An internal error occurred' });
@@ -2069,7 +2333,9 @@ cron.schedule('0 */6 * * *', async () => {
           // Generate draft if no answer yet
           if (!row.answer_text) {
             const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
-            const sysP = `You are a helpful customer service rep for ${client.business_name}, a ${bizLabel}. Write a concise, professional answer in under 80 words. No hashtags.`;
+            const cronQaMemory = await getBusinessMemory(client.id);
+            const cronQaNote = cronQaMemory ? `\n\nContext about this business:\n${cronQaMemory.split('\n').slice(0, 20).join('\n')}` : '';
+            const sysP = `You are a helpful customer service rep for ${client.business_name}, a ${bizLabel}. Write a concise, professional answer in under 80 words. No hashtags.${cronQaNote}`;
             const answerText = await callClaude(sysP, [{ role: 'user', content: `Question: "${row.question_text}"` }], 120);
             await pool.query(
               `UPDATE qa_answers SET answer_text = $1, status = 'draft', auto_approve_at = NOW() + INTERVAL '24 hours'
@@ -2134,6 +2400,8 @@ cron.schedule('0 * * * *', async () => {
         });
         await pool.query(`UPDATE pending_replies SET status = 'posted' WHERE id = $1`, [pending.id]);
         console.log(`⏰ Auto-posted reply for review ${pending.review_id} (${pending.business_name})`);
+        const memClient = { id: pending.client_id, google_access_token: pending.google_access_token, google_refresh_token: pending.google_refresh_token, gbp_account_name: pending.gbp_account_name };
+        setImmediate(() => updateMemoryAfterReply(memClient, null, null, pending.draft_text));
       } catch (e) {
         console.warn(`⏰ Auto-post failed for review ${pending.review_id}:`, e.message);
       }
