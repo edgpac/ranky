@@ -55,6 +55,7 @@ ranky/
 │   │       ├── EditProfileTab.tsx
 │   │       ├── BookingsTab.tsx
 │   │       ├── GetReviewsTab.tsx
+│   │       └── MemoryTab.tsx
 │   │       ├── SocialLinksSection.tsx
 │       └── ProductsTab.tsx
 │   ├── contexts/
@@ -177,6 +178,20 @@ All three automation engines follow the same pattern:
 - `DELETE /api/reviews/pending-reply/:reviewId` — cancels auto-post (status → 'cancelled')
 - `POST /api/reviews/pending-reply/:reviewId/post-now` — posts immediately, sets status → 'posted'
 - Hourly cron auto-posts all `pending_replies` where `auto_post_at <= NOW() AND status = 'pending'`
+
+### Business Memory (`business_memory` DB table)
+- Stores a living markdown document per client that Claude reads before every AI generation
+- Schema: `id, client_id, content TEXT, updated_at TIMESTAMPTZ, UNIQUE(client_id)`
+- `getBusinessMemory(clientId)` — async helper, trims to 2000 chars (~500 tokens), returns `''` on error (graceful no-op)
+- `bootstrapMemory(client)` — one-time Sonnet call; fires via `setImmediate` on first `GET /api/memory` if no row exists. Assembles GBP description+services, products, top 5 search queries, last 3 posted replies into a 6-section markdown doc
+- Memory injected into all 3 engines under `if (businessMemory)` guard — zero impact when empty:
+  - Posts: appended to `systemPrompt` in `generatePostForClient()`
+  - Reviews: `buildReplySystemPrompt(client)` is `async`, appends memory at bottom
+  - Q&A: first 20 lines appended to `sysP` in both manual route and cron
+- `updateMemoryAfterPost/Reply/QA()` — Haiku calls via `setImmediate`, non-blocking, update specific sections after each generation event
+- `GET /api/memory` — returns `{ memory, updatedAt }` or `{ memory: null, bootstrapping: true }` (triggers bootstrap)
+- `PATCH /api/memory` — accepts `{ content }`, trims to 6000 chars, upserts
+- Frontend: `MemoryTab.tsx` — 3 states: loading spinner, bootstrapping (polls every 8s), loaded (monospace display + inline edit/save)
 
 ### Photo Labels (`photo_labels` DB table)
 - Stores AI Vision descriptions + user-written descriptions per photo URL
