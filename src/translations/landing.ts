@@ -20,9 +20,9 @@ export const landing = {
     why: {
       label: 'WHY HAYVISTA WORKS',
       h2: 'Most businesses lose customers because they\'re invisible on Google.\nNot because they do bad work.',
-      body: 'A great plumber, contractor, or shop owner spends their day doing the job — not writing Google posts. HayVista is the team member who handles that. It knows your services, your area, your photos, and your social media presence. It writes the content, picks the right keywords, and publishes — while you focus on the work that actually pays.',
+      body: 'A great plumber, contractor, or shop owner spends their day doing the job — not writing Google posts. HayVista is the team member who handles that. It knows your services, your area, your photos, and your social media presence. It writes the content, picks the right keywords, and publishes — and builds a deeper understanding of your business with every post, review, and answer it handles.',
       tiles: [
-        { icon: '🧠', label: 'No training needed', desc: 'Reads your GBP and starts working immediately' },
+        { icon: '🧠', label: 'Gets smarter over time', desc: 'Builds a persistent memory of your voice, services, and what works — reads it before every post, reply, and answer' },
         { icon: '📸', label: 'Uses your real photos', desc: 'Matches job photos to local search queries automatically' },
         { icon: '📅', label: 'Never misses a week', desc: 'Publishes up to 3× per week — within Google\'s limits' },
         { icon: '📧', label: 'Keeps you in the loop', desc: 'Weekly email recap of everything published' },
@@ -40,7 +40,7 @@ export const landing = {
         {
           n: '02', icon: '🧠',
           title: 'Understands your business without being told',
-          desc: 'It studies your real job photos, services, products, and what people nearby are searching for. It reads your social media presence too — so every post references real content, real services, and drives customers to the right channel.',
+          desc: 'It studies your photos, services, and what locals are actually searching for. Then it builds a persistent memory document — your voice, top services, what performs, recurring customer themes. Every post, reply, and Q&A answer reads that memory first, so everything sounds like the same brand and gets sharper the longer it runs.',
         },
         {
           n: '03', icon: '📅',
@@ -102,7 +102,7 @@ export const landing = {
           items: [
             { icon: '🔍', text: 'Tracks what locals are searching near your location' },
             { icon: '📊', text: 'Weekly GBP report — views, searches, calls tracked' },
-            { icon: '🧠', text: 'AI adjusts strategy based on what\'s actually working' },
+            { icon: '🧠', text: 'Business memory — Claude builds a persistent profile of your voice, top services, and what\'s working. Gets sharper with every generation.' },
           ],
         },
         {
@@ -117,7 +117,7 @@ export const landing = {
     },
     finalCta: {
       h2: 'Your most important hire costs $17 a month.',
-      body: 'No résumé. No interview. No training. HayVista shows up every week, knows your business, and keeps you visible where your next customer is searching.',
+      body: 'No résumé. No interview. No training period. HayVista shows up every week, learns from everything it publishes, and gets sharper about your business the longer it runs.',
       cta: 'Make the Hire — Get Started',
     },
     footer: {
@@ -149,9 +149,9 @@ export const landing = {
     why: {
       label: 'POR QUÉ HAYVISTA FUNCIONA',
       h2: 'La mayoría de los negocios pierden clientes porque son invisibles en Google.\nNo porque hagan mal trabajo.',
-      body: 'Un buen plomero, contratista o dueño de tienda pasa su día haciendo el trabajo — no escribiendo publicaciones en Google. HayVista es el miembro del equipo que se encarga de eso. Conoce tus servicios, tu área, tus fotos y tu presencia en redes sociales. Escribe el contenido, elige las palabras clave correctas y publica — mientras tú te enfocas en el trabajo que realmente paga.',
+      body: 'Un buen plomero, contratista o dueño de tienda pasa su día haciendo el trabajo — no escribiendo publicaciones en Google. HayVista es el miembro del equipo que se encarga de eso. Conoce tus servicios, tu área, tus fotos y tu presencia en redes sociales. Escribe el contenido, elige las palabras clave correctas y publica — y construye un conocimiento más profundo de tu negocio con cada publicación, reseña y respuesta que maneja.',
       tiles: [
-        { icon: '🧠', label: 'Sin capacitación', desc: 'Lee tu GBP y comienza a trabajar de inmediato' },
+        { icon: '🧠', label: 'Aprende con el tiempo', desc: 'Construye una memoria persistente de tu voz, servicios y lo que funciona — la lee antes de cada publicación, respuesta y pregunta' },
         { icon: '📸', label: 'Usa tus fotos reales', desc: 'Combina fotos de trabajo con búsquedas locales automáticamente' },
         { icon: '📅', label: 'Nunca falta una semana', desc: 'Publica hasta 3× por semana — dentro de los límites de Google' },
         { icon: '📧', label: 'Te mantiene informado', desc: 'Resumen semanal por email de todo lo publicado' },
@@ -169,7 +169,7 @@ export const landing = {
         {
           n: '02', icon: '🧠',
           title: 'Entiende tu negocio sin que se lo digas',
-          desc: 'Estudia tus fotos reales de trabajo, servicios, productos y lo que la gente cerca realmente busca. También lee tu presencia en redes sociales — para que cada publicación haga referencia a contenido real y dirija a los clientes al canal correcto.',
+          desc: 'Estudia tus fotos, servicios y lo que los locales realmente buscan. Luego construye un documento de memoria persistente — tu voz, principales servicios, lo que funciona, temas recurrentes de clientes. Cada publicación, respuesta y pregunta lee esa memoria primero, para que todo suene como la misma marca y mejore cuanto más tiempo corre.',
         },
         {
           n: '03', icon: '📅',
@@ -231,7 +231,7 @@ export const landing = {
           items: [
             { icon: '🔍', text: 'Rastrea lo que buscan los locales cerca de tu negocio' },
             { icon: '📊', text: 'Informe semanal de GBP — vistas, búsquedas y llamadas' },
-            { icon: '🧠', text: 'La IA ajusta la estrategia según lo que realmente funciona' },
+            { icon: '🧠', text: 'Memoria del negocio — Claude construye un perfil persistente de tu voz, principales servicios y lo que funciona. Mejora con cada generación.' },
           ],
         },
         {
@@ -246,7 +246,7 @@ export const landing = {
     },
     finalCta: {
       h2: 'Tu contratación más importante cuesta $17 al mes.',
-      body: 'Sin currículum. Sin entrevista. Sin capacitación. HayVista aparece cada semana, conoce tu negocio y te mantiene visible donde tu próximo cliente está buscando.',
+      body: 'Sin currículum. Sin entrevista. Sin período de capacitación. HayVista aparece cada semana, aprende de todo lo que publica y se vuelve más preciso sobre tu negocio cuanto más tiempo corre.',
       cta: 'Contratar HayVista — Comenzar',
     },
     footer: {
