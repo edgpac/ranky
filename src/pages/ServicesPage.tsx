@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { services } from '../translations/services';
@@ -26,6 +27,60 @@ export default function ServicesPage() {
   const navigate = useNavigate();
   const { language } = useLanguage();
   const t = services[language];
+
+  useEffect(() => {
+    const schema = {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      name: 'HayVista Services',
+      description: 'Software development, GBP automation, and AI education services by HayVista Inc.',
+      url: 'https://hayvista.com/services',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          item: {
+            '@type': 'Service',
+            name: 'Google Business Profile Automation',
+            description: 'Three AI engines run in parallel — posts 3×/week, review replies, and Q&A answers — all drafted by Claude and held in a 24-hour review window before going live.',
+            provider: { '@type': 'Organization', name: 'HayVista', url: 'https://hayvista.com' },
+            offers: { '@type': 'Offer', price: '17.00', priceCurrency: 'USD', description: 'Monthly subscription — no contracts, cancel anytime' },
+            url: 'https://hayvista.com/signup',
+          },
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          item: {
+            '@type': 'Service',
+            name: 'Software & Consulting',
+            description: 'Web and mobile application development, cloud infrastructure, platform consulting, and IT guidance for businesses.',
+            provider: { '@type': 'Organization', name: 'HayVista', url: 'https://hayvista.com' },
+            url: 'https://hayvista.com/services',
+          },
+        },
+        {
+          '@type': 'ListItem',
+          position: 3,
+          item: {
+            '@type': 'Course',
+            name: 'Vibe Coding — Build Real Software with Claude Code',
+            description: 'Learn to build real software with Claude Code. From idea to deployed product. No prior coding experience required. Focused on local business automation.',
+            provider: { '@type': 'Organization', name: 'HayVista', url: 'https://hayvista.com' },
+            url: 'https://wa.me/526121698328',
+            courseMode: 'online',
+            inLanguage: ['en', 'es'],
+          },
+        },
+      ],
+    };
+    const el = document.createElement('script');
+    el.type = 'application/ld+json';
+    el.id = 'services-schema';
+    el.textContent = JSON.stringify(schema);
+    document.head.appendChild(el);
+    return () => { document.getElementById('services-schema')?.remove(); };
+  }, []);
 
   return (
     <div

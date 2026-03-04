@@ -1,6 +1,50 @@
+import { useEffect } from 'react';
 import SubPageLayout from '../components/SubPageLayout';
 
 export default function AboutPage() {
+  useEffect(() => {
+    const schema = {
+      '@context': 'https://schema.org',
+      '@type': 'HowTo',
+      name: 'How HayVista Automates Your Google Business Profile',
+      description: 'Three AI engines run in parallel to keep your Google Business Profile active, optimized, and fully managed — all for $17/month.',
+      url: 'https://hayvista.com/about',
+      supply: [{ '@type': 'HowToSupply', name: 'Verified Google Business Profile with photos and reviews' }],
+      step: [
+        {
+          '@type': 'HowToStep',
+          position: 1,
+          name: 'Post engine — Mon, Wed, Fri at 9 AM',
+          text: 'Claude reads that week\'s top search queries from Google Search Console, picks the most relevant photo using computer vision, and writes a GBP post grounded in your business memory and established brand tone. A 24-hour review window opens — edit, discard, or post immediately. Untouched: it goes live automatically.',
+        },
+        {
+          '@type': 'HowToStep',
+          position: 2,
+          name: 'Review engine — triggered on every new review',
+          text: 'The moment a customer review comes in, Claude drafts a tailored reply. It reads your business memory to match your brand tone and service references, mirrors the reviewer\'s sentiment, and weaves in location and service context for local SEO. A 24-hour reply window opens. Untouched: reply posts to Google automatically.',
+        },
+        {
+          '@type': 'HowToStep',
+          position: 3,
+          name: 'Q&A engine — scans every 6 hours',
+          text: 'Every 6 hours HayVista scans your Google Business Q&A for unanswered customer questions. Claude drafts answers grounded in your real services, business hours, and persistent business memory — so recurring questions get consistent, on-brand answers. Untouched: the answer posts automatically.',
+        },
+      ],
+      offers: {
+        '@type': 'Offer',
+        price: '17.00',
+        priceCurrency: 'USD',
+        description: 'Monthly subscription — no contracts, cancel anytime',
+      },
+    };
+    const el = document.createElement('script');
+    el.type = 'application/ld+json';
+    el.id = 'about-schema';
+    el.textContent = JSON.stringify(schema);
+    document.head.appendChild(el);
+    return () => { document.getElementById('about-schema')?.remove(); };
+  }, []);
+
   return (
     <SubPageLayout>
       <div className="max-w-3xl mx-auto px-6 py-16">
