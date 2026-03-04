@@ -443,6 +443,7 @@ export default function LandingPage() {
           <a href="/terms" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">{t.footer.terms}</a>
           <a href="/faq" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">FAQ</a>
           <a href="/about" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">About</a>
+          <a href="/services" style={{ color: 'rgba(255,255,255,0.45)' }} className="hover:underline">Services</a>
         </div>
       </footer>
     </div>

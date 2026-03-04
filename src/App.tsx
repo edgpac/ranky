@@ -8,6 +8,7 @@ import PrivacyPage from './pages/PrivacyPage';
 import TermsPage from './pages/TermsPage';
 import FaqPage from './pages/FaqPage';
 import AboutPage from './pages/AboutPage';
+import ServicesPage from './pages/ServicesPage';
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/faq" element={<FaqPage />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/services" element={<ServicesPage />} />
       </Routes>
     </BrowserRouter>
     </LanguageProvider>

@@ -13,6 +13,7 @@ export const app = {
       terms:     'Terms of Service',
       faq:       'FAQ',
       about:     'About',
+      services:  'Services',
     },
 
     // ─── Dashboard shell ──────────────────────────────────────────────────────
@@ -469,6 +470,7 @@ export const app = {
       terms:     'Términos de Servicio',
       faq:       'Preguntas Frecuentes',
       about:     'Acerca de',
+      services:  'Servicios',
     },
 
     dash: {
