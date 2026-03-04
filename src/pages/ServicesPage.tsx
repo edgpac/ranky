@@ -73,8 +73,8 @@ export default function ServicesPage() {
             {t.hero.badge}
           </div>
 
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold leading-tight max-w-4xl mb-5 sm:mb-6">
-            {t.hero.h1a}{' '}
+          <h1 className="flex flex-col items-center text-4xl sm:text-5xl md:text-7xl font-extrabold leading-tight max-w-4xl mb-5 sm:mb-6">
+            <span>{t.hero.h1a}</span>
             <span
               style={{
                 background: 'linear-gradient(90deg, #34d399, #4f8ef7)',
