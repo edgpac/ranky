@@ -304,6 +304,17 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
+            <p className="text-xs mt-4" style={{ color: 'var(--text-muted)' }}>
+              {t.why.gbpNote}{' '}
+              <a
+                href="https://business.google.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: 'var(--accent)', textDecoration: 'underline' }}
+              >
+                {t.why.gbpLink}
+              </a>
+            </p>
           </div>
         </div>
       </section>

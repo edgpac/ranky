@@ -27,6 +27,8 @@ export const landing = {
         { icon: '📅', label: 'Never misses a week', desc: 'Publishes up to 3× per week — within Google\'s limits' },
         { icon: '📧', label: 'Keeps you in the loop', desc: 'Weekly email recap of everything published' },
       ],
+      gbpNote: 'Requires a verified Google Business Profile.',
+      gbpLink: "Don't have one? Create it free →",
     },
     how: {
       label: 'HOW IT WORKS',
@@ -156,6 +158,8 @@ export const landing = {
         { icon: '📅', label: 'Nunca falta una semana', desc: 'Publica hasta 3× por semana — dentro de los límites de Google' },
         { icon: '📧', label: 'Te mantiene informado', desc: 'Resumen semanal por email de todo lo publicado' },
       ],
+      gbpNote: 'Requiere un Perfil de Negocio de Google verificado.',
+      gbpLink: '¿No tienes uno? Créalo gratis →',
     },
     how: {
       label: 'CÓMO FUNCIONA',
