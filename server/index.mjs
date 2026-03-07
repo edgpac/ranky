@@ -241,6 +241,22 @@ function getClientAuth(client) {
 // In-memory location cache — populated by permission-check, avoids repeated accounts.list calls
 const locationMemCache = new Map(); // clientId -> locationName
 
+// GBP response cache — prevents quota exhaustion (mybusiness API limits)
+const gbpCache = new Map(); // key: `${clientId}:${route}` -> { data, ts }
+const GBP_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+
+function getGbpCached(key) {
+  const entry = gbpCache.get(key);
+  if (entry && Date.now() - entry.ts < GBP_CACHE_TTL_MS) return entry.data;
+  return null;
+}
+function setGbpCached(key, data) {
+  gbpCache.set(key, { data, ts: Date.now() });
+}
+function invalidateGbpCache(clientId, route) {
+  gbpCache.delete(`${clientId}:${route}`);
+}
+
 // Per-client rate guard — prevents hammering accounts.list even if frontend retries or React StrictMode double-fires
 const lastGbpCallTime = new Map(); // clientId -> timestamp (ms)
 const GBP_CALL_COOLDOWN_MS = 65_000;
@@ -1177,6 +1193,9 @@ app.get('/api/reviews', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
     const client = rows[0];
+    const cacheKey = `${client.id}:reviews`;
+    const cached = getGbpCached(cacheKey);
+    if (cached) return res.json(cached);
     const auth = getClientAuth(client);
     const locationName = await ensureLocation(client);
     const mybusiness = google.mybusiness({ version: 'v4', auth });
@@ -1207,11 +1226,13 @@ app.get('/api/reviews', requireAuth, async (req, res) => {
       };
     });
 
-    res.json({
+    const reviewsPayload = {
       reviews: enriched,
       averageRating: reviewsRes.data.averageRating,
       totalReviewCount: reviewsRes.data.totalReviewCount,
-    });
+    };
+    setGbpCached(cacheKey, reviewsPayload);
+    res.json(reviewsPayload);
 
     // Background: generate drafts for unreplied reviews that don't have one yet
     const needsDraft = reviews.filter((r) => {
@@ -1295,6 +1316,7 @@ app.post('/api/reviews/pending-reply/:reviewId/post-now', requireAuth, async (re
       `UPDATE pending_replies SET status = 'posted' WHERE id = $1`,
       [pending.id]
     );
+    invalidateGbpCache(req.session.clientId, 'reviews');
     res.json({ ok: true });
     // Update memory with this reply in background
     const replyClient = { id: req.session.clientId, google_access_token: pending.google_access_token, google_refresh_token: pending.google_refresh_token, gbp_account_name: pending.gbp_account_name };
@@ -1334,6 +1356,9 @@ app.get('/api/insights', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
     const client = rows[0];
+    const insightsCacheKey = `${client.id}:insights`;
+    const cachedInsights = getGbpCached(insightsCacheKey);
+    if (cachedInsights) return res.json(cachedInsights);
     const auth = getClientAuth(client);
     const locationName = await ensureLocation(client);
     const accountName = locationName.split('/locations/')[0];
@@ -1384,7 +1409,9 @@ app.get('/api/insights', requireAuth, async (req, res) => {
       console.warn('GSC insights failed:', e.message);
     }
 
-    res.json({ insights: insightsData, gscQueries });
+    const insightsPayload = { insights: insightsData, gscQueries };
+    setGbpCached(insightsCacheKey, insightsPayload);
+    res.json(insightsPayload);
   } catch (err) {
     console.error('Insights error:', err);
     res.status(500).json({ error: 'An internal error occurred', insights: null, gscQueries: [] });
@@ -1397,6 +1424,9 @@ app.get('/api/photos', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
     const client = rows[0];
+    const photosCacheKey = `${client.id}:photos`;
+    const cachedPhotos = getGbpCached(photosCacheKey);
+    if (cachedPhotos) return res.json(cachedPhotos);
     const auth = getClientAuth(client);
     const locationName = await ensureLocation(client);
     const mybusiness = google.mybusiness({ version: 'v4', auth });
@@ -1419,7 +1449,9 @@ app.get('/api/photos', requireAuth, async (req, res) => {
       return { ...p, aiDescription: label.aiDescription || null, userDescription: label.userDescription || null };
     });
 
-    res.json({ photos: enriched });
+    const photosPayload = { photos: enriched };
+    setGbpCached(photosCacheKey, photosPayload);
+    res.json(photosPayload);
     // Trigger background Vision labeling without blocking the response
     const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
     setImmediate(() => labelPhotosInBackground(client, photos, bizLabel));
@@ -1601,6 +1633,7 @@ Return ONLY a JSON object, no markdown:
       },
     });
 
+    invalidateGbpCache(client.id, 'photos');
     res.json({ ok: true, url: publicUrl, meta });
 
     // 5. Auto-label the uploaded photo with Claude Vision (background, non-blocking)
