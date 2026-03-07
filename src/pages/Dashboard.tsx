@@ -334,21 +334,7 @@ function GbpGate({
               {isGuest ? dt.gateGuestSub : dt.gateAuthSub}
             </p>
           </div>
-          {isGuest ? (
-            <a
-              href="/signup"
-              className="text-sm font-semibold px-6 py-2.5 rounded-xl"
-              style={{
-                background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)',
-                color: '#fff',
-                border: '1px solid rgba(79,142,247,0.35)',
-                boxShadow: '0 0 24px rgba(79,142,247,0.25)',
-                textDecoration: 'none',
-              }}
-            >
-              {dt.connectGoogle}
-            </a>
-          ) : (
+          {!isGuest && (
             <a
               href="/auth/reauth"
               className="text-sm font-semibold px-6 py-2.5 rounded-xl"
@@ -575,41 +561,10 @@ export default function Dashboard() {
               {locationReady ? dt.gbpConnected : dt.apiPending}
             </div>
           )}
-          {isGuest ? (
-            <a
-              href="/signup"
-              className="text-sm font-semibold px-5 py-2 rounded-xl"
-              style={{
-                background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)',
-                color: '#fff',
-                textDecoration: 'none',
-                boxShadow: '0 0 20px rgba(79,142,247,0.3)',
-              }}
-            >
-              {dt.signInUp}
-            </a>
-          ) : (
-            <LogoutButton onClick={logout} />
-          )}
+          {!isGuest && <LogoutButton onClick={logout} />}
         </div>
       </header>
 
-      {/* ── Guest banner ─────────────────────────────────────────────── */}
-      {isGuest && (
-        <div
-          className="flex-shrink-0 flex items-center justify-center gap-2 py-2 text-xs font-medium"
-          style={{
-            background: 'rgba(79,142,247,0.08)',
-            borderBottom: '1px solid rgba(79,142,247,0.18)',
-            color: 'rgba(232,238,255,0.55)',
-          }}
-        >
-          <span>{dt.guestBanner}</span>
-          <a href="/signup" style={{ color: '#4f8ef7', textDecoration: 'none', fontWeight: 600 }}>
-            {dt.guestBannerLink}
-          </a>
-        </div>
-      )}
 
       {/* ── Category simulator (guest only) ──────────────────────────── */}
       {isGuest && (
@@ -752,24 +707,7 @@ export default function Dashboard() {
             />
           ) : tabNeedsGbp ? (
             <>
-              {isGuest && (
-                <div
-                  className="mb-5 flex items-center justify-between gap-4 px-4 py-3 rounded-xl"
-                  style={{ background: 'rgba(79,142,247,0.07)', border: '1px solid rgba(79,142,247,0.20)' }}
-                >
-                  <p className="text-xs" style={{ color: 'rgba(232,238,255,0.55)' }}>
-                    {dt.guestInlineBanner}
-                  </p>
-                  <a
-                    href="/signup"
-                    className="shrink-0 text-xs font-semibold px-4 py-1.5 rounded-lg"
-                    style={{ background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)', color: '#fff', textDecoration: 'none' }}
-                  >
-                    {dt.connectGoogle}
-                  </a>
-                </div>
-              )}
-              {activeTab === 'reviews'  && <ReviewsTab ready={locationReady} />}
+                  {activeTab === 'reviews'  && <ReviewsTab ready={locationReady} />}
               {activeTab === 'qa'       && <QATab ready={locationReady} />}
               {activeTab === 'photos'   && <PhotosTab ready={locationReady} />}
               {activeTab === 'insights' && <InsightsTab businessName={client?.business_name || ''} ready={locationReady} onNavigate={(tab) => setActiveTab(tab as Parameters<typeof setActiveTab>[0])} />}
