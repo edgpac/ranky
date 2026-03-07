@@ -317,7 +317,11 @@ export default function Dashboard() {
           setLocationReady(true);
           setConnectState('done');
         } else {
-          setTimeout(() => runPermissionCheck(), 3000);
+          // GBP account not saved yet — the OAuth background task may still be running.
+          // Poll /api/me every 15s instead of calling permission-check (which hits the
+          // rate-limited accounts.list endpoint). User can also click "Connect" manually.
+          setConnectState('waiting');
+          pollForGbpAccount();
         }
       })
       .catch(() => {
@@ -338,6 +342,32 @@ export default function Dashboard() {
     }, 1000);
   }
 
+  // Poll /api/me every 15s to pick up gbp_account_name saved by the OAuth background task.
+  // Stops after 10 attempts (~2.5 min) or when account is found.
+  function pollForGbpAccount(attempt = 0) {
+    if (attempt >= 10) return;
+    const tid = setTimeout(async () => {
+      try {
+        const r = await fetch('/api/me', { credentials: 'include' });
+        if (!r.ok) return;
+        const data = await r.json();
+        if (data.client?.gbp_account_name) {
+          setClient(data.client);
+          setLocationReady(true);
+          setConnectState('done');
+        } else {
+          pollForGbpAccount(attempt + 1);
+        }
+      } catch { /* silent */ }
+    }, 15_000);
+    // Cancel polling on unmount via requestIdRef increment
+    const capturedId = requestIdRef.current;
+    const originalCleanup = () => { if (requestIdRef.current !== capturedId) clearTimeout(tid); };
+    setTimeout(originalCleanup, 100);
+  }
+
+  // Manual trigger — called from the "Connect GBP" button in the UI.
+  // Only calls the rate-limited permission-check when the user explicitly asks.
   async function runPermissionCheck() {
     if (connectState === 'checking') return;
     const requestId = ++requestIdRef.current;
