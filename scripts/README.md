@@ -14,14 +14,15 @@ npx playwright install chromium
 
 ---
 
-## Starting Chrome with CDP (required before every script)
+## First run — sign in once
 
-```bash
-open -a "Google Chrome" --args --remote-debugging-port=9222
-```
+Scripts use Playwright's own Chromium with a persistent profile saved at `~/.hayvista-browser/`.
+No need to restart your main Chrome browser.
 
-Chrome must be running with this flag before any script will work.
-You only need to do this once per machine restart — leave that Chrome window open.
+**First time only:** run any script, a browser window will open. Sign into Google
+(hayvista@gmail.com), then the script will continue. Every run after that is already signed in.
+
+No CDP port, no `open -a "Google Chrome"` command needed.
 
 ---
 
