@@ -45,9 +45,9 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_REDIRECT_URI
 );
 
-// NOTE: business.manage is a restricted GBP scope that requires Google API access approval.
-// Re-add it once case 7-9537000040761 is approved: 'https://www.googleapis.com/auth/business.manage'
+// GBP write scope approved — case 6-4557000040809
 const SCOPES = [
+  'https://www.googleapis.com/auth/business.manage',
   'https://www.googleapis.com/auth/webmasters.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/userinfo.profile',
@@ -836,7 +836,30 @@ app.patch('/api/posts/:id', requireAuth, async (req, res) => {
       vals
     );
     if (!result.rows.length) return res.status(404).json({ error: 'Post not found' });
-    res.json({ post: result.rows[0] });
+    const post = result.rows[0];
+
+    // "Post Now" — attempt live GBP publish
+    if (status === 'approved') {
+      const { rows: [client] } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+      try {
+        const auth = getClientAuth(client);
+        const locationName = await ensureLocation(client);
+        const mybusiness = google.mybusiness({ version: 'v4', auth });
+        const requestBody = { languageCode: 'en-US', summary: post.post_text, topicType: 'STANDARD' };
+        if (post.photo_url) requestBody.media = [{ mediaFormat: 'PHOTO', sourceUrl: post.photo_url }];
+        await mybusiness.accounts.locations.localPosts.create({ parent: locationName, requestBody });
+        const { rows: [updated] } = await pool.query(
+          `UPDATE posts SET status = 'posted', posted_at = NOW() WHERE id = $1 RETURNING *`,
+          [post.id]
+        );
+        return res.json({ post: updated });
+      } catch (e) {
+        console.warn(`GBP post publish failed for post ${post.id}:`, e.message);
+        // Status stays 'approved' — visible in dashboard, won't retry automatically
+      }
+    }
+
+    res.json({ post });
   } catch (err) {
     res.status(500).json({ error: 'An internal error occurred' });
   }
@@ -2283,9 +2306,8 @@ async function sendWeeklyDigest() {
   }
 }
 
-// ── COMMENTED OUT — uncomment after Google API review is approved ──────────
-// cron.schedule('0 9 * * 1', sendWeeklyDigest, { timezone: 'America/Los_Angeles' });
-// Runs every Monday at 9am PT. One email per client showing the past 7 days of posts.
+// Weekly digest — every Monday at 9am PT
+cron.schedule('0 9 * * 1', sendWeeklyDigest, { timezone: 'America/Los_Angeles' });
 
 // ─── Cron ────────────────────────────────────────────────────
 cron.schedule('0 9 * * 1,3,5', async () => {
@@ -2353,34 +2375,67 @@ cron.schedule('0 */6 * * *', async () => {
   }
 });
 
-// ─── Hourly auto-approve cron ─────────────────────────────────
-// Posts that have passed their auto_approve_at window without being discarded
-// are automatically marked approved. Once GBP write scope is live, swap
-// status update here for a localPosts.create call to publish directly.
+// ─── Hourly auto-post cron ────────────────────────────────────
 cron.schedule('0 * * * *', async () => {
   try {
-    const { rows: posts } = await pool.query(
-      `UPDATE posts
-         SET status = 'approved', auto_approve_at = NULL
-       WHERE status = 'pending'
-         AND auto_approve_at IS NOT NULL
-         AND auto_approve_at <= NOW()
-       RETURNING id, client_id`
+    // ── Posts: publish to GBP then mark posted ─────────────────
+    const { rows: pendingPosts } = await pool.query(
+      `SELECT p.*, c.google_access_token, c.google_refresh_token, c.gbp_account_name, c.business_name
+       FROM posts p
+       JOIN clients c ON c.id = p.client_id
+       WHERE p.status = 'pending'
+         AND p.auto_approve_at IS NOT NULL
+         AND p.auto_approve_at <= NOW()`
     );
-    if (posts.length > 0) {
-      console.log(`⏰ Auto-approved ${posts.length} post(s):`, posts.map((r) => r.id).join(', '));
+    for (const row of pendingPosts) {
+      try {
+        const client = { id: row.client_id, google_access_token: row.google_access_token, google_refresh_token: row.google_refresh_token, gbp_account_name: row.gbp_account_name };
+        const auth = getClientAuth(client);
+        const locationName = await ensureLocation(client);
+        const mybusiness = google.mybusiness({ version: 'v4', auth });
+        const requestBody = { languageCode: 'en-US', summary: row.post_text, topicType: 'STANDARD' };
+        if (row.photo_url) requestBody.media = [{ mediaFormat: 'PHOTO', sourceUrl: row.photo_url }];
+        await mybusiness.accounts.locations.localPosts.create({ parent: locationName, requestBody });
+        await pool.query(`UPDATE posts SET status = 'posted', posted_at = NOW(), auto_approve_at = NULL WHERE id = $1`, [row.id]);
+        console.log(`⏰ Auto-posted GBP post ${row.id} for ${row.business_name}`);
+      } catch (e) {
+        console.warn(`⏰ Auto-post failed for post ${row.id} (${row.business_name}):`, e.message);
+        await pool.query(`UPDATE posts SET status = 'approved', auto_approve_at = NULL WHERE id = $1`, [row.id]);
+      }
     }
-    // Auto-approve Q&A answer drafts
-    const { rows: qa } = await pool.query(
-      `UPDATE qa_answers
-         SET status = 'approved', auto_approve_at = NULL
-       WHERE status = 'draft'
-         AND auto_approve_at IS NOT NULL
-         AND auto_approve_at <= NOW()
-       RETURNING id`
+    if (pendingPosts.length > 0) {
+      console.log(`⏰ Processed ${pendingPosts.length} auto-post job(s)`);
+    }
+
+    // ── Q&A: post answer to GBP then mark posted ───────────────
+    const { rows: pendingQA } = await pool.query(
+      `SELECT qa.*, c.google_access_token, c.google_refresh_token, c.gbp_account_name, c.business_name
+       FROM qa_answers qa
+       JOIN clients c ON c.id = qa.client_id
+       WHERE qa.status = 'draft'
+         AND qa.auto_approve_at IS NOT NULL
+         AND qa.auto_approve_at <= NOW()`
     );
-    if (qa.length > 0) {
-      console.log(`⏰ Auto-approved ${qa.length} Q&A answer(s):`, qa.map((r) => r.id).join(', '));
+    for (const row of pendingQA) {
+      try {
+        const client = { id: row.client_id, google_access_token: row.google_access_token, google_refresh_token: row.google_refresh_token, gbp_account_name: row.gbp_account_name };
+        const auth = getClientAuth(client);
+        const locationName = await ensureLocation(client);
+        const mybusiness = google.mybusiness({ version: 'v4', auth });
+        await mybusiness.accounts.locations.questions.answers.upsert({
+          parent: `${locationName}/questions/${row.question_id}`,
+          requestBody: { answer: { text: row.answer_text } },
+        });
+        await pool.query(`UPDATE qa_answers SET status = 'posted', auto_approve_at = NULL WHERE id = $1`, [row.id]);
+        console.log(`⏰ Auto-posted Q&A answer ${row.id} for ${row.business_name}`);
+        setImmediate(() => updateMemoryAfterQA({ id: row.client_id, google_access_token: row.google_access_token, google_refresh_token: row.google_refresh_token, gbp_account_name: row.gbp_account_name }, row.question_text, row.answer_text));
+      } catch (e) {
+        console.warn(`⏰ Auto-post failed for Q&A ${row.id} (${row.business_name}):`, e.message);
+        await pool.query(`UPDATE qa_answers SET status = 'approved', auto_approve_at = NULL WHERE id = $1`, [row.id]);
+      }
+    }
+    if (pendingQA.length > 0) {
+      console.log(`⏰ Processed ${pendingQA.length} auto-post Q&A job(s)`);
     }
     // Auto-post pending review replies whose timer has expired
     const { rows: pendingReplies } = await pool.query(
