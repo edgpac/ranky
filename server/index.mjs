@@ -46,8 +46,9 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 // GBP write scope approved — case 6-4557000040809
+// Temporarily removed to confirm 400 cause — restore once Google propagates scope addition
 const SCOPES = [
-  'https://www.googleapis.com/auth/business.manage',
+  // 'https://www.googleapis.com/auth/business.manage',
   'https://www.googleapis.com/auth/webmasters.readonly',
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/userinfo.profile',
