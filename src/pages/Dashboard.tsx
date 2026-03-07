@@ -400,23 +400,10 @@ export default function Dashboard() {
     }, 15_000);
   }
 
-  // Manual trigger — called from the "Connect GBP" button in the UI.
-  // Only calls the rate-limited permission-check when the user explicitly asks.
-  async function runPermissionCheck() {
-    if (connectState === 'checking') return;
-    const requestId = ++requestIdRef.current;
-    setConnectState('checking');
-    try {
-      const r = await fetch('/api/permission-check', { credentials: 'include' });
-      const d = await r.json();
-      if (requestId !== requestIdRef.current) return;
-      if (d.locationReady) { setLocationReady(true); setConnectState('done'); }
-      else if (d.ok === false) { setConnectState('error'); }
-      else { setConnectState('rate-limited'); startCooldown(d.cooldownSec ?? 70); }
-    } catch {
-      if (requestId !== requestIdRef.current) return;
-      setConnectState('error');
-    }
+  // Retry = go through OAuth again so accounts.list runs once during the callback.
+  // Never call /api/permission-check directly — that endpoint hits the quota endpoint.
+  function runPermissionCheck() {
+    window.location.href = '/auth/google';
   }
 
   const logout = () =>
