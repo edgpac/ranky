@@ -16,6 +16,10 @@
       "destination": "https://ranky-production.up.railway.app/api/:path*"
     },
     {
+      "source": "/auth/callback",
+      "destination": "/index.html"
+    },
+    {
       "source": "/auth/:path*",
       "destination": "https://ranky-production.up.railway.app/auth/:path*"
     },
