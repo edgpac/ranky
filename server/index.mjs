@@ -674,7 +674,6 @@ app.get('/auth/google/callback', async (req, res) => {
           console.log(`[oauth] GBP lookup skipped for client ${clientId} — checked within 5 min`);
           return;
         }
-        await pool.query('UPDATE clients SET last_gbp_check = NOW() WHERE id = $1', [clientId]);
         const accountMgmt = google.mybusinessaccountmanagement({ version: 'v1', auth: callbackClient });
         const accountsRes = await accountMgmt.accounts.list();
         const account = accountsRes.data.accounts?.[0];
@@ -683,6 +682,7 @@ app.get('/auth/google/callback', async (req, res) => {
           const locRes = await bizInfo.accounts.locations.list({ parent: account.name, readMask: 'name' });
           const loc = locRes.data.locations?.[0];
           if (loc) {
+            // Write timestamp only on success so a 429 failure doesn't lock out the next attempt
             await pool.query('UPDATE clients SET gbp_account_name = $1, last_gbp_check = NOW() WHERE id = $2', [loc.name, clientId]);
             locationMemCache.set(clientId, loc.name);
             console.log(`✅ GBP location cached at login for client ${clientId}:`, loc.name);
