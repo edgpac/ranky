@@ -1824,6 +1824,19 @@ app.get('/api/gbp-profile', requireAuth, async (req, res) => {
   }
 });
 
+// ─── Manual GBP location setup (bypasses accounts.list quota) ────────────────
+app.post('/api/gbp/set-location', requireAuth, async (req, res) => {
+  const { locationName } = req.body;
+  if (!locationName || !/^accounts\/\d+\/locations\/\d+$/.test(locationName.trim())) {
+    return res.status(400).json({ error: 'Invalid format. Expected: accounts/123456/locations/789012' });
+  }
+  const name = locationName.trim();
+  await pool.query('UPDATE clients SET gbp_account_name = $1 WHERE id = $2', [name, req.session.clientId]);
+  locationMemCache.set(req.session.clientId, name);
+  console.log(`✅ GBP location manually set for client ${req.session.clientId}:`, name);
+  res.json({ ok: true, gbp_account_name: name });
+});
+
 // ─── Social Links ─────────────────────────────────────────────
 
 const GBP_ATTR_MAP = {

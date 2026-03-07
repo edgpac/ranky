@@ -141,13 +141,38 @@ function GbpGate({
   cooldown,
   onRetry,
   isGuest,
+  onLocationSet,
 }: {
   connectState: string | null;
   cooldown: number;
   onRetry: () => void;
   isGuest?: boolean;
+  onLocationSet?: (name: string) => void;
 }) {
   const dt = useAppT().dash;
+  const [locationInput, setLocationInput] = useState('');
+  const [locationSaving, setLocationSaving] = useState(false);
+  const [locationError, setLocationError] = useState('');
+
+  async function saveLocation() {
+    const val = locationInput.trim();
+    if (!val) return;
+    setLocationSaving(true);
+    setLocationError('');
+    try {
+      const r = await fetch('/api/gbp/set-location', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locationName: val }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setLocationError(d.error || 'Invalid location name'); }
+      else { onLocationSet?.(d.gbp_account_name); }
+    } catch { setLocationError('Request failed — try again'); }
+    finally { setLocationSaving(false); }
+  }
+
   return (
     <div
       className="rounded-2xl p-12 flex flex-col items-center gap-6 text-center"
@@ -196,17 +221,55 @@ function GbpGate({
               {dt.gateWaitingSub}
             </p>
           </div>
+
+          {/* Manual paste — bypasses accounts.list quota */}
+          <div className="w-full max-w-sm flex flex-col gap-2">
+            <p className="text-xs font-semibold" style={{ color: 'rgba(232,238,255,0.55)' }}>
+              {dt.gatePasteLabel}
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={locationInput}
+                onChange={(e) => setLocationInput(e.target.value)}
+                placeholder="accounts/123456/locations/789012"
+                className="flex-1 text-xs px-3 py-2 rounded-lg outline-none"
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: 'rgba(232,238,255,0.85)',
+                  fontFamily: 'monospace',
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && saveLocation()}
+              />
+              <button
+                onClick={saveLocation}
+                disabled={locationSaving || !locationInput.trim()}
+                className="text-xs font-semibold px-4 py-2 rounded-lg disabled:opacity-40"
+                style={{
+                  background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)',
+                  color: '#fff',
+                  border: '1px solid rgba(79,142,247,0.30)',
+                  cursor: locationSaving || !locationInput.trim() ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {locationSaving ? '…' : dt.gateSave}
+              </button>
+            </div>
+            {locationError && (
+              <p className="text-xs" style={{ color: '#f87171' }}>{locationError}</p>
+            )}
+            <p className="text-xs" style={{ color: 'rgba(232,238,255,0.30)' }}>
+              {dt.gatePasteHint}
+            </p>
+          </div>
+
           <button
             onClick={onRetry}
-            className="text-sm font-semibold px-6 py-2.5 rounded-xl"
-            style={{
-              background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)',
-              color: '#fff',
-              border: '1px solid rgba(79,142,247,0.30)',
-              boxShadow: '0 0 24px rgba(79,142,247,0.30)',
-            }}
+            className="text-xs"
+            style={{ color: 'rgba(232,238,255,0.35)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
           >
-            {dt.gateRetry}
+            {dt.gateRetryOauth}
           </button>
         </>
       )}
@@ -676,7 +739,17 @@ export default function Dashboard() {
           {activeTab === 'memory' && !isGuest && <MemoryTab />}
 
           {tabNeedsGbp && !locationReady && !isGuest ? (
-            <GbpGate connectState={connectState} cooldown={cooldown} onRetry={runPermissionCheck} isGuest={isGuest} />
+            <GbpGate
+              connectState={connectState}
+              cooldown={cooldown}
+              onRetry={runPermissionCheck}
+              isGuest={isGuest}
+              onLocationSet={(name) => {
+                setClient((c) => c ? { ...c, gbp_account_name: name } as Client & { gbp_account_name: string } : c);
+                setLocationReady(true);
+                setConnectState('done');
+              }}
+            />
           ) : tabNeedsGbp ? (
             <>
               {isGuest && (
