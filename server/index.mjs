@@ -668,6 +668,16 @@ app.get('/auth/google/callback', async (req, res) => {
     // accounts.list for this user again. Non-blocking: redirect happens regardless.
     setImmediate(async () => {
       try {
+        // Skip if we already attempted within the last 5 minutes — prevents quota
+        // exhaustion when the user logs in multiple times in quick succession.
+        const { rows: fresh } = await pool.query('SELECT gbp_account_name, last_gbp_check FROM clients WHERE id = $1', [clientId]);
+        if (fresh[0]?.gbp_account_name) return; // already saved, nothing to do
+        const lastCheck = fresh[0]?.last_gbp_check ? new Date(fresh[0].last_gbp_check).getTime() : 0;
+        if (Date.now() - lastCheck < 5 * 60 * 1000) {
+          console.log(`[oauth] GBP lookup skipped for client ${clientId} — checked within 5 min`);
+          return;
+        }
+        await pool.query('UPDATE clients SET last_gbp_check = NOW() WHERE id = $1', [clientId]);
         const accountMgmt = google.mybusinessaccountmanagement({ version: 'v1', auth: callbackClient });
         const accountsRes = await accountMgmt.accounts.list();
         const account = accountsRes.data.accounts?.[0];

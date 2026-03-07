@@ -29,6 +29,8 @@ export const app = {
       // GBP Gate
       gateChecking:        'Connecting to your Google Business Profile',
       gateCheckingSub:     'Verifying your account access — just a moment.',
+      gateWaitingTitle:     'Setting up your Google Business Profile',
+      gateWaitingSub:      "Google's API has a per-minute limit. Wait 60 seconds, then click Retry — this only needs to succeed once.",
       gateRateLimited:     "Google's API is temporarily throttled",
       gateRateLimitedSub:  'Google limits how often we can verify your account. Once the countdown ends, hit retry.',
       gateRetryIn:         'Retry in',
@@ -484,6 +486,8 @@ export const app = {
       simulateNote:        'En producción, las secciones se obtienen dinámicamente de la API de GBP según la categoría del negocio conectado.',
       gateChecking:        'Conectando a tu Perfil de Negocio de Google',
       gateCheckingSub:     'Verificando el acceso a tu cuenta — un momento.',
+      gateWaitingTitle:     'Configurando tu Perfil de Negocio de Google',
+      gateWaitingSub:      'La API de Google tiene un límite por minuto. Espera 60 segundos y haz clic en Reintentar — solo necesita funcionar una vez.',
       gateRateLimited:     'La API de Google está temporalmente limitada',
       gateRateLimitedSub:  'Google limita la frecuencia con la que podemos verificar tu cuenta. Una vez que termine la cuenta regresiva, intenta de nuevo.',
       gateRetryIn:         'Reintentar en',
