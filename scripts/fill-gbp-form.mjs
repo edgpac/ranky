@@ -48,87 +48,58 @@ async function ensureSignedIn(page) {
 
 // ─── Quota / support form ─────────────────────────────────────────────────
 async function fillQuotaForm(page) {
-  // Try known URLs for the GBP API support form
-  const candidates = [
-    'https://support.google.com/business/contact/api',
-    'https://support.google.com/business/gethelp',
-    'https://developers.google.com/my-business/content/prereqs',
-  ];
-
-  let landed = false;
-  for (const url of candidates) {
-    console.log(`Trying: ${url}`);
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20000 });
-    await page.waitForTimeout(3000);
-    const is404 = await page.locator("text=can't be found").isVisible({ timeout: 1000 }).catch(() => false);
-    if (!is404) {
-      console.log('Form page found at:', url);
-      landed = true;
-      break;
-    }
-    console.log('  → 404, trying next...');
-  }
-
-  if (!landed) {
-    await page.screenshot({ path: './scripts/screenshots/form-notfound.png' });
-    console.log('\nCould not find the form. Screenshot at ./scripts/screenshots/form-notfound.png');
-    console.log('Go to the form manually in the browser and drop a screenshot in "For Claudes eyes".');
-    return;
-  }
-
+  console.log('Navigating to GBP Contact Us form...');
+  await page.goto('https://support.google.com/business/gethelp', {
+    waitUntil: 'domcontentloaded', timeout: 20000,
+  });
+  await page.waitForTimeout(3000);
   await page.screenshot({ path: './scripts/screenshots/form-start.png' });
   console.log('Start screenshot: ./scripts/screenshots/form-start.png');
 
-  // Change topic to "Application For Basic Access" if dropdown present
+  // Step 1: Select business from custom dropdown
   try {
-    const topicSelect = page.locator('select').first();
-    if (await topicSelect.isVisible({ timeout: 2000 })) {
-      const options = await topicSelect.locator('option').allTextContents();
-      console.log('Topic options:', options);
-      const basicAccess = options.find(o => /basic access/i.test(o));
-      if (basicAccess) {
-        await topicSelect.selectOption({ label: basicAccess });
-        console.log('Set topic to:', basicAccess);
+    const bizDropdown = page.locator('[aria-label*="business" i], [jsname], select').first();
+    if (await bizDropdown.isVisible({ timeout: 2000 })) {
+      await bizDropdown.click();
+      await page.waitForTimeout(1000);
+      // Click "Hay Vista" option if it appears
+      const hayVista = page.getByText('Hay Vista', { exact: false });
+      if (await hayVista.isVisible({ timeout: 2000 })) {
+        await hayVista.click();
+        console.log('Selected business: Hay Vista');
         await page.waitForTimeout(1000);
       }
     }
-  } catch { /* no dropdown */ }
+  } catch { console.warn('Could not select business dropdown'); }
 
-  await fillField(page, 'input[placeholder*="name" i], [name="name"]', FORM_DATA.name);
-  await fillField(page, 'input[type="email"], [name="email"]', FORM_DATA.email);
-  await fillField(page, 'input[placeholder*="company" i], [name*="company" i]', FORM_DATA.company);
-  await fillField(page, 'input[placeholder*="Project ID" i], [name*="project_id" i]', FORM_DATA.projectId);
-  await fillField(page, 'input[placeholder*="Project Number" i], [name*="project_number" i]', FORM_DATA.projectNumber);
-
-  // API dropdown
+  // Step 1: Fill the "Tell us what we can help with" text field
   try {
-    const apiSelect = page.locator('select').last();
-    if (await apiSelect.isVisible({ timeout: 2000 })) {
-      const opts = await apiSelect.locator('option').allTextContents();
-      console.log('API options:', opts);
-      const v4 = opts.find(o => /v4/i.test(o));
-      const acct = opts.find(o => /account/i.test(o));
-      if (v4) { await apiSelect.selectOption({ label: v4 }); console.log('Selected:', v4); }
-      else if (acct) { await apiSelect.selectOption({ label: acct }); console.log('Selected:', acct); }
+    const textarea = page.locator('textarea, [role="textbox"]').first();
+    if (await textarea.isVisible({ timeout: 2000 })) {
+      await textarea.click();
+      await textarea.fill('GBP API access request — need Application For Basic Access to Google My Business API v4.9 to manage posts, reviews, and photos for local businesses via HayVista SaaS platform.');
+      console.log('Filled help text');
+      await page.waitForTimeout(500);
     }
-  } catch { /* no dropdown */ }
+  } catch { console.warn('Could not fill help text'); }
 
-  await page.screenshot({ path: './scripts/screenshots/form-quota-filled.png' });
-  console.log('Filled screenshot: ./scripts/screenshots/form-quota-filled.png');
-
-  if (isDryRun) {
-    console.log('\n[DRY RUN] Form filled but NOT submitted. Check ./scripts/screenshots/form-quota-filled.png');
-    return;
-  }
-
-  const submitBtn = page.getByRole('button', { name: /submit/i });
-  if (await submitBtn.isVisible({ timeout: 2000 })) {
-    await submitBtn.click();
-    await page.waitForTimeout(3000);
-    await page.screenshot({ path: './scripts/screenshots/form-submitted.png' });
-    console.log('Submitted! Screenshot: ./scripts/screenshots/form-submitted.png');
+  // Click Next
+  const nextBtn = page.getByRole('button', { name: /next/i });
+  if (await nextBtn.isVisible({ timeout: 2000 })) {
+    await page.screenshot({ path: './scripts/screenshots/form-step1-filled.png' });
+    console.log('Step 1 filled: ./scripts/screenshots/form-step1-filled.png');
+    if (!isDryRun) {
+      await nextBtn.click();
+      await page.waitForTimeout(3000);
+      await page.screenshot({ path: './scripts/screenshots/form-step2.png' });
+      console.log('Step 2: ./scripts/screenshots/form-step2.png — drop in "For Claudes eyes" to continue');
+    } else {
+      console.log('\n[DRY RUN] Step 1 filled. Check ./scripts/screenshots/form-step1-filled.png');
+    }
   } else {
-    console.log('No submit button found. Check ./scripts/screenshots/form-quota-filled.png');
+    await page.screenshot({ path: './scripts/screenshots/form-quota-filled.png' });
+    console.log('Screenshot: ./scripts/screenshots/form-quota-filled.png');
+    if (isDryRun) console.log('[DRY RUN] Not submitted.');
   }
 }
 
