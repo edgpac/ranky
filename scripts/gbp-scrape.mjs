@@ -61,8 +61,8 @@ const jsonMatch = html.match(/"(accounts\/\d+\/locations\/\d+)"/);
 const locationName = apiPathMatch?.[0] || hrefMatch || jsonMatch?.[1] || null;
 const locationId = nUrlMatch || '15307649334467972155'; // fallback to known value
 
-await page.screenshot({ path: '/tmp/gbp-scrape.png' });
-console.log('Screenshot saved to /tmp/gbp-scrape.png');
+await page.screenshot({ path: './scripts/screenshots/gbp-scrape.png' });
+console.log('Screenshot saved to scripts/screenshots/gbp-scrape.png');
 
 if (locationName) {
   console.log('\nFOUND location name:', locationName);

@@ -70,14 +70,14 @@ async function fillQuotaForm(page) {
   }
 
   if (!landed) {
-    await page.screenshot({ path: '/tmp/form-notfound.png' });
-    console.log('\nCould not find the form. Screenshot at /tmp/form-notfound.png');
+    await page.screenshot({ path: './scripts/screenshots/form-notfound.png' });
+    console.log('\nCould not find the form. Screenshot at ./scripts/screenshots/form-notfound.png');
     console.log('Go to the form manually in the browser and drop a screenshot in "For Claudes eyes".');
     return;
   }
 
-  await page.screenshot({ path: '/tmp/form-start.png' });
-  console.log('Start screenshot: /tmp/form-start.png');
+  await page.screenshot({ path: './scripts/screenshots/form-start.png' });
+  console.log('Start screenshot: ./scripts/screenshots/form-start.png');
 
   // Change topic to "Application For Basic Access" if dropdown present
   try {
@@ -113,11 +113,11 @@ async function fillQuotaForm(page) {
     }
   } catch { /* no dropdown */ }
 
-  await page.screenshot({ path: '/tmp/form-quota-filled.png' });
-  console.log('Filled screenshot: /tmp/form-quota-filled.png');
+  await page.screenshot({ path: './scripts/screenshots/form-quota-filled.png' });
+  console.log('Filled screenshot: ./scripts/screenshots/form-quota-filled.png');
 
   if (isDryRun) {
-    console.log('\n[DRY RUN] Form filled but NOT submitted. Check /tmp/form-quota-filled.png');
+    console.log('\n[DRY RUN] Form filled but NOT submitted. Check ./scripts/screenshots/form-quota-filled.png');
     return;
   }
 
@@ -125,10 +125,10 @@ async function fillQuotaForm(page) {
   if (await submitBtn.isVisible({ timeout: 2000 })) {
     await submitBtn.click();
     await page.waitForTimeout(3000);
-    await page.screenshot({ path: '/tmp/form-submitted.png' });
-    console.log('Submitted! Screenshot: /tmp/form-submitted.png');
+    await page.screenshot({ path: './scripts/screenshots/form-submitted.png' });
+    console.log('Submitted! Screenshot: ./scripts/screenshots/form-submitted.png');
   } else {
-    console.log('No submit button found. Check /tmp/form-quota-filled.png');
+    console.log('No submit button found. Check ./scripts/screenshots/form-quota-filled.png');
   }
 }
 
@@ -139,8 +139,8 @@ async function fillAllowlistForm(page) {
     waitUntil: 'domcontentloaded', timeout: 30000,
   });
   await page.waitForTimeout(3000);
-  await page.screenshot({ path: '/tmp/form-allowlist.png' });
-  console.log('Screenshot: /tmp/form-allowlist.png — drop it in "For Claudes eyes" to see current step.');
+  await page.screenshot({ path: './scripts/screenshots/form-allowlist.png' });
+  console.log('Screenshot: ./scripts/screenshots/form-allowlist.png — drop it in "For Claudes eyes" to see current step.');
 
   // Click Confirm if present
   const confirmBtn = page.getByRole('button', { name: /confirm/i });
@@ -148,8 +148,8 @@ async function fillAllowlistForm(page) {
     console.log('Clicking Confirm...');
     await confirmBtn.click();
     await page.waitForTimeout(2000);
-    await page.screenshot({ path: '/tmp/form-allowlist-step2.png' });
-    console.log('Step 2 screenshot: /tmp/form-allowlist-step2.png');
+    await page.screenshot({ path: './scripts/screenshots/form-allowlist-step2.png' });
+    console.log('Step 2 screenshot: ./scripts/screenshots/form-allowlist-step2.png');
   }
 }
 

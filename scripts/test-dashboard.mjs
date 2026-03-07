@@ -33,7 +33,7 @@ try {
   await page.waitForTimeout(3000);
   const title = await page.title();
   log('Dashboard loads', 'ok', title);
-  await page.screenshot({ path: '/tmp/dash-home.png' });
+  await page.screenshot({ path: './scripts/screenshots/dash-home.png' });
 } catch (e) {
   log('Dashboard loads', 'fail', e.message);
 }
@@ -76,7 +76,7 @@ for (const tab of tabs) {
   try {
     await page.goto(`${BASE}/dashboard?tab=${tab}`, { waitUntil: 'domcontentloaded', timeout: 10000 });
     await page.waitForTimeout(1500);
-    await page.screenshot({ path: `/tmp/dash-tab-${tab}.png` });
+    await page.screenshot({ path: `./scripts/screenshots/dash-tab-${tab}.png` });
     log(`Tab: ${tab}`, 'ok', 'rendered');
   } catch (e) {
     log(`Tab: ${tab}`, 'fail', e.message);
@@ -92,6 +92,6 @@ if (failed.length > 0) {
   console.log('\nFailed:');
   failed.forEach(r => console.log(`  ❌ ${r.label}: ${r.detail}`));
 }
-console.log('\nScreenshots saved to /tmp/dash-*.png');
+console.log('\nScreenshots saved to ./scripts/screenshots/dash-*.png');
 
 await closeBrowser();

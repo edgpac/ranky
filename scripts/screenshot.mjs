@@ -17,7 +17,7 @@
 import { newPage, closeBrowser } from './connect.mjs';
 
 const url = process.argv[2];
-const out = process.argv[3] || `/tmp/screenshot-${Date.now()}.png`;
+const out = process.argv[3] || `./scripts/screenshots/screenshot-${Date.now()}.png`;
 
 if (!url) {
   console.error('Usage: node scripts/screenshot.mjs <url> [output-path]');
