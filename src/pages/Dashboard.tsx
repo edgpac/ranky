@@ -159,7 +159,7 @@ function GbpGate({
         boxShadow: '0 8px 40px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.09)',
       }}
     >
-      {(connectState === null || connectState === 'checking') && (
+      {(connectState === null || connectState === 'checking' || connectState === 'waiting') && (
         <>
           <div
             className="w-11 h-11 rounded-full border-[3px] animate-spin"
