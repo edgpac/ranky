@@ -839,22 +839,51 @@ app.get('/api/permission-check', requireAuth, async (req, res) => {
     lastGbpCallTime.set(clientId, Date.now());
 
     const auth = getClientAuth(client);
-    const accountMgmt = google.mybusinessaccountmanagement({ version: 'v1', auth });
-    const accountsRes = await accountMgmt.accounts.list();
-    const account = accountsRes.data.accounts?.[0];
-    console.log('✅ accounts.list succeeded, account:', account?.name);
+
+    // --- Try v1 mybusinessaccountmanagement first ---
+    let locationName = null;
+    try {
+      const accountMgmt = google.mybusinessaccountmanagement({ version: 'v1', auth });
+      const accountsRes = await accountMgmt.accounts.list();
+      const account = accountsRes.data.accounts?.[0];
+      console.log('✅ accounts.list (v1) succeeded, account:', account?.name);
+      if (account) {
+        const bizInfo = google.mybusinessbusinessinformation({ version: 'v1', auth });
+        const locRes = await bizInfo.accounts.locations.list({ parent: account.name, readMask: 'name' });
+        locationName = locRes.data.locations?.[0]?.name || null;
+      }
+    } catch (v1Err) {
+      const v1Msg = v1Err.message || '';
+      const isQuota = v1Err.status === 429 || v1Msg.includes('rateLimitExceeded') || v1Msg.includes('Quota exceeded') || v1Msg.includes('RESOURCE_EXHAUSTED');
+      console.warn('⚠️  accounts.list (v1) failed:', v1Err.status, v1Msg.slice(0, 80));
+
+      if (isQuota || v1Err.status === 403) {
+        // --- Fallback: try GBP v4 accounts.list ---
+        try {
+          const v4Accounts = await gbpV4Fetch(auth, 'GET', 'accounts');
+          const account = v4Accounts.accounts?.[0];
+          console.log('✅ accounts.list (v4 fallback) succeeded, account:', account?.name);
+          if (account) {
+            const v4Locs = await gbpV4Fetch(auth, 'GET', `${account.name}/locations`);
+            locationName = v4Locs.locations?.[0]?.name || null;
+            console.log('✅ locations.list (v4 fallback) locationName:', locationName);
+          }
+        } catch (v4Err) {
+          console.warn('⚠️  accounts.list (v4 fallback) failed:', v4Err.message?.slice(0, 120));
+          // Both APIs failed — surface as a quota/API-not-enabled error
+          if (!locationName) throw v1Err; // re-throw original for UI handling
+        }
+      } else {
+        throw v1Err;
+      }
+    }
 
     let locationReady = false;
-    if (account) {
-      const bizInfo = google.mybusinessbusinessinformation({ version: 'v1', auth });
-      const locRes = await bizInfo.accounts.locations.list({ parent: account.name, readMask: 'name' });
-      const loc = locRes.data.locations?.[0];
-      if (loc) {
-        await pool.query('UPDATE clients SET gbp_account_name = $1 WHERE id = $2', [loc.name, client.id]);
-        locationMemCache.set(client.id, loc.name);
-        console.log('✅ GBP location cached:', loc.name);
-        locationReady = true;
-      }
+    if (locationName) {
+      await pool.query('UPDATE clients SET gbp_account_name = $1 WHERE id = $2', [locationName, client.id]);
+      locationMemCache.set(client.id, locationName);
+      console.log('✅ GBP location cached:', locationName);
+      locationReady = true;
     }
     res.json({ ok: true, locationReady });
   } catch (err) {
