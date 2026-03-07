@@ -644,7 +644,10 @@ app.get('/auth/google/callback', async (req, res) => {
     ]);
     req.session.clientId = result.rows[0].id;
     req.session.pendingSignup = null;
-    res.redirect(`${process.env.FRONTEND_URL}/auth/callback`);
+    const jwtToken = jwt.sign({ clientId: result.rows[0].id }, process.env.SESSION_SECRET, { expiresIn: '30d' });
+    req.session.save(() => {
+      res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${jwtToken}`);
+    });
   } catch (err) {
     console.error('OAuth callback error:', err);
     res.redirect(`${process.env.FRONTEND_URL}/auth/callback?error=auth_failed`);

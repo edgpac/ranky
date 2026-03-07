@@ -14,6 +14,13 @@ export default function AuthCallback() {
       return;
     }
 
+    // Persist JWT from OAuth redirect so it survives the Vercel→Railway proxy gap
+    const token = params.get('token');
+    if (token) {
+      const maxAge = 30 * 24 * 60 * 60;
+      document.cookie = `hayvista_token=${token}; path=/; max-age=${maxAge}; secure; samesite=lax; domain=hayvista.com`;
+    }
+
     // Check subscription status — send unsubscribed users to Stripe, returning subscribers to dashboard
     (async () => {
       try {
