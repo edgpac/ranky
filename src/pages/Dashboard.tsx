@@ -159,7 +159,7 @@ function GbpGate({
         boxShadow: '0 8px 40px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.09)',
       }}
     >
-      {(connectState === null || connectState === 'checking' || connectState === 'waiting') && (
+      {(connectState === null || connectState === 'checking') && (
         <>
           <div
             className="w-11 h-11 rounded-full border-[3px] animate-spin"
@@ -173,6 +173,42 @@ function GbpGate({
               {dt.gateCheckingSub}
             </p>
           </div>
+        </>
+      )}
+
+      {connectState === 'waiting' && (
+        <>
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl"
+            style={{
+              background: 'rgba(79,142,247,0.10)',
+              border: '1px solid rgba(79,142,247,0.22)',
+              boxShadow: '0 0 20px rgba(79,142,247,0.12)',
+            }}
+          >
+            🔑
+          </div>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'rgba(232,238,255,0.92)' }}>
+              {dt.gateAuthTitle}
+            </p>
+            <p className="text-xs mt-1 max-w-sm" style={{ color: 'rgba(232,238,255,0.45)' }}>
+              {dt.gateAuthSub}
+            </p>
+          </div>
+          <a
+            href="/auth/google"
+            className="text-sm font-semibold px-6 py-2.5 rounded-xl"
+            style={{
+              background: 'linear-gradient(135deg, #4f8ef7, #7c5af7)',
+              color: '#fff',
+              border: '1px solid rgba(79,142,247,0.30)',
+              boxShadow: '0 0 24px rgba(79,142,247,0.30)',
+              textDecoration: 'none',
+            }}
+          >
+            {dt.connectGoogle}
+          </a>
         </>
       )}
 
@@ -343,14 +379,17 @@ export default function Dashboard() {
   }
 
   // Poll /api/me every 15s to pick up gbp_account_name saved by the OAuth background task.
-  // Stops after 10 attempts (~2.5 min) or when account is found.
+  // Stops after 10 attempts (~2.5 min), when account is found, or on unmount.
   function pollForGbpAccount(attempt = 0) {
     if (attempt >= 10) return;
-    const tid = setTimeout(async () => {
+    const capturedId = requestIdRef.current;
+    setTimeout(async () => {
+      if (requestIdRef.current !== capturedId) return; // unmounted
       try {
         const r = await fetch('/api/me', { credentials: 'include' });
         if (!r.ok) return;
         const data = await r.json();
+        if (requestIdRef.current !== capturedId) return; // unmounted
         if (data.client?.gbp_account_name) {
           setClient(data.client);
           setLocationReady(true);
@@ -360,10 +399,6 @@ export default function Dashboard() {
         }
       } catch { /* silent */ }
     }, 15_000);
-    // Cancel polling on unmount via requestIdRef increment
-    const capturedId = requestIdRef.current;
-    const originalCleanup = () => { if (requestIdRef.current !== capturedId) clearTimeout(tid); };
-    setTimeout(originalCleanup, 100);
   }
 
   // Manual trigger — called from the "Connect GBP" button in the UI.
