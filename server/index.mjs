@@ -238,6 +238,24 @@ function getClientAuth(client) {
   return auth;
 }
 
+/** Direct HTTP fetch to GBP v4 API — replaces removed google.mybusiness({ version: 'v4' }) client.
+ *  path: resource path relative to https://mybusiness.googleapis.com/v4/ e.g. "accounts/1/locations/2/reviews"
+ */
+async function gbpV4Fetch(auth, method, path, body) {
+  const { token } = await auth.getAccessToken();
+  const url = `https://mybusiness.googleapis.com/v4/${path}`;
+  const opts = {
+    method,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (res.status === 204 || res.status === 200 && res.headers.get('content-length') === '0') return {};
+  const text = await res.text();
+  if (!res.ok) throw new Error(`GBP v4 ${method} ${path} → ${res.status}: ${text.slice(0, 300)}`);
+  return text ? JSON.parse(text) : {};
+}
+
 // In-memory location cache — populated by permission-check, avoids repeated accounts.list calls
 const locationMemCache = new Map(); // clientId -> locationName
 
@@ -905,10 +923,9 @@ app.patch('/api/posts/:id', requireAuth, async (req, res) => {
       try {
         const auth = getClientAuth(client);
         const locationName = await ensureLocation(client);
-        const mybusiness = google.mybusiness({ version: 'v4', auth });
         const requestBody = { languageCode: 'en-US', summary: post.post_text, topicType: 'STANDARD' };
         if (post.photo_url) requestBody.media = [{ mediaFormat: 'PHOTO', sourceUrl: post.photo_url }];
-        await mybusiness.accounts.locations.localPosts.create({ parent: locationName, requestBody });
+        await gbpV4Fetch(auth, 'POST', `${locationName}/localPosts`, requestBody);
         const { rows: [updated] } = await pool.query(
           `UPDATE posts SET status = 'posted', posted_at = NOW() WHERE id = $1 RETURNING *`,
           [post.id]
@@ -984,13 +1001,12 @@ async function generatePostForClient(client, overridePostType) {
   let gbpServices = [];
   try {
     const locationName = await ensureLocation(client);
-    const [mediaRes, locRes] = await Promise.all([
-      google.mybusiness({ version: 'v4', auth })
-        .accounts.locations.media.list({ parent: locationName }),
+    const [mediaData, locRes] = await Promise.all([
+      gbpV4Fetch(auth, 'GET', `${locationName}/media`),
       google.mybusinessbusinessinformation({ version: 'v1', auth })
         .locations.get({ name: locationName, readMask: 'profile,serviceItems' }),
     ]);
-    photos = (mediaRes.data.mediaItems || []).filter((p) => p.mediaFormat === 'PHOTO' || !p.mediaFormat);
+    photos = (mediaData.mediaItems || []).filter((p) => p.mediaFormat === 'PHOTO' || !p.mediaFormat);
 
     // Load labels from DB (user_description preferred over ai_description)
     const photoSlice = photos.slice(0, 20);
@@ -1240,13 +1256,8 @@ app.get('/api/reviews', requireAuth, async (req, res) => {
     if (cached) return res.json(cached);
     const auth = getClientAuth(client);
     const locationName = await ensureLocation(client);
-    const mybusiness = google.mybusiness({ version: 'v4', auth });
-    const reviewsRes = await mybusiness.accounts.locations.reviews.list({
-      parent: locationName,
-      orderBy: 'updateTime desc',
-      pageSize: 50,
-    });
-    const reviews = reviewsRes.data.reviews || [];
+    const reviewsData = await gbpV4Fetch(auth, 'GET', `${locationName}/reviews?orderBy=updateTime+desc&pageSize=50`);
+    const reviews = reviewsData.reviews || [];
 
     // Load pending reply drafts for this client
     const { rows: pendingRows } = await pool.query(
@@ -1270,8 +1281,8 @@ app.get('/api/reviews', requireAuth, async (req, res) => {
 
     const reviewsPayload = {
       reviews: enriched,
-      averageRating: reviewsRes.data.averageRating,
-      totalReviewCount: reviewsRes.data.totalReviewCount,
+      averageRating: reviewsData.averageRating,
+      totalReviewCount: reviewsData.totalReviewCount,
     };
     setGbpCached(cacheKey, reviewsPayload);
     res.json(reviewsPayload);
@@ -1283,7 +1294,7 @@ app.get('/api/reviews', requireAuth, async (req, res) => {
       return !pendingMap[reviewId];
     });
     if (needsDraft.length > 0) {
-      setImmediate(() => generatePendingReplies(client, needsDraft, mybusiness));
+      setImmediate(() => generatePendingReplies(client, needsDraft, null));
     }
   } catch (err) {
     console.error('Reviews fetch error:', err);
@@ -1349,11 +1360,7 @@ app.post('/api/reviews/pending-reply/:reviewId/post-now', requireAuth, async (re
     const pending = rows[0];
     const client = { id: req.session.clientId, google_access_token: pending.google_access_token, google_refresh_token: pending.google_refresh_token, gbp_account_name: pending.gbp_account_name };
     const auth = getClientAuth(client);
-    const mybusiness = google.mybusiness({ version: 'v4', auth });
-    await mybusiness.accounts.locations.reviews.updateReply({
-      name: pending.review_name,
-      requestBody: { comment: pending.draft_text },
-    });
+    await gbpV4Fetch(auth, 'PUT', `${pending.review_name}/reply`, { comment: pending.draft_text });
     await pool.query(
       `UPDATE pending_replies SET status = 'posted' WHERE id = $1`,
       [pending.id]
@@ -1380,11 +1387,7 @@ app.post('/api/reviews/reply', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Review does not belong to your location' });
     }
     const auth = getClientAuth(client);
-    const mybusiness = google.mybusiness({ version: 'v4', auth });
-    await mybusiness.accounts.locations.reviews.updateReply({
-      name: reviewName,
-      requestBody: { comment: replyText.trim() },
-    });
+    await gbpV4Fetch(auth, 'PUT', `${reviewName}/reply`, { comment: replyText.trim() });
     res.json({ ok: true });
   } catch (err) {
     console.error('Post reply error:', err);
@@ -1404,34 +1407,29 @@ app.get('/api/insights', requireAuth, async (req, res) => {
     const auth = getClientAuth(client);
     const locationName = await ensureLocation(client);
     const accountName = locationName.split('/locations/')[0];
-    const mybusiness = google.mybusiness({ version: 'v4', auth });
 
     const endTime = new Date();
     const startTime = new Date(Date.now() - 28 * 86400000);
 
     let insightsData = null;
     try {
-      const insightsRes = await mybusiness.accounts.locations.reportInsights({
-        name: accountName,
-        requestBody: {
-          locationNames: [locationName],
-          basicRequest: {
-            metricRequests: [
-              { metric: 'QUERIES_DIRECT' },
-              { metric: 'QUERIES_INDIRECT' },
-              { metric: 'VIEWS_MAPS' },
-              { metric: 'VIEWS_SEARCH' },
-              { metric: 'ACTIONS_WEBSITE' },
-              { metric: 'ACTIONS_PHONE' },
-              { metric: 'ACTIONS_DRIVING_DIRECTIONS' },
-              { metric: 'PHOTOS_VIEWS_MERCHANT' },
-              { metric: 'PHOTOS_COUNT_MERCHANT' },
-            ],
-            timeRange: { startTime: startTime.toISOString(), endTime: endTime.toISOString() },
-          },
+      insightsData = await gbpV4Fetch(auth, 'POST', `${accountName}/locations:reportInsights`, {
+        locationNames: [locationName],
+        basicRequest: {
+          metricRequests: [
+            { metric: 'QUERIES_DIRECT' },
+            { metric: 'QUERIES_INDIRECT' },
+            { metric: 'VIEWS_MAPS' },
+            { metric: 'VIEWS_SEARCH' },
+            { metric: 'ACTIONS_WEBSITE' },
+            { metric: 'ACTIONS_PHONE' },
+            { metric: 'ACTIONS_DRIVING_DIRECTIONS' },
+            { metric: 'PHOTOS_VIEWS_MERCHANT' },
+            { metric: 'PHOTOS_COUNT_MERCHANT' },
+          ],
+          timeRange: { startTime: startTime.toISOString(), endTime: endTime.toISOString() },
         },
       });
-      insightsData = insightsRes.data;
     } catch (e) {
       console.warn('GBP insights failed:', e.message);
     }
@@ -1471,9 +1469,8 @@ app.get('/api/photos', requireAuth, async (req, res) => {
     if (cachedPhotos) return res.json(cachedPhotos);
     const auth = getClientAuth(client);
     const locationName = await ensureLocation(client);
-    const mybusiness = google.mybusiness({ version: 'v4', auth });
-    const mediaRes = await mybusiness.accounts.locations.media.list({ parent: locationName });
-    const photos = mediaRes.data.mediaItems || [];
+    const mediaData = await gbpV4Fetch(auth, 'GET', `${locationName}/media`);
+    const photos = mediaData.mediaItems || [];
 
     // Enrich each photo with AI + user labels from DB
     const urls = photos.map((p) => p.googleUrl || p.sourceUrl).filter(Boolean);
@@ -1539,12 +1536,7 @@ app.patch('/api/photos/label', requireAuth, async (req, res) => {
     if (media_name && trimmed) {
       try {
         const auth = getClientAuth(client);
-        const mybusiness = google.mybusiness({ version: 'v4', auth });
-        await mybusiness.accounts.locations.media.patch({
-          name: media_name,
-          updateMask: 'description',
-          requestBody: { description: trimmed },
-        });
+        await gbpV4Fetch(auth, 'PATCH', `${media_name}?updateMask=description`, { description: trimmed });
         gbpUpdated = true;
       } catch (e) {
         console.warn('GBP media.patch failed (non-fatal):', e.message);
@@ -1565,9 +1557,8 @@ app.get('/api/photos/debug', requireAuth, async (req, res) => {
     const client = rows[0];
     const auth = getClientAuth(client);
     const locationName = await ensureLocation(client);
-    const mybusiness = google.mybusiness({ version: 'v4', auth });
-    const mediaRes = await mybusiness.accounts.locations.media.list({ parent: locationName });
-    const all = (mediaRes.data.mediaItems || []).filter((p) => p.mediaFormat === 'PHOTO' || !p.mediaFormat);
+    const mediaData = await gbpV4Fetch(auth, 'GET', `${locationName}/media`);
+    const all = (mediaData.mediaItems || []).filter((p) => p.mediaFormat === 'PHOTO' || !p.mediaFormat);
     const photoSlice = all.slice(0, 20);
     const urls = photoSlice.map((p) => p.googleUrl || p.sourceUrl).filter(Boolean);
     let dbLabelMap = {};
@@ -1663,16 +1654,11 @@ Return ONLY a JSON object, no markdown:
     // 4. Upload to GBP
     const auth = getClientAuth(client);
     const locationName = await ensureLocation(client);
-    const mybusiness = google.mybusiness({ version: 'v4', auth });
-
-    await mybusiness.accounts.locations.media.create({
-      parent: locationName,
-      requestBody: {
-        mediaFormat: 'PHOTO',
-        locationAssociation: { category },
-        sourceUrl: publicUrl,
-        description: meta.description,
-      },
+    await gbpV4Fetch(auth, 'POST', `${locationName}/media`, {
+      mediaFormat: 'PHOTO',
+      locationAssociation: { category },
+      sourceUrl: publicUrl,
+      description: meta.description,
     });
 
     invalidateGbpCache(client.id, 'photos');
@@ -1707,9 +1693,8 @@ app.delete('/api/photos/:mediaName', requireAuth, async (req, res) => {
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
     const client = rows[0];
     const auth = getClientAuth(client);
-    const mybusiness = google.mybusiness({ version: 'v4', auth });
     const mediaName = decodeURIComponent(req.params.mediaName);
-    await mybusiness.accounts.locations.media.delete({ name: mediaName });
+    await gbpV4Fetch(auth, 'DELETE', mediaName);
     res.json({ ok: true });
   } catch (err) {
     console.error('Delete photo error:', err);
@@ -1951,15 +1936,11 @@ app.get('/api/qa', requireAuth, async (req, res) => {
     const { rows: [client] } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
     const auth = getClientAuth(client);
     const locationName = await ensureLocation(client);
-    const mybusiness = google.mybusiness({ version: 'v4', auth });
 
     let gbpQuestions = [];
     try {
-      const r = await mybusiness.accounts.locations.questions.list({
-        parent: locationName,
-        pageSize: 20,
-      });
-      gbpQuestions = r.data.questions || [];
+      const r = await gbpV4Fetch(auth, 'GET', `${locationName}/questions?pageSize=20`);
+      gbpQuestions = r.questions || [];
     } catch (e) {
       console.warn('Q&A GBP fetch failed:', e.message);
     }
@@ -2033,11 +2014,7 @@ app.post('/api/qa/answer', requireAuth, async (req, res) => {
     try {
       const auth = getClientAuth(client);
       const locationName = await ensureLocation(client);
-      const mybusiness = google.mybusiness({ version: 'v4', auth });
-      await mybusiness.accounts.locations.questions.answers.upsert({
-        parent: `${locationName}/questions/${qa.question_id}`,
-        requestBody: { answer: { text: qa.answer_text } },
-      });
+      await gbpV4Fetch(auth, 'POST', `${locationName}/questions/${qa.question_id}/answers:upsert`, { answer: { text: qa.answer_text } });
       gbpPosted = true;
     } catch (e) {
       console.warn('Q&A GBP post failed:', e.message);
@@ -2092,9 +2069,8 @@ app.get('/api/audit', requireAuth, async (req, res) => {
 
     // 1. Photos count
     try {
-      const mybusiness = google.mybusiness({ version: 'v4', auth });
-      const mediaRes = await mybusiness.accounts.locations.media.list({ parent: locationName, pageSize: 100 });
-      const count = (mediaRes.data.mediaItems || []).length;
+      const mediaData = await gbpV4Fetch(auth, 'GET', `${locationName}/media?pageSize=100`);
+      const count = (mediaData.mediaItems || []).length;
       if (count >= 10) {
         items.push({ id: 'photos', status: 'ok', title: `${count} photos`, message: 'Good — AI post generation has plenty of images to work with.', tab: 'photos' });
       } else if (count >= 5) {
@@ -2106,11 +2082,10 @@ app.get('/api/audit', requireAuth, async (req, res) => {
 
     // 2. Reviews: total count + avg rating + unanswered
     try {
-      const mybusiness = google.mybusiness({ version: 'v4', auth });
-      const reviewsRes = await mybusiness.accounts.locations.reviews.list({ parent: locationName, pageSize: 50 });
-      const reviews = reviewsRes.data.reviews || [];
-      const total = reviewsRes.data.totalReviewCount || reviews.length;
-      const avg = parseFloat(reviewsRes.data.averageRating) || 0;
+      const reviewsData = await gbpV4Fetch(auth, 'GET', `${locationName}/reviews?pageSize=50`);
+      const reviews = reviewsData.reviews || [];
+      const total = reviewsData.totalReviewCount || reviews.length;
+      const avg = parseFloat(reviewsData.averageRating) || 0;
       const unanswered = reviews.filter((r) => !r.reviewReply).length;
 
       if (total >= 10) {
@@ -2224,11 +2199,8 @@ app.get('/api/menu', requireAuth, async (req, res) => {
     if (client.business_type !== 'restaurant') return res.json({ menu: null });
     const auth = getClientAuth(client);
     const locationName = await ensureLocation(client);
-    const mybusiness = google.mybusiness({ version: 'v4', auth });
-    const menuRes = await mybusiness.accounts.locations.foodMenus.get({
-      name: `${locationName}/foodMenus`,
-    });
-    res.json({ menu: menuRes.data });
+    const menuData = await gbpV4Fetch(auth, 'GET', `${locationName}/foodMenus`);
+    res.json({ menu: menuData });
   } catch (err) {
     console.error('Menu fetch error:', err);
     res.status(500).json({ error: 'An internal error occurred', menu: null });
@@ -2428,9 +2400,8 @@ cron.schedule('0 */6 * * *', async () => {
       try {
         const auth = getClientAuth(client);
         const locationName = await ensureLocation(client);
-        const mybusiness = google.mybusiness({ version: 'v4', auth });
-        const r = await mybusiness.accounts.locations.questions.list({ parent: locationName, pageSize: 20 });
-        const questions = r.data.questions || [];
+        const r = await gbpV4Fetch(auth, 'GET', `${locationName}/questions?pageSize=20`);
+        const questions = r.questions || [];
         for (const q of questions) {
           const qId = q.name.split('/').pop();
           // Skip if already answered by business
@@ -2483,10 +2454,9 @@ cron.schedule('0 * * * *', async () => {
         const client = { id: row.client_id, google_access_token: row.google_access_token, google_refresh_token: row.google_refresh_token, gbp_account_name: row.gbp_account_name };
         const auth = getClientAuth(client);
         const locationName = await ensureLocation(client);
-        const mybusiness = google.mybusiness({ version: 'v4', auth });
         const requestBody = { languageCode: 'en-US', summary: row.post_text, topicType: 'STANDARD' };
         if (row.photo_url) requestBody.media = [{ mediaFormat: 'PHOTO', sourceUrl: row.photo_url }];
-        await mybusiness.accounts.locations.localPosts.create({ parent: locationName, requestBody });
+        await gbpV4Fetch(auth, 'POST', `${locationName}/localPosts`, requestBody);
         await pool.query(`UPDATE posts SET status = 'posted', posted_at = NOW(), auto_approve_at = NULL WHERE id = $1`, [row.id]);
         console.log(`⏰ Auto-posted GBP post ${row.id} for ${row.business_name}`);
       } catch (e) {
@@ -2512,11 +2482,7 @@ cron.schedule('0 * * * *', async () => {
         const client = { id: row.client_id, google_access_token: row.google_access_token, google_refresh_token: row.google_refresh_token, gbp_account_name: row.gbp_account_name };
         const auth = getClientAuth(client);
         const locationName = await ensureLocation(client);
-        const mybusiness = google.mybusiness({ version: 'v4', auth });
-        await mybusiness.accounts.locations.questions.answers.upsert({
-          parent: `${locationName}/questions/${row.question_id}`,
-          requestBody: { answer: { text: row.answer_text } },
-        });
+        await gbpV4Fetch(auth, 'POST', `${locationName}/questions/${row.question_id}/answers:upsert`, { answer: { text: row.answer_text } });
         await pool.query(`UPDATE qa_answers SET status = 'posted', auto_approve_at = NULL WHERE id = $1`, [row.id]);
         console.log(`⏰ Auto-posted Q&A answer ${row.id} for ${row.business_name}`);
         setImmediate(() => updateMemoryAfterQA({ id: row.client_id, google_access_token: row.google_access_token, google_refresh_token: row.google_refresh_token, gbp_account_name: row.gbp_account_name }, row.question_text, row.answer_text));
@@ -2539,11 +2505,7 @@ cron.schedule('0 * * * *', async () => {
       try {
         const client = { id: pending.client_id, google_access_token: pending.google_access_token, google_refresh_token: pending.google_refresh_token, gbp_account_name: pending.gbp_account_name };
         const auth = getClientAuth(client);
-        const mybusiness = google.mybusiness({ version: 'v4', auth });
-        await mybusiness.accounts.locations.reviews.updateReply({
-          name: pending.review_name,
-          requestBody: { comment: pending.draft_text },
-        });
+        await gbpV4Fetch(auth, 'PUT', `${pending.review_name}/reply`, { comment: pending.draft_text });
         await pool.query(`UPDATE pending_replies SET status = 'posted' WHERE id = $1`, [pending.id]);
         console.log(`⏰ Auto-posted reply for review ${pending.review_id} (${pending.business_name})`);
         const memClient = { id: pending.client_id, google_access_token: pending.google_access_token, google_refresh_token: pending.google_refresh_token, gbp_account_name: pending.gbp_account_name };
