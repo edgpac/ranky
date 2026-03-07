@@ -312,7 +312,13 @@ export default function Dashboard() {
         setPosts(data.posts || []);
         setProducts(data.products || []);
         setLoading(false);
-        setTimeout(() => runPermissionCheck(), 3000);
+        // If GBP is already linked, mark ready immediately — no round-trip to Google
+        if (data.client?.gbp_account_name) {
+          setLocationReady(true);
+          setConnectState('done');
+        } else {
+          setTimeout(() => runPermissionCheck(), 3000);
+        }
       })
       .catch(() => {
         setIsGuest(true);

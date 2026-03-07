@@ -260,6 +260,7 @@ function invalidateGbpCache(clientId, route) {
 // Per-client rate guard — prevents hammering accounts.list even if frontend retries or React StrictMode double-fires
 const lastGbpCallTime = new Map(); // clientId -> timestamp (ms)
 const GBP_CALL_COOLDOWN_MS = 65_000;
+const gbpInFlight = new Set(); // clientIds currently awaiting accounts.list — prevents race-condition double-fire
 
 // Returns cached location name. Throws with a clear message if not cached yet.
 // accounts.list is ONLY called from /api/permission-check to stay under rate limits.
@@ -754,31 +755,38 @@ function requireAuth(req, res, next) {
 
 // ─── Permission check (also seeds the location name into DB + memory cache) ───
 app.get('/api/permission-check', requireAuth, async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
-  const client = rows[0];
-
-  // If location already cached, skip the rate-limited API call entirely
-  if (client.gbp_account_name) {
-    locationMemCache.set(client.id, client.gbp_account_name);
-    return res.json({ ok: true, locationReady: true });
+  // Synchronous in-flight guard — Node.js is single-threaded so this check+add
+  // is atomic; prevents race-condition double-fire when React fires the effect twice.
+  const clientId = req.session.clientId;
+  if (gbpInFlight.has(clientId)) {
+    return res.json({ ok: true, locationReady: false, cooldownSec: 65 });
   }
-
-  // Backend rate guard — DB is source of truth, in-memory Map is fast-path cache
-  const now = Date.now();
-  const dbTime = client.last_gbp_check ? new Date(client.last_gbp_check).getTime() : 0;
-  const lastCall = Math.max(lastGbpCallTime.get(client.id) ?? 0, dbTime);
-  if (now - lastCall < GBP_CALL_COOLDOWN_MS) {
-    const remainingSec = Math.round((GBP_CALL_COOLDOWN_MS - (now - lastCall)) / 1000);
-    console.log(`⏳ Rate guard: blocking for client ${client.id} (${remainingSec}s remaining)`);
-    return res.json({ ok: true, locationReady: false, cooldownSec: remainingSec });
-  }
-
-  // Mark call time before hitting Google — extends window even if call fails
-  const stamp = new Date();
-  lastGbpCallTime.set(client.id, now);
-  pool.query('UPDATE clients SET last_gbp_check = $1 WHERE id = $2', [stamp, client.id]).catch(() => {});
-
+  gbpInFlight.add(clientId);
   try {
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [clientId]);
+    const client = rows[0];
+
+    // If location already cached, skip the rate-limited API call entirely
+    if (client.gbp_account_name) {
+      locationMemCache.set(client.id, client.gbp_account_name);
+      return res.json({ ok: true, locationReady: true });
+    }
+
+    // Backend rate guard — DB is source of truth, in-memory Map is fast-path cache
+    const now = Date.now();
+    const dbTime = client.last_gbp_check ? new Date(client.last_gbp_check).getTime() : 0;
+    const lastCall = Math.max(lastGbpCallTime.get(client.id) ?? 0, dbTime);
+    if (now - lastCall < GBP_CALL_COOLDOWN_MS) {
+      const remainingSec = Math.round((GBP_CALL_COOLDOWN_MS - (now - lastCall)) / 1000);
+      console.log(`⏳ Rate guard: blocking for client ${client.id} (${remainingSec}s remaining)`);
+      return res.json({ ok: true, locationReady: false, cooldownSec: remainingSec });
+    }
+
+    // Mark call time before hitting Google — extends window even if call fails
+    const stamp = new Date();
+    lastGbpCallTime.set(client.id, now);
+    pool.query('UPDATE clients SET last_gbp_check = $1 WHERE id = $2', [stamp, client.id]).catch(() => {});
+
     const auth = getClientAuth(client);
     const accountMgmt = google.mybusinessaccountmanagement({ version: 'v1', auth });
     const accountsRes = await accountMgmt.accounts.list();
@@ -802,7 +810,6 @@ app.get('/api/permission-check', requireAuth, async (req, res) => {
     const msg = err.message || '';
     const status = err.status || err.code || 0;
     console.error('🔴 Permission check failed:', status, msg.slice(0, 120));
-    // 429 = rate limited — permissions are fine but location can't be fetched yet
     if (status === 429 || msg.includes('rateLimitExceeded') || msg.includes('Quota exceeded')) {
       return res.json({ ok: true, locationReady: false });
     }
@@ -811,6 +818,8 @@ app.get('/api/permission-check', requireAuth, async (req, res) => {
     res.status(isPermission ? 403 : 500).json({
       ok: false, locationReady: false, error: msg, status, needsReauth: isPermission, apiNotEnabled: isNotEnabled,
     });
+  } finally {
+    gbpInFlight.delete(clientId);
   }
 });
 
