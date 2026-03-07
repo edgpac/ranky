@@ -659,9 +659,34 @@ app.get('/auth/google/callback', async (req, res) => {
       signup.postsPerWeek || 1,
       tokens.access_token, tokens.refresh_token,
     ]);
-    req.session.clientId = result.rows[0].id;
+    const clientId = result.rows[0].id;
+    req.session.clientId = clientId;
     req.session.pendingSignup = null;
-    const jwtToken = jwt.sign({ clientId: result.rows[0].id }, process.env.SESSION_SECRET, { expiresIn: '30d' });
+
+    // Eagerly fetch GBP account name during login — user just granted permissions,
+    // this is the ideal time. Saves to DB so permission-check never needs to call
+    // accounts.list for this user again. Non-blocking: redirect happens regardless.
+    setImmediate(async () => {
+      try {
+        const accountMgmt = google.mybusinessaccountmanagement({ version: 'v1', auth: callbackClient });
+        const accountsRes = await accountMgmt.accounts.list();
+        const account = accountsRes.data.accounts?.[0];
+        if (account) {
+          const bizInfo = google.mybusinessbusinessinformation({ version: 'v1', auth: callbackClient });
+          const locRes = await bizInfo.accounts.locations.list({ parent: account.name, readMask: 'name' });
+          const loc = locRes.data.locations?.[0];
+          if (loc) {
+            await pool.query('UPDATE clients SET gbp_account_name = $1, last_gbp_check = NOW() WHERE id = $2', [loc.name, clientId]);
+            locationMemCache.set(clientId, loc.name);
+            console.log(`✅ GBP location cached at login for client ${clientId}:`, loc.name);
+          }
+        }
+      } catch (e) {
+        console.warn(`[oauth] GBP account lookup failed for client ${clientId}:`, e.message);
+      }
+    });
+
+    const jwtToken = jwt.sign({ clientId }, process.env.SESSION_SECRET, { expiresIn: '30d' });
     req.session.save(() => {
       res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${jwtToken}`);
     });
