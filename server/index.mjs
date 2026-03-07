@@ -755,9 +755,8 @@ function requireAuth(req, res, next) {
 
 // ─── Permission check (also seeds the location name into DB + memory cache) ───
 app.get('/api/permission-check', requireAuth, async (req, res) => {
-  // Synchronous in-flight guard — Node.js is single-threaded so this check+add
-  // is atomic; prevents race-condition double-fire when React fires the effect twice.
   const clientId = req.session.clientId;
+  // In-process guard (single-instance, same event loop)
   if (gbpInFlight.has(clientId)) {
     return res.json({ ok: true, locationReady: false, cooldownSec: 65 });
   }
@@ -766,26 +765,28 @@ app.get('/api/permission-check', requireAuth, async (req, res) => {
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [clientId]);
     const client = rows[0];
 
-    // If location already cached, skip the rate-limited API call entirely
+    // If location already saved in DB, return immediately — never call accounts.list again
     if (client.gbp_account_name) {
       locationMemCache.set(client.id, client.gbp_account_name);
       return res.json({ ok: true, locationReady: true });
     }
 
-    // Backend rate guard — DB is source of truth, in-memory Map is fast-path cache
-    const now = Date.now();
-    const dbTime = client.last_gbp_check ? new Date(client.last_gbp_check).getTime() : 0;
-    const lastCall = Math.max(lastGbpCallTime.get(client.id) ?? 0, dbTime);
-    if (now - lastCall < GBP_CALL_COOLDOWN_MS) {
-      const remainingSec = Math.round((GBP_CALL_COOLDOWN_MS - (now - lastCall)) / 1000);
-      console.log(`⏳ Rate guard: blocking for client ${client.id} (${remainingSec}s remaining)`);
-      return res.json({ ok: true, locationReady: false, cooldownSec: remainingSec });
+    // Atomic DB-level rate guard — works across multiple Railway instances.
+    // UPDATE only succeeds if no recent call exists; acts as a distributed mutex.
+    const { rowCount } = await pool.query(
+      `UPDATE clients SET last_gbp_check = NOW()
+       WHERE id = $1 AND (last_gbp_check IS NULL OR last_gbp_check < NOW() - INTERVAL '65 seconds')`,
+      [clientId]
+    );
+    if (rowCount === 0) {
+      const { rows: fresh } = await pool.query('SELECT last_gbp_check FROM clients WHERE id = $1', [clientId]);
+      const lastMs = fresh[0]?.last_gbp_check ? new Date(fresh[0].last_gbp_check).getTime() : 0;
+      const remainingSec = Math.max(0, Math.round((lastMs + GBP_CALL_COOLDOWN_MS - Date.now()) / 1000));
+      console.log(`⏳ DB rate guard: blocking for client ${clientId} (${remainingSec}s remaining)`);
+      return res.json({ ok: true, locationReady: false, cooldownSec: remainingSec || 65 });
     }
-
-    // Mark call time before hitting Google — extends window even if call fails
-    const stamp = new Date();
-    lastGbpCallTime.set(client.id, now);
-    pool.query('UPDATE clients SET last_gbp_check = $1 WHERE id = $2', [stamp, client.id]).catch(() => {});
+    // Also update in-memory map for fast-path on same instance
+    lastGbpCallTime.set(clientId, Date.now());
 
     const auth = getClientAuth(client);
     const accountMgmt = google.mybusinessaccountmanagement({ version: 'v1', auth });
