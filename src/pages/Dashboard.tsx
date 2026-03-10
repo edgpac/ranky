@@ -12,6 +12,7 @@ import BookingsTab from '../components/tabs/BookingsTab';
 import QATab from '../components/tabs/QATab';
 import GetReviewsTab from '../components/tabs/GetReviewsTab';
 import MemoryTab from '../components/tabs/MemoryTab';
+import OwnerStudioTab from '../components/tabs/OwnerStudioTab';
 
 interface Post {
   id: number;
@@ -33,6 +34,7 @@ interface Client {
   subscription_status: string;
   whatsapp?: string;
   review_link?: string;
+  isOwner?: boolean;
 }
 
 interface Product {
@@ -55,6 +57,7 @@ const TABS = [
   { id: 'bookings' },
   { id: 'getreviews' },
   { id: 'memory' },
+  { id: 'owner' },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -71,6 +74,7 @@ const TAB_ICONS: Record<TabId, React.ReactNode> = {
   bookings:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
   getreviews: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>,
   memory:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><circle cx="18" cy="4" r="3" fill="currentColor" stroke="none" opacity="0.5"/></svg>,
+  owner:      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
 };
 
 const SECTIONS_BY_CATEGORY: Record<string, TabId[]> = {
@@ -625,7 +629,7 @@ export default function Dashboard() {
           className="flex items-end gap-0.5 px-5 pt-2"
           style={{ overflowX: 'auto', scrollbarWidth: 'none' }}
         >
-          {(isGuest ? SECTIONS_BY_CATEGORY[demoCategory] ?? TABS.map(tab => tab.id) : TABS.map(tab => tab.id)).map((tabId) => {
+          {(isGuest ? SECTIONS_BY_CATEGORY[demoCategory] ?? TABS.map(tab => tab.id) : TABS.map(tab => tab.id).filter(id => id !== 'owner' || client?.isOwner)).map((tabId) => {
             const isActive = activeTab === tabId;
             return (
               <button
@@ -692,6 +696,7 @@ export default function Dashboard() {
             />
           )}
           {activeTab === 'memory' && !isGuest && <MemoryTab />}
+          {activeTab === 'owner' && client?.isOwner && <OwnerStudioTab />}
 
           {tabNeedsGbp && !locationReady && !isGuest ? (
             <GbpGate

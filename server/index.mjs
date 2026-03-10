@@ -957,11 +957,119 @@ const SAFE_CLIENT_COLUMNS = `id, email, name, business_name, whatsapp, tone, bus
   posts_per_week, subscription_status, review_link, city, social_links,
   gbp_account_name, created_at`;
 
+const OWNER_EMAIL = 'hayvista@gmail.com';
+
 app.get('/api/me', requireAuth, async (req, res) => {
   const client = await pool.query(`SELECT ${SAFE_CLIENT_COLUMNS} FROM clients WHERE id = $1`, [req.session.clientId]);
   const posts = await pool.query('SELECT * FROM posts WHERE client_id = $1 ORDER BY posted_at DESC LIMIT 20', [req.session.clientId]);
   const products = await pool.query('SELECT * FROM products WHERE client_id = $1 ORDER BY created_at ASC', [req.session.clientId]);
-  res.json({ client: client.rows[0], posts: posts.rows, products: products.rows });
+  const row = client.rows[0];
+  res.json({ client: { ...row, isOwner: row?.email === OWNER_EMAIL }, posts: posts.rows, products: products.rows });
+});
+
+// ─── Owner-only middleware ────────────────────────────────────────────────────
+async function requireOwner(req, res, next) {
+  if (!req.session?.clientId) return res.status(401).json({ error: 'Unauthorized' });
+  const { rows } = await pool.query('SELECT email FROM clients WHERE id = $1', [req.session.clientId]);
+  if (!rows.length || rows[0].email !== OWNER_EMAIL) return res.status(403).json({ error: 'Forbidden' });
+  next();
+}
+
+// ─── Owner: process image ─────────────────────────────────────────────────────
+app.post('/api/owner/process-image', requireOwner, upload.single('photo'), async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const client = rows[0];
+    const category = req.body.category || 'EXTERIOR';
+    const manualCaption = req.body.caption || '';
+    const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
+
+    // 1. Claude Vision — describe the photo
+    let aiCaption = '';
+    try {
+      const base64 = req.file.buffer.toString('base64');
+      const mimeType = req.file.mimetype || 'image/jpeg';
+      aiCaption = await describePhotoWithVision(base64, mimeType, client.business_name, bizLabel);
+    } catch (e) {
+      console.warn('[owner] Vision failed:', e.message);
+    }
+    const finalCaption = manualCaption || aiCaption;
+
+    // 2. Claude — generate full SEO metadata
+    let meta = {
+      title: `${client.business_name} - ${category.toLowerCase()}`,
+      description: finalCaption || `${category} photo from ${client.business_name}`,
+      keywords: [client.business_name, bizLabel, category.toLowerCase()],
+    };
+    try {
+      const metaPrompt = `Generate SEO metadata for a GBP photo.
+Business: ${client.business_name} (${bizLabel})
+Category: ${category}
+AI caption: "${finalCaption}"
+Return ONLY JSON: {"title":"<60 chars","description":"<150 chars","keywords":["k1","k2","k3","k4","k5"]}`;
+      const raw = await callClaude('Return only valid JSON, no explanation.', [{ role: 'user', content: metaPrompt }], 300);
+      meta = { ...meta, ...JSON.parse(raw.replace(/```json|```/g, '').trim()) };
+    } catch (e) {
+      console.warn('[owner] Meta generation failed:', e.message);
+    }
+
+    // 3. Geocode if needed
+    geocodeClientIfNeeded(client);
+    const lat = client.lat ? parseFloat(client.lat) : null;
+    const lng = client.lng ? parseFloat(client.lng) : null;
+
+    const gpsExif = (lat && lng) ? {
+      GPS: {
+        GPSLatitudeRef: lat >= 0 ? 'N' : 'S',
+        GPSLatitude: decimalToGpsRational(lat),
+        GPSLongitudeRef: lng >= 0 ? 'E' : 'W',
+        GPSLongitude: decimalToGpsRational(lng),
+        GPSVersionID: '2300',
+      },
+    } : {};
+
+    // 4. Process with Sharp — inject all EXIF + GPS
+    const filename = seoFilename(client.business_name, category);
+    const outputPath = join(UPLOADS_DIR, filename);
+
+    await sharp(req.file.buffer)
+      .jpeg({ quality: 92 })
+      .withMetadata({
+        exif: {
+          IFD0: {
+            ImageDescription: meta.description,
+            Artist: client.business_name,
+            Copyright: `© ${new Date().getFullYear()} ${client.business_name}`,
+            XPTitle: Buffer.from(meta.title + '\0', 'ucs2'),
+            XPComment: Buffer.from(meta.description + '\0', 'ucs2'),
+            XPKeywords: Buffer.from(meta.keywords.join(';') + '\0', 'ucs2'),
+          },
+          ...gpsExif,
+        },
+      })
+      .toFile(outputPath);
+
+    const backendUrl = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+    const publicUrl = `${backendUrl}/uploads/${filename}`;
+
+    res.json({
+      ok: true,
+      filename,
+      downloadUrl: publicUrl,
+      meta: {
+        title: meta.title,
+        description: meta.description,
+        keywords: meta.keywords,
+        aiCaption,
+        category,
+        gpsInjected: !!(lat && lng),
+        lat, lng,
+      },
+    });
+  } catch (err) {
+    console.error('[owner] process-image error:', err);
+    res.status(500).json({ error: 'Processing failed' });
+  }
 });
 
 // ─── Posts ────────────────────────────────────────────────────
@@ -1043,6 +1151,19 @@ app.post('/api/generate-post', requireAuth, async (req, res) => {
   }
 });
 
+// Owner Studio — generate a post draft without saving it (copy/paste into GBP manually)
+app.post('/api/posts/generate-draft', requireOwner, async (req, res) => {
+  try {
+    const topic = typeof req.body?.topic === 'string' ? req.body.topic.trim().slice(0, 200) : '';
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const post = await generatePostForClient(rows[0], undefined, topic || undefined);
+    res.json({ post });
+  } catch (err) {
+    console.error('Generate draft error:', err);
+    res.status(500).json({ error: 'An internal error occurred' });
+  }
+});
+
 // Rotate post type: Mon=OFFER, Wed=STANDARD, Fri=EVENT
 function resolvePostType() {
   const day = new Date().getDay(); // 0=Sun,1=Mon,...,5=Fri
@@ -1051,7 +1172,7 @@ function resolvePostType() {
   return 'standard';
 }
 
-async function generatePostForClient(client, overridePostType) {
+async function generatePostForClient(client, overridePostType, overrideTopic) {
   const postType = overridePostType || resolvePostType();
   const auth = getClientAuth(client);
 
@@ -1187,7 +1308,11 @@ Rules:
 
 Post type instruction: ${postTypeNote}`;
 
-  const userPrompt = `Write a GBP post for ${client.business_name}, a ${bizLabel} in ${city}. The most searched local query this week is: "${topQuery}". Build the post around this search intent naturally.`;
+  const topicClause = overrideTopic
+    ? `Focus specifically on this topic: "${overrideTopic}".`
+    : `The most searched local query this week is: "${topQuery}". Build the post around this search intent naturally.`;
+
+  const userPrompt = `Write a GBP post for ${client.business_name}, a ${bizLabel} in ${city}. ${topicClause}`;
 
   const postText = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 500);
 
