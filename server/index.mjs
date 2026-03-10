@@ -135,6 +135,8 @@ async function initDB() {
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS review_link TEXT`);
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS city TEXT DEFAULT ''`);
   await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS social_links JSONB DEFAULT '{}'`);
+  await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS lat DECIMAL`);
+  await pool.query(`ALTER TABLE clients ADD COLUMN IF NOT EXISTS lng DECIMAL`);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS products (
       id SERIAL PRIMARY KEY,
@@ -254,6 +256,53 @@ async function gbpV4Fetch(auth, method, path, body) {
   const text = await res.text();
   if (!res.ok) throw new Error(`GBP v4 ${method} ${path} → ${res.status}: ${text.slice(0, 300)}`);
   return text ? JSON.parse(text) : {};
+}
+
+// ─── Photo helpers ────────────────────────────────────────────────────────────
+
+/** Geocode a business name + city using Nominatim (OpenStreetMap). No API key needed.
+ *  Returns { lat, lng } or null on failure. */
+async function geocodeNominatim(businessName, city) {
+  try {
+    const q = encodeURIComponent(`${businessName} ${city}`.trim());
+    const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'HayVista/1.0 (hayvista@gmail.com)' } });
+    const data = await res.json();
+    if (data?.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    }
+  } catch (e) {
+    console.warn('[geo] Nominatim geocoding failed:', e.message);
+  }
+  return null;
+}
+
+/** Trigger background geocoding for a client if lat/lng not yet set. */
+function geocodeClientIfNeeded(client) {
+  if (client.lat && client.lng) return;
+  if (!client.city && !client.business_name) return;
+  setImmediate(async () => {
+    const coords = await geocodeNominatim(client.business_name || '', client.city || '');
+    if (coords) {
+      await pool.query('UPDATE clients SET lat = $1, lng = $2 WHERE id = $3', [coords.lat, coords.lng, client.id]);
+      console.log(`[geo] geocoded client ${client.id} (${client.business_name}): ${coords.lat}, ${coords.lng}`);
+    }
+  });
+}
+
+/** Convert decimal degrees to GPS rational format [[deg,1],[min,1],[sec*100,100]] */
+function decimalToGpsRational(decimal) {
+  const d = Math.floor(Math.abs(decimal));
+  const mDecimal = (Math.abs(decimal) - d) * 60;
+  const m = Math.floor(mDecimal);
+  const s = Math.round((mDecimal - m) * 60 * 100);
+  return [[d, 1], [m, 1], [s, 100]];
+}
+
+/** Build SEO-friendly filename from business name + category. */
+function seoFilename(businessName, category) {
+  const slug = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  return `${slug(businessName)}-${slug(category)}-${Date.now()}.jpg`;
 }
 
 // In-memory location cache — populated by permission-check, avoids repeated accounts.list calls
@@ -1656,9 +1705,22 @@ Return ONLY a JSON object, no markdown:
       console.warn('Meta generation failed, using defaults:', e.message);
     }
 
-    // 2. Inject EXIF metadata with Sharp
-    const filename = `${Date.now()}-photo.jpg`;
+    // 2. Inject EXIF metadata with Sharp (SEO filename + GPS if available)
+    const filename = seoFilename(client.business_name, category);
     const outputPath = join(UPLOADS_DIR, filename);
+
+    // Trigger background geocoding if client has no coords yet
+    geocodeClientIfNeeded(client);
+
+    const gpsExif = (client.lat && client.lng) ? {
+      GPS: {
+        GPSLatitudeRef: client.lat >= 0 ? 'N' : 'S',
+        GPSLatitude: decimalToGpsRational(client.lat),
+        GPSLongitudeRef: client.lng >= 0 ? 'E' : 'W',
+        GPSLongitude: decimalToGpsRational(client.lng),
+        GPSVersionID: '2300',
+      },
+    } : {};
 
     await sharp(req.file.buffer)
       .jpeg({ quality: 88 })
@@ -1672,6 +1734,7 @@ Return ONLY a JSON object, no markdown:
             XPComment: Buffer.from(meta.description + '\0', 'ucs2'),
             XPKeywords: Buffer.from(meta.keywords.join(';') + '\0', 'ucs2'),
           },
+          ...gpsExif,
         },
       })
       .toFile(outputPath);
