@@ -122,6 +122,24 @@ export default function AboutPage() {
           </div>
         </section>
 
+        {/* Company */}
+        <section className="mb-14">
+          <h2 className="text-lg font-semibold text-slate-900 mb-4">Company</h2>
+          <div className="rounded-xl border border-slate-100 bg-slate-50 px-5 py-5 flex flex-col gap-3 text-sm text-slate-600 leading-relaxed">
+            <p>
+              HayVista is an independent SaaS company building AI automation tools for local businesses. We use the Google Business Profile API under strict compliance with Google's API Services User Data Policy and Limited Use requirements — accessing only the authenticated user's own Business Profile, and only to perform actions they explicitly authorize.
+            </p>
+            <p>
+              HayVista is registered and operated in the United States.
+            </p>
+            <div className="flex flex-col gap-1 text-xs text-slate-500 mt-1">
+              <span>Contact: <a href="mailto:hayvista@gmail.com" className="text-blue-600 hover:underline">hayvista@gmail.com</a></span>
+              <span>Website: <a href="https://hayvista.com" className="text-blue-600 hover:underline">hayvista.com</a></span>
+              <span>Privacy Policy: <a href="/privacy" className="text-blue-600 hover:underline">hayvista.com/privacy</a></span>
+            </div>
+          </div>
+        </section>
+
         {/* CTA */}
         <section className="border-t border-gray-100 pt-10 flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div>
@@ -129,7 +147,7 @@ export default function AboutPage() {
             <p className="text-xs text-slate-500">Connect once. HayVista handles posts, reviews, and Q&A — and gets smarter about your business every week.</p>
           </div>
           <a
-            href="/signup"
+            href="/dashboard"
             style={{
               background: '#4f8ef7', color: '#fff', borderRadius: '0.625rem',
               padding: '0.5rem 1.25rem', fontSize: '0.875rem', fontWeight: 600,

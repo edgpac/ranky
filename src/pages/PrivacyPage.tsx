@@ -65,7 +65,7 @@ export default function PrivacyPage() {
               )}
 
               {/* Contact section */}
-              {sec.title.startsWith('7') && (
+              {(sec.title.startsWith('7') || sec.title.startsWith('8')) && (
                 <p>
                   {sec.body}{' '}
                   <a href="mailto:hayvista@gmail.com" className="text-blue-600 hover:underline">
