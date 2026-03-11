@@ -208,7 +208,7 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
 
     const form = new FormData();
     form.append('postType', postType);
-    answers.forEach((a) => form.append('contextAnswers[]', a));
+    answers.forEach((a) => form.append('contextAnswers', a));
     if (seoKeyword) form.append('seoKeyword', seoKeyword);
     if (imageFile) form.append('image', imageFile);
 
