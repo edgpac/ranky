@@ -593,7 +593,8 @@ export default function Dashboard() {
 
       {/* ── Mode status bar (authenticated, API pending) ──────────────── */}
       {!isGuest && !locationReady && (() => {
-        const autoFeatures: { label: string; tab?: TabId }[] = [
+        const autoFeatures: { label: string; tab?: TabId; sectionLabel?: boolean }[] = [
+          { label: 'Profile & Auto', sectionLabel: true },
           { label: 'Edit Profile', tab: 'profile' },
           { label: 'Reviews', tab: 'reviews' },
           { label: 'Q&A', tab: 'qa' },
@@ -605,76 +606,81 @@ export default function Dashboard() {
           { label: 'Messaging', tab: 'bookings' },
           { label: 'Get Reviews', tab: 'getreviews' },
           { label: 'AI Memory', tab: 'memory' },
-          { label: 'Owner Studio ⏳', tab: 'owner' },
+          { label: 'Owner Studio', tab: 'owner' },
         ];
-        const manualFeatures: { label: string; tab?: TabId }[] = [
-          { label: 'AI Tools' },
+        const manualFeatures: { label: string; tab?: TabId; sectionLabel?: boolean }[] = [
+          { label: 'AI Tools', sectionLabel: true },
           { label: 'Write Post', tab: 'write-post' },
           { label: 'Reply to Review', tab: 'reply-review' },
           { label: 'Answer Q&A', tab: 'answer-qa' },
           { label: 'Process Images', tab: 'process-images' },
           { label: 'Library', tab: 'content-library' },
         ];
-        const chipBase: React.CSSProperties = {
-          flexShrink: 0, whiteSpace: 'nowrap',
-          fontSize: '0.6875rem', fontWeight: 600,
-          padding: '0.2rem 0.625rem',
-          borderRadius: '9999px',
-          border: 'none', background: 'none',
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          transition: 'all 0.12s',
-        };
         return (
           <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.015)' }}>
             {/* Row 1 — Profile & Auto features + API Approval Pending */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.3rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.25rem', overflowX: 'auto', scrollbarWidth: 'none', minWidth: 0 }}>
-                {autoFeatures.map(({ label, tab }) => (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.35rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.125rem', overflowX: 'auto', scrollbarWidth: 'none', minWidth: 0 }}>
+                {autoFeatures.map(({ label, tab, sectionLabel }) => sectionLabel ? (
+                  <span key={label} style={{ flexShrink: 0, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(232,238,255,0.25)', whiteSpace: 'nowrap', paddingRight: '0.5rem' }}>
+                    {label}
+                  </span>
+                ) : (
                   <button
                     key={label}
                     onClick={() => tab && setActiveTab(tab)}
                     style={{
-                      ...chipBase,
-                      color: tab && activeTab === tab ? '#fbbf24' : 'rgba(232,238,255,0.38)',
-                      background: tab && activeTab === tab ? 'rgba(251,191,36,0.1)' : 'none',
+                      flexShrink: 0, whiteSpace: 'nowrap',
+                      fontSize: '0.8125rem', fontWeight: 600,
+                      padding: '0.25rem 0.625rem',
+                      borderRadius: '9999px',
+                      border: 'none',
+                      background: tab && activeTab === tab ? 'rgba(251,191,36,0.12)' : 'none',
+                      color: tab && activeTab === tab ? '#fbbf24' : 'rgba(232,238,255,0.5)',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'all 0.12s',
                     }}
                   >
                     {label}
                   </button>
                 ))}
               </div>
-              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.6875rem', fontWeight: 700, padding: '0.25rem 0.75rem', borderRadius: '9999px', color: '#fbbf24', background: 'rgba(251,191,36,0.09)', border: '1px solid rgba(251,191,36,0.22)' }}>
+              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.3rem 0.875rem', borderRadius: '9999px', color: '#fbbf24', background: 'rgba(251,191,36,0.09)', border: '1px solid rgba(251,191,36,0.22)' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fbbf24', boxShadow: '0 0 6px #fbbf24', animation: 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite' }} />
                 {dt.apiPending}
               </div>
             </div>
 
             {/* Row 2 — Manual AI tools + Manual Mode Active */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.3rem 1rem' }}>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.25rem', overflowX: 'auto', scrollbarWidth: 'none', minWidth: 0 }}>
-                {manualFeatures.map(({ label, tab }) => (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.35rem 1rem' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.125rem', overflowX: 'auto', scrollbarWidth: 'none', minWidth: 0 }}>
+                {manualFeatures.map(({ label, tab, sectionLabel }) => sectionLabel ? (
+                  <span key={label} style={{ flexShrink: 0, fontSize: '0.6875rem', fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(232,238,255,0.25)', whiteSpace: 'nowrap', paddingRight: '0.5rem' }}>
+                    {label}
+                  </span>
+                ) : (
                   <button
                     key={label}
                     onClick={() => tab && setActiveTab(tab)}
                     style={{
-                      ...chipBase,
-                      color: tab
-                        ? activeTab === tab ? '#4f8ef7' : 'rgba(232,238,255,0.55)'
-                        : 'rgba(232,238,255,0.28)',
+                      flexShrink: 0, whiteSpace: 'nowrap',
+                      fontSize: '0.8125rem', fontWeight: 600,
+                      padding: '0.25rem 0.625rem',
+                      borderRadius: '9999px',
+                      border: 'none',
                       background: tab && activeTab === tab ? 'rgba(79,142,247,0.12)' : 'none',
-                      cursor: tab ? 'pointer' : 'default',
-                      fontWeight: tab ? 600 : 700,
-                      letterSpacing: tab ? 'normal' : '0.04em',
-                      textTransform: tab ? 'none' : 'uppercase',
-                      fontSize: tab ? '0.6875rem' : '0.6rem',
+                      color: tab && activeTab === tab ? '#4f8ef7' : 'rgba(232,238,255,0.6)',
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                      transition: 'all 0.12s',
                     }}
                   >
                     {label}
                   </button>
                 ))}
               </div>
-              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.6875rem', fontWeight: 700, padding: '0.25rem 0.75rem', borderRadius: '9999px', color: '#4f8ef7', background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.30)', boxShadow: '0 0 8px rgba(79,142,247,0.15)' }}>
+              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.3rem 0.875rem', borderRadius: '9999px', color: '#4f8ef7', background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.30)', boxShadow: '0 0 8px rgba(79,142,247,0.15)' }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4f8ef7', boxShadow: '0 0 6px #4f8ef7' }} />
                 Manual Mode · Active
               </div>
@@ -727,8 +733,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── Tab nav ──────────────────────────────────────────────────── */}
-      <nav
+      {/* ── Tab nav (hidden when mode bar is showing) ────────────────── */}
+      {(isGuest || locationReady) && (<nav
         className="flex-shrink-0"
         style={{
           position: 'relative', zIndex: 10,
@@ -788,7 +794,7 @@ export default function Dashboard() {
             return [btn];
           })}
         </div>
-      </nav>
+      </nav>)}
 
       {/* ── Main content ─────────────────────────────────────────────── */}
       <main
