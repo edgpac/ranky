@@ -570,60 +570,118 @@ export default function Dashboard() {
         </button>
 
         <div className="flex items-center gap-3">
-          {!isGuest && (
-            locationReady ? (
-              <div
-                className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full"
-                style={{
-                  color: '#34d399',
-                  background: 'rgba(52,211,153,0.09)',
-                  border: '1px solid rgba(52,211,153,0.22)',
-                  backdropFilter: 'blur(12px)',
-                  WebkitBackdropFilter: 'blur(12px)',
-                  boxShadow: '0 0 12px rgba(52,211,153,0.12)',
-                }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" style={{ boxShadow: '0 0 6px #34d399' }} />
-                {dt.gbpConnected}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
-                {/* Line 1: API Approval Pending */}
-                <div
-                  className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                  style={{
-                    color: '#fbbf24',
-                    background: 'rgba(251,191,36,0.09)',
-                    border: '1px solid rgba(251,191,36,0.22)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                  }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" style={{ boxShadow: '0 0 6px #fbbf24' }} />
-                  {dt.apiPending}
-                </div>
-                {/* Line 2: Manual Mode active */}
-                <div
-                  className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                  style={{
-                    color: '#4f8ef7',
-                    background: 'rgba(79,142,247,0.12)',
-                    border: '1px solid rgba(79,142,247,0.30)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    boxShadow: '0 0 8px rgba(79,142,247,0.18)',
-                  }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-current" style={{ boxShadow: '0 0 6px #4f8ef7' }} />
-                  Manual Mode · Active
-                </div>
-              </div>
-            )
+          {!isGuest && locationReady && (
+            <div
+              className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full"
+              style={{
+                color: '#34d399',
+                background: 'rgba(52,211,153,0.09)',
+                border: '1px solid rgba(52,211,153,0.22)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                boxShadow: '0 0 12px rgba(52,211,153,0.12)',
+              }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" style={{ boxShadow: '0 0 6px #34d399' }} />
+              {dt.gbpConnected}
+            </div>
           )}
           {!isGuest && <LogoutButton onClick={logout} />}
         </div>
       </header>
 
+
+      {/* ── Mode status bar (authenticated, API pending) ──────────────── */}
+      {!isGuest && !locationReady && (() => {
+        const autoFeatures: { label: string; tab?: TabId }[] = [
+          { label: 'Edit Profile', tab: 'profile' },
+          { label: 'Reviews', tab: 'reviews' },
+          { label: 'Q&A', tab: 'qa' },
+          { label: 'Photos', tab: 'photos' },
+          { label: 'Posts', tab: 'posts' },
+          { label: 'Performance', tab: 'insights' },
+          { label: 'Services', tab: 'services' },
+          { label: 'Products', tab: 'products' },
+          { label: 'Messaging', tab: 'bookings' },
+          { label: 'Get Reviews', tab: 'getreviews' },
+          { label: 'AI Memory', tab: 'memory' },
+          { label: 'Owner Studio ⏳', tab: 'owner' },
+        ];
+        const manualFeatures: { label: string; tab?: TabId }[] = [
+          { label: 'AI Tools' },
+          { label: 'Write Post', tab: 'write-post' },
+          { label: 'Reply to Review', tab: 'reply-review' },
+          { label: 'Answer Q&A', tab: 'answer-qa' },
+          { label: 'Process Images', tab: 'process-images' },
+          { label: 'Library', tab: 'content-library' },
+        ];
+        const chipBase: React.CSSProperties = {
+          flexShrink: 0, whiteSpace: 'nowrap',
+          fontSize: '0.6875rem', fontWeight: 600,
+          padding: '0.2rem 0.625rem',
+          borderRadius: '9999px',
+          border: 'none', background: 'none',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          transition: 'all 0.12s',
+        };
+        return (
+          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.015)' }}>
+            {/* Row 1 — Profile & Auto features + API Approval Pending */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.3rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.25rem', overflowX: 'auto', scrollbarWidth: 'none', minWidth: 0 }}>
+                {autoFeatures.map(({ label, tab }) => (
+                  <button
+                    key={label}
+                    onClick={() => tab && setActiveTab(tab)}
+                    style={{
+                      ...chipBase,
+                      color: tab && activeTab === tab ? '#fbbf24' : 'rgba(232,238,255,0.38)',
+                      background: tab && activeTab === tab ? 'rgba(251,191,36,0.1)' : 'none',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.6875rem', fontWeight: 700, padding: '0.25rem 0.75rem', borderRadius: '9999px', color: '#fbbf24', background: 'rgba(251,191,36,0.09)', border: '1px solid rgba(251,191,36,0.22)' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fbbf24', boxShadow: '0 0 6px #fbbf24', animation: 'pulse 2s cubic-bezier(0.4,0,0.6,1) infinite' }} />
+                {dt.apiPending}
+              </div>
+            </div>
+
+            {/* Row 2 — Manual AI tools + Manual Mode Active */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.3rem 1rem' }}>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.25rem', overflowX: 'auto', scrollbarWidth: 'none', minWidth: 0 }}>
+                {manualFeatures.map(({ label, tab }) => (
+                  <button
+                    key={label}
+                    onClick={() => tab && setActiveTab(tab)}
+                    style={{
+                      ...chipBase,
+                      color: tab
+                        ? activeTab === tab ? '#4f8ef7' : 'rgba(232,238,255,0.55)'
+                        : 'rgba(232,238,255,0.28)',
+                      background: tab && activeTab === tab ? 'rgba(79,142,247,0.12)' : 'none',
+                      cursor: tab ? 'pointer' : 'default',
+                      fontWeight: tab ? 600 : 700,
+                      letterSpacing: tab ? 'normal' : '0.04em',
+                      textTransform: tab ? 'none' : 'uppercase',
+                      fontSize: tab ? '0.6875rem' : '0.6rem',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.6875rem', fontWeight: 700, padding: '0.25rem 0.75rem', borderRadius: '9999px', color: '#4f8ef7', background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.30)', boxShadow: '0 0 8px rgba(79,142,247,0.15)' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4f8ef7', boxShadow: '0 0 6px #4f8ef7' }} />
+                Manual Mode · Active
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Category simulator (guest only) ──────────────────────────── */}
       {isGuest && (
