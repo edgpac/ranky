@@ -1297,15 +1297,19 @@ app.post('/api/manual/write-post', requireAuth, upload.single('image'), async (r
     const postType = VALID_TYPES.includes(req.body?.postType) ? req.body.postType : 'standard';
     const seoKeyword = typeof req.body?.seoKeyword === 'string' ? req.body.seoKeyword.trim().slice(0, 60) : '';
     const rawAnswers = req.body?.contextAnswers;
-    const contextAnswers = Array.isArray(rawAnswers) ? rawAnswers.slice(0, 3).map((a) => String(a).trim().slice(0, 500)) : [];
+    const contextAnswers = Array.isArray(rawAnswers) ? rawAnswers.slice(0, 5).map((a) => String(a).trim().slice(0, 500)) : [];
 
     // 1. Business memory
     const businessMemory = await getBusinessMemory(client.id);
 
     // 2. Build system prompt
     const systemPrompt = buildManualPostSystemPrompt(client, businessMemory, postType);
-    const city = client.city || 'the local area';
-    const contextAnswersFilled = contextAnswers.filter(Boolean);
+    // Q4 = city/neighborhood (index 3), Q5 = business name (index 4)
+    const targetCity = contextAnswers[3] || client.city || 'the local area';
+    const targetName = contextAnswers[4] || client.business_name;
+    const city = targetCity;
+    // Build context block from Q1–Q3 only (city + name are used directly in prompt)
+    const contextAnswersFilled = contextAnswers.slice(0, 3).filter(Boolean);
     const seoLine = seoKeyword ? `\nTarget SEO keyword to weave in naturally: "${seoKeyword}"` : '';
 
     // 3. Generate post — multimodal (image → post) or text-only
@@ -1320,7 +1324,7 @@ app.post('/api/manual/write-post', requireAuth, upload.single('image'), async (r
       const ownerContext = contextAnswersFilled.length > 0
         ? `\n\nThe business owner also provided their perspective:\n${contextAnswersFilled.map((a, i) => `${i + 1}. ${a}`).join('\n')}\n\nUse both the photo and the owner's description equally — the image shows what happened, the owner's words give you their angle and intent.`
         : '\n\nWrite the post based on what you see in the photo.';
-      const userText = `Write a GBP post for ${client.business_name} in ${city}.${seoLine}${ownerContext}`;
+      const userText = `Write a GBP post for ${targetName} in ${city}. Weave the business name naturally into the post body.${seoLine}${ownerContext}`;
 
       const [postResponse, captionText] = await Promise.all([
         anthropic.messages.create({
@@ -1341,7 +1345,7 @@ app.post('/api/manual/write-post', requireAuth, upload.single('image'), async (r
     } else {
       // Text-only path
       const contextBlock = contextAnswersFilled.map((a, i) => `Context ${i + 1}: ${a}`).join('\n');
-      const userPrompt = `Write a GBP post for ${client.business_name} in ${city}.${seoLine}\n${contextBlock}`;
+      const userPrompt = `Write a GBP post for ${targetName} in ${city}. Weave the business name naturally into the post body.${seoLine}\n${contextBlock}`;
       generatedText = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 550);
     }
 

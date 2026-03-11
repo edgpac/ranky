@@ -30,12 +30,16 @@ const CONTEXT_QUESTIONS = [
   'What is this post about? (recent job, service, promo, milestone…)',
   'What makes your business different or better here?',
   'What do you want customers to do after reading? (call, book, visit…)',
+  'Which city or neighborhood should this post target for local SEO?',
+  'What is the business name? (leave blank to use your profile name)',
 ];
 
 const CONTEXT_QUESTIONS_WITH_IMAGE = [
   'Describe the image in your own words — what does it show?',
   'What makes your business different or better here?',
   'What do you want customers to do after reading? (call, book, visit…)',
+  'Which city or neighborhood should this post target for local SEO?',
+  'What is the business name? (leave blank to use your profile name)',
 ];
 
 const DRAFT_KEY = 'hv_post_draft';
@@ -82,7 +86,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
 
 export default function WritePostTool({ businessName, isGuest }: Props) {
   const [postType, setPostType] = useState<PostType>('standard');
-  const [answers, setAnswers] = useState(['', '', '']);
+  const [answers, setAnswers] = useState(['', '', '', '', '']);
   const [seoKeyword, setSeoKeyword] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState('');
@@ -178,7 +182,7 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
 
   function clearForm() {
     setPostType('standard');
-    setAnswers(['', '', '']);
+    setAnswers(['', '', '', '', '']);
     setSeoKeyword('');
     setImageFile(null);
     setImagePreview('');
@@ -314,7 +318,7 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
       {/* Context questions */}
       <div style={card}>
         <span style={label}>
-          {imageFile ? 'Your perspective — Claude combines this with the photo' : 'Context — 3 quick questions'}
+          {imageFile ? 'Your perspective — Claude combines this with the photo' : 'Context — quick questions'}
         </span>
         {imageFile && (
           <p style={{ fontSize: '0.72rem', color: 'rgba(232,238,255,0.4)', marginBottom: '0.75rem', lineHeight: 1.4 }}>
