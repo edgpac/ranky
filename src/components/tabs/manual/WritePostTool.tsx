@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import QualityScoreRing from '../../QualityScoreRing';
 import CopyButton from '../../CopyButton';
 
@@ -69,6 +69,17 @@ const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box',
 };
 
+const IMAGE_INPUT_ID = 'write-post-image-input';
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function WritePostTool({ businessName, isGuest }: Props) {
   const [postType, setPostType] = useState<PostType>('standard');
   const [answers, setAnswers] = useState(['', '', '']);
@@ -82,7 +93,6 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
   const [error, setError] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
 
   // Load draft on mount
   useEffect(() => {
@@ -116,7 +126,7 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
         const f = item.getAsFile();
         if (f) {
           setImageFile(f);
-          setImagePreview(URL.createObjectURL(f));
+          readFileAsDataUrl(f).then(setImagePreview).catch(() => {});
         }
       }
     };
@@ -128,7 +138,9 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    readFileAsDataUrl(file).then(setImagePreview).catch(() => {});
+    // Reset input so the same file can be re-selected
+    e.target.value = '';
   }
 
   function onDragOver(e: React.DragEvent) {
@@ -156,7 +168,7 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
     const file = e.dataTransfer.files[0];
     if (file && file.type.startsWith('image/')) {
       setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
+      readFileAsDataUrl(file).then(setImagePreview).catch(() => {});
     }
   }
 
@@ -265,13 +277,14 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
             </div>
           </div>
         ) : (
-          <div
+          <label
+            htmlFor={IMAGE_INPUT_ID}
             onDragOver={onDragOver}
             onDragEnter={onDragEnter}
             onDragLeave={onDragLeave}
             onDrop={onDrop}
-            onClick={() => fileRef.current?.click()}
             style={{
+              display: 'block',
               width: '100%',
               padding: '1.75rem 1.5rem',
               border: dragActive ? '2px dashed #4f8ef7' : '2px dashed rgba(255,255,255,0.12)',
@@ -293,9 +306,9 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
               Click · drag & drop · or paste from clipboard<br />
               Claude analyzes the image and writes a post about what it shows
             </p>
-          </div>
+          </label>
         )}
-        <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onImagePick} />
+        <input id={IMAGE_INPUT_ID} type="file" accept="image/*" style={{ display: 'none' }} onChange={onImagePick} />
       </div>
 
       {/* Context questions */}
