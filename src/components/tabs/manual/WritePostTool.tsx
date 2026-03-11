@@ -16,6 +16,7 @@ interface Result {
 
 interface Props {
   businessName?: string;
+  isGuest?: boolean;
 }
 
 const POST_TYPES: { value: PostType; label: string; emoji: string }[] = [
@@ -62,7 +63,7 @@ const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box',
 };
 
-export default function WritePostTool({ businessName }: Props) {
+export default function WritePostTool({ businessName, isGuest }: Props) {
   const [postType, setPostType] = useState<PostType>('standard');
   const [answers, setAnswers] = useState(['', '', '']);
   const [seoKeyword, setSeoKeyword] = useState('');
@@ -319,6 +320,20 @@ export default function WritePostTool({ businessName }: Props) {
       {/* Generate button + clear */}
       {error && <p style={{ fontSize: '0.8rem', color: '#f87171', padding: '0 0.25rem' }}>{error}</p>}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem' }}>
+        {isGuest ? (
+          <a
+            href="/signup"
+            style={{
+              padding: '0.75rem 1.5rem', borderRadius: '0.625rem', border: 'none',
+              background: '#4f8ef7', color: '#fff', fontWeight: 700, fontSize: '0.875rem',
+              cursor: 'pointer', transition: 'background 0.2s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+              textDecoration: 'none',
+            }}
+          >
+            ✍️ Sign in to Generate Post
+          </a>
+        ) : (
         <button
           onClick={() => generate(false)}
           disabled={generating}
@@ -337,6 +352,7 @@ export default function WritePostTool({ businessName }: Props) {
             </>
           ) : '✍️ Generate Post'}
         </button>
+        )}
         <button
           onClick={clearForm}
           style={{

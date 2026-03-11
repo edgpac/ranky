@@ -30,7 +30,7 @@ const label: React.CSSProperties = {
   textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.5rem', display: 'block',
 };
 
-export default function QAAnswerTool() {
+export default function QAAnswerTool({ isGuest }: { isGuest?: boolean }) {
   const [question, setQuestion] = useState('');
   const [style, setStyle] = useState<Style>('brief');
   const [seoMode, setSeoMode] = useState(false);
@@ -130,6 +130,20 @@ export default function QAAnswerTool() {
 
       {/* Generate */}
       {error && <p style={{ fontSize: '0.8rem', color: '#f87171' }}>{error}</p>}
+      {isGuest ? (
+        <a
+          href="/signup"
+          style={{
+            padding: '0.75rem 1.5rem', borderRadius: '0.625rem', border: 'none',
+            background: '#34d399', color: '#0f172a', fontWeight: 700, fontSize: '0.875rem',
+            cursor: 'pointer', transition: 'background 0.2s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+            textDecoration: 'none',
+          }}
+        >
+          ❓ Sign in to Generate Answer
+        </a>
+      ) : (
       <button
         onClick={generate}
         disabled={generating}
@@ -148,6 +162,7 @@ export default function QAAnswerTool() {
           </>
         ) : '❓ Generate Answer'}
       </button>
+      )}
 
       {/* Result */}
       {result && (

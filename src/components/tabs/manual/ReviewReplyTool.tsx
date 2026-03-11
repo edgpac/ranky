@@ -41,7 +41,7 @@ const label: React.CSSProperties = {
   display: 'block',
 };
 
-export default function ReviewReplyTool() {
+export default function ReviewReplyTool({ isGuest }: { isGuest?: boolean }) {
   const [reviewText, setReviewText] = useState('');
   const [stars, setStars] = useState(5);
   const [generating, setGenerating] = useState(false);
@@ -120,6 +120,20 @@ export default function ReviewReplyTool() {
 
       {/* Generate */}
       {error && <p style={{ fontSize: '0.8rem', color: '#f87171' }}>{error}</p>}
+      {isGuest ? (
+        <a
+          href="/signup"
+          style={{
+            padding: '0.75rem 1.5rem', borderRadius: '0.625rem', border: 'none',
+            background: '#fbbf24', color: '#1e293b', fontWeight: 700, fontSize: '0.875rem',
+            cursor: 'pointer', transition: 'background 0.2s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+            textDecoration: 'none',
+          }}
+        >
+          ⭐ Sign in to Generate Reply
+        </a>
+      ) : (
       <button
         onClick={generate}
         disabled={generating}
@@ -138,6 +152,7 @@ export default function ReviewReplyTool() {
           </>
         ) : '⭐ Generate Reply'}
       </button>
+      )}
 
       {/* Result */}
       {result && (

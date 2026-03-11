@@ -63,7 +63,7 @@ const card: React.CSSProperties = {
   padding: '1.5rem',
 };
 
-export default function ImageProcessorTool() {
+export default function ImageProcessorTool({ isGuest }: { isGuest?: boolean }) {
   const [images, dispatch] = useReducer(reducer, []);
   const [processing, setProcessing] = useState(false);
   const [zipping, setZipping] = useState(false);
@@ -288,6 +288,19 @@ export default function ImageProcessorTool() {
       {images.length > 0 && (
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           {!allDone && (
+            isGuest ? (
+              <a
+                href="/signup"
+                style={{
+                  flex: 1, padding: '0.75rem', borderRadius: '0.625rem', border: 'none',
+                  background: '#4f8ef7', color: '#fff', fontWeight: 700, fontSize: '0.875rem',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  gap: '0.5rem', textDecoration: 'none',
+                }}
+              >
+                🛠 Sign in to Process Photos
+              </a>
+            ) : (
             <button
               onClick={processAll}
               disabled={processing}
@@ -306,6 +319,7 @@ export default function ImageProcessorTool() {
                 </>
               ) : `🛠 Process All ${images.length} Photo${images.length !== 1 ? 's' : ''}`}
             </button>
+            )
           )}
 
           {allDone && (

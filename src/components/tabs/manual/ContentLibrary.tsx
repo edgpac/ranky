@@ -41,7 +41,7 @@ function timeAgo(iso: string) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-export default function ContentLibrary() {
+export default function ContentLibrary({ isGuest }: { isGuest?: boolean }) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -91,6 +91,28 @@ export default function ContentLibrary() {
     } finally {
       setDeletingId(null);
     }
+  }
+
+  if (isGuest) {
+    return (
+      <div style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+        <p style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>📚</p>
+        <p style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'rgba(232,238,255,0.85)', marginBottom: '0.5rem' }}>Your content library lives here</p>
+        <p style={{ fontSize: '0.8125rem', color: 'rgba(232,238,255,0.4)', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+          Sign in to generate posts, replies, and answers — they'll all be saved here.
+        </p>
+        <a
+          href="/signup"
+          style={{
+            display: 'inline-block', padding: '0.625rem 1.5rem',
+            background: '#4f8ef7', color: '#fff', borderRadius: '0.5rem',
+            fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none',
+          }}
+        >
+          Sign in free
+        </a>
+      </div>
+    );
   }
 
   return (
