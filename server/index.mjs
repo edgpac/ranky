@@ -234,6 +234,8 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_manual_content_client_created
     ON manual_content(client_id, created_at DESC)
   `);
+  // Safe migrations — add columns that may be missing from older deployments
+  await pool.query(`ALTER TABLE manual_content ADD COLUMN IF NOT EXISTS filename TEXT`);
   console.log('✅ DB ready');
 }
 
@@ -1489,8 +1491,10 @@ app.post('/api/images/process', requireAuth, upload.array('photos', 10), async (
     const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
     geocodeClientIfNeeded(client);
 
-    const categories = Array.isArray(req.body?.categories) ? req.body.categories : [];
-    const captions = Array.isArray(req.body?.captions) ? req.body.captions : [];
+    const rawCats = req.body?.categories;
+    const categories = Array.isArray(rawCats) ? rawCats : (rawCats ? [rawCats] : []);
+    const rawCaptions = req.body?.captions;
+    const captions = Array.isArray(rawCaptions) ? rawCaptions : (rawCaptions ? [rawCaptions] : []);
 
     if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
 
