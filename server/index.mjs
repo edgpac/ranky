@@ -430,9 +430,10 @@ Tips are improvements needed (max 3, short phrases). Strengths are what's workin
 }
 
 /** Build system prompt for manual post generation */
-function buildManualPostSystemPrompt(client, businessMemory, postType) {
+function buildManualPostSystemPrompt(client, businessMemory, postType, targetName, targetCity) {
   const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
-  const city = client.city || 'the local area';
+  const city = targetCity || client.city || 'the local area';
+  const bizName = targetName || client.business_name || 'the business';
   const socialLinks = client.social_links || {};
   const activeSocials = Object.entries(socialLinks)
     .filter(([, url]) => url)
@@ -451,20 +452,30 @@ function buildManualPostSystemPrompt(client, businessMemory, postType) {
     : '';
 
   return `You are a local business marketing expert writing Google Business Profile posts for ${bizLabel}s in ${city}.
-${memorySection}
-Format every post exactly like this:
-1. Opening: single emoji + punchy hook targeting a specific customer pain point. No period.
-2. Body: 2-3 sentences about ${client.business_name}, what they do, and how they solve the problem.
-3. Bullet list (3 items) using ✅ for services/benefits.
-4. One sentence of key value or reassurance.
-5. Closing CTA: emoji + direct call to action. ${socialNote}
 
-Rules:
-- 150-220 words total
+Business name: ${bizName}
+Location: ${city}
+${memorySection}
+## Quality Rubric — you MUST earn all 100 points:
+- [20pts] Mention "${city}" or the specific neighborhood at least once naturally in the body
+- [20pts] Strong, specific CTA in the closing line (include phone/booking/address — not just "give us a call")
+- [20pts] Compelling opening hook that targets a real customer pain point
+- [15pts] Use the exact business name "${bizName}" naturally in the body (NEVER write [Business Name] or any placeholder)
+- [15pts] Total length 150-220 words
+- [10pts] Zero generic filler ("In today's world", "Are you looking for", "right tools right know-how", "We value…")
+
+## Format:
+1. Opening: single emoji + punchy hook. No period.
+2. Body: 2-3 sentences about ${bizName} and how they solve the problem. Include the city name here.
+3. Bullet list (3 items) using ✅ for specific services/benefits.
+4. One sentence of key value or social proof.
+5. Closing CTA: emoji + specific action with contact detail. ${socialNote}
+
+## Rules:
 - No hashtags
-- No fluff like "In today's world" or "Are you looking for"
 - Sound like a real local business owner, not a marketing robot
 - End with action, not a question
+- NEVER use brackets or placeholders of any kind
 
 Post type: ${postTypeNote}`;
 }
@@ -1302,11 +1313,12 @@ app.post('/api/manual/write-post', requireAuth, upload.single('image'), async (r
     // 1. Business memory
     const businessMemory = await getBusinessMemory(client.id);
 
-    // 2. Build system prompt
-    const systemPrompt = buildManualPostSystemPrompt(client, businessMemory, postType);
     // Q4 = city/neighborhood (index 3), Q5 = business name (index 4)
     const targetCity = contextAnswers[3] || client.city || 'the local area';
     const targetName = contextAnswers[4] || client.business_name;
+
+    // 2. Build system prompt — pass targetName + targetCity so rubric references exact values
+    const systemPrompt = buildManualPostSystemPrompt(client, businessMemory, postType, targetName, targetCity);
     const city = targetCity;
     // Build context block from Q1–Q3 only (city + name are used directly in prompt)
     const contextAnswersFilled = contextAnswers.slice(0, 3).filter(Boolean);
