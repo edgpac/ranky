@@ -384,7 +384,7 @@ async function scoreContent(type, generatedText, client) {
 - Strong CTA in closing line (worth 20pts)
 - Compelling hook in opening (worth 20pts)
 - Business name mentioned naturally (worth 15pts)
-- Length 150-220 words (worth 15pts)
+- Length 190-220 words (worth 15pts)
 - No generic filler phrases (worth 10pts)`,
     reply: `- Tone mirrors the review's sentiment (worth 25pts)
 - Specific service or item mentioned (worth 20pts)
@@ -461,7 +461,7 @@ ${memorySection}
 - [20pts] Strong, specific CTA in the closing line (include phone/booking/address — not just "give us a call")
 - [20pts] Compelling opening hook that targets a real customer pain point
 - [15pts] Use the exact business name "${bizName}" naturally in the body (NEVER write [Business Name] or any placeholder)
-- [15pts] Total length 150-220 words
+- [15pts] Total length 190-220 words — aim for the full 220
 - [10pts] Zero generic filler ("In today's world", "Are you looking for", "right tools right know-how", "We value…")
 
 ## Format:
@@ -476,6 +476,7 @@ ${memorySection}
 - Sound like a real local business owner, not a marketing robot
 - End with action, not a question
 - NEVER use brackets or placeholders of any kind
+- Write exactly 190-220 words — do not stop short
 
 Post type: ${postTypeNote}`;
 }
@@ -1341,7 +1342,7 @@ app.post('/api/manual/write-post', requireAuth, upload.single('image'), async (r
       const [postResponse, captionText] = await Promise.all([
         anthropic.messages.create({
           model: 'claude-sonnet-4-6',
-          max_tokens: 600,
+          max_tokens: 700,
           system: systemPrompt,
           messages: [{ role: 'user', content: [
             { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
@@ -1358,7 +1359,7 @@ app.post('/api/manual/write-post', requireAuth, upload.single('image'), async (r
       // Text-only path
       const contextBlock = contextAnswersFilled.map((a, i) => `Context ${i + 1}: ${a}`).join('\n');
       const userPrompt = `Write a GBP post for ${targetName} in ${city}. Weave the business name naturally into the post body.${seoLine}\n${contextBlock}`;
-      generatedText = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 550);
+      generatedText = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 700);
     }
 
     // 4. Score
