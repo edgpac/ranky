@@ -1,4 +1,4 @@
-import { useReducer, useRef, useState, useCallback } from 'react';
+import { useReducer, useState, useCallback } from 'react';
 import CopyButton from '../../CopyButton';
 
 const CATEGORIES = ['EXTERIOR', 'INTERIOR', 'PRODUCT', 'AT_WORK', 'FOOD_AND_DRINK', 'MENU', 'COMMON_AREA', 'ROOMS', 'TEAMS', 'ADDITIONAL'];
@@ -25,8 +25,19 @@ interface ImageItem {
   } | null;
 }
 
+const IMAGE_INPUT_ID = 'image-processor-input';
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 type Action =
-  | { type: 'ADD'; files: File[] }
+  | { type: 'ADD'; items: { file: File; preview: string }[] }
   | { type: 'REMOVE'; index: number }
   | { type: 'SET_CATEGORY'; index: number; value: string }
   | { type: 'SET_CAPTION'; index: number; value: string }
@@ -38,8 +49,8 @@ type Action =
 function reducer(state: ImageItem[], action: Action): ImageItem[] {
   switch (action.type) {
     case 'ADD': {
-      const next = action.files.slice(0, 10 - state.length).map((file) => ({
-        file, preview: URL.createObjectURL(file),
+      const next = action.items.slice(0, 10 - state.length).map(({ file, preview }) => ({
+        file, preview,
         category: 'EXTERIOR', caption: '',
         processing: false, done: false, error: '', result: null,
       }));
@@ -68,11 +79,16 @@ export default function ImageProcessorTool({ isGuest }: { isGuest?: boolean }) {
   const [processing, setProcessing] = useState(false);
   const [zipping, setZipping] = useState(false);
   const [dragActive, setDragActive] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function addFiles(rawFiles: File[]) {
+    const files = rawFiles.filter((f) => f.type.startsWith('image/')).slice(0, 10 - images.length);
+    if (!files.length) return;
+    const previews = await Promise.all(files.map(readFileAsDataUrl));
+    dispatch({ type: 'ADD', items: files.map((file, i) => ({ file, preview: previews[i] })) });
+  }
 
   function onFilePick(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files || []).filter((f) => f.type.startsWith('image/'));
-    if (files.length) dispatch({ type: 'ADD', files });
+    addFiles(Array.from(e.target.files || []));
     e.target.value = '';
   }
 
@@ -98,9 +114,9 @@ export default function ImageProcessorTool({ isGuest }: { isGuest?: boolean }) {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
-    if (files.length) dispatch({ type: 'ADD', files });
-  }, []);
+    addFiles(Array.from(e.dataTransfer.files));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [images.length]);
 
   async function processAll() {
     if (!images.length) return;
@@ -108,8 +124,8 @@ export default function ImageProcessorTool({ isGuest }: { isGuest?: boolean }) {
 
     const form = new FormData();
     images.forEach((img) => form.append('photos', img.file));
-    images.forEach((img) => form.append('categories[]', img.category));
-    images.forEach((img) => form.append('captions[]', img.caption));
+    images.forEach((img) => form.append('categories', img.category));
+    images.forEach((img) => form.append('captions', img.caption));
 
     // Mark all as processing
     images.forEach((_, i) => dispatch({ type: 'SET_PROCESSING', index: i, value: true }));
@@ -170,14 +186,14 @@ export default function ImageProcessorTool({ isGuest }: { isGuest?: boolean }) {
           <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(232,238,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.75rem' }}>
             Upload photos ({images.length}/10)
           </p>
-          <div
+          <label
+            htmlFor={IMAGE_INPUT_ID}
             onDragOver={onDragOver}
             onDragEnter={onDragEnter}
             onDragLeave={onDragLeave}
             onDrop={onDrop}
-            onClick={() => fileRef.current?.click()}
             style={{
-              width: '100%', padding: '2rem',
+              display: 'block', width: '100%', padding: '2rem',
               border: dragActive ? '2px dashed #4f8ef7' : '2px dashed rgba(255,255,255,0.12)',
               borderRadius: '0.75rem',
               background: dragActive ? 'rgba(79,142,247,0.07)' : 'transparent',
@@ -191,8 +207,8 @@ export default function ImageProcessorTool({ isGuest }: { isGuest?: boolean }) {
               ? 'Drop photos here'
               : `Click to select photos (up to ${10 - images.length} more)`}
             <p style={{ fontSize: '0.7rem', marginTop: '0.25rem', opacity: 0.6 }}>Drag & drop · click to browse · Claude Vision auto-captions · GPS + EXIF injected</p>
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={onFilePick} />
+          </label>
+          <input id={IMAGE_INPUT_ID} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={onFilePick} />
         </div>
       )}
 
