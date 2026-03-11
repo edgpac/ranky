@@ -240,17 +240,20 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
 
       {/* Image upload */}
       <div style={card}>
-        <span style={label}>Photo (optional — Claude reads it for context · drag & drop or paste)</span>
+        <span style={label}>Photo — upload to write a post about your work</span>
         {imagePreview ? (
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-            <img src={imagePreview} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: '0.5rem' }} />
-            <div>
+            <img src={imagePreview} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: '0.5rem', border: '1px solid rgba(79,142,247,0.3)' }} />
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#4f8ef7', marginBottom: '0.25rem' }}>
+                ✓ Photo ready — Claude will write a post about what it shows
+              </p>
               {result?.aiCaption && (
-                <p style={{ fontSize: '0.75rem', color: 'rgba(232,238,255,0.6)', marginBottom: '0.5rem' }}>
-                  AI saw: <em>{result.aiCaption}</em>
+                <p style={{ fontSize: '0.72rem', color: 'rgba(232,238,255,0.5)', marginBottom: '0.5rem', lineHeight: 1.4 }}>
+                  AI saw: <em style={{ color: 'rgba(232,238,255,0.7)' }}>{result.aiCaption}</em>
                 </p>
               )}
-              <button onClick={() => { setImageFile(null); setImagePreview(''); }} style={{ fontSize: '0.75rem', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer' }}>
+              <button onClick={() => { setImageFile(null); setImagePreview(''); }} style={{ fontSize: '0.72rem', color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                 Remove photo
               </button>
             </div>
@@ -264,10 +267,10 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
             onClick={() => fileRef.current?.click()}
             style={{
               width: '100%',
-              padding: '1.5rem',
+              padding: '1.75rem 1.5rem',
               border: dragActive ? '2px dashed #4f8ef7' : '2px dashed rgba(255,255,255,0.12)',
               borderRadius: '0.75rem',
-              background: dragActive ? 'rgba(79,142,247,0.07)' : 'transparent',
+              background: dragActive ? 'rgba(79,142,247,0.07)' : 'rgba(255,255,255,0.02)',
               color: dragActive ? '#4f8ef7' : 'rgba(232,238,255,0.45)',
               cursor: 'pointer',
               fontSize: '0.8125rem',
@@ -276,8 +279,14 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
               boxSizing: 'border-box',
             }}
           >
-            <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{dragActive ? '⬇️' : '📸'}</div>
-            {dragActive ? 'Drop photo here' : 'Click to upload · drag & drop · or paste from clipboard'}
+            <div style={{ fontSize: '1.75rem', marginBottom: '0.5rem' }}>{dragActive ? '⬇️' : '📸'}</div>
+            <p style={{ fontWeight: 600, marginBottom: '0.25rem', color: dragActive ? '#4f8ef7' : 'rgba(232,238,255,0.7)' }}>
+              {dragActive ? 'Drop photo here' : 'Upload a photo of your work'}
+            </p>
+            <p style={{ fontSize: '0.72rem', color: 'rgba(232,238,255,0.35)', lineHeight: 1.4 }}>
+              Click · drag & drop · or paste from clipboard<br />
+              Claude analyzes the image and writes a post about what it shows
+            </p>
           </div>
         )}
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onImagePick} />
@@ -285,19 +294,26 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
 
       {/* Context questions */}
       <div style={card}>
-        <span style={label}>Context — 3 quick questions</span>
+        <span style={label}>
+          {imageFile ? 'Extra context (optional — add details to sharpen the post)' : 'Context — 3 quick questions'}
+        </span>
+        {imageFile && (
+          <p style={{ fontSize: '0.72rem', color: 'rgba(232,238,255,0.35)', marginBottom: '0.75rem', lineHeight: 1.4 }}>
+            Claude will base the post on your photo. Add any extra details you want included.
+          </p>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
           {CONTEXT_QUESTIONS.map((q, i) => (
             <div key={i}>
-              <p style={{ fontSize: '0.8rem', color: 'rgba(232,238,255,0.65)', marginBottom: '0.375rem' }}>
+              <p style={{ fontSize: '0.8rem', color: imageFile ? 'rgba(232,238,255,0.45)' : 'rgba(232,238,255,0.65)', marginBottom: '0.375rem' }}>
                 {i + 1}. {q}
               </p>
               <textarea
                 value={answers[i]}
                 onChange={(e) => setAnswer(i, e.target.value)}
                 rows={2}
-                placeholder="Your answer…"
-                style={{ ...inputStyle, resize: 'vertical', minHeight: 60 }}
+                placeholder={imageFile ? 'Optional…' : 'Your answer…'}
+                style={{ ...inputStyle, resize: 'vertical', minHeight: 60, opacity: imageFile && !answers[i] ? 0.6 : 1 }}
               />
             </div>
           ))}
@@ -350,7 +366,7 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
               <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
               Writing your post…
             </>
-          ) : '✍️ Generate Post'}
+          ) : imageFile ? '📸 Write Post from Photo' : '✍️ Generate Post'}
         </button>
         )}
         <button

@@ -571,29 +571,54 @@ export default function Dashboard() {
 
         <div className="flex items-center gap-3">
           {!isGuest && (
-            <div
-              className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full"
-              style={locationReady ? {
-                color: '#34d399',
-                background: 'rgba(52,211,153,0.09)',
-                border: '1px solid rgba(52,211,153,0.22)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                boxShadow: '0 0 12px rgba(52,211,153,0.12)',
-              } : {
-                color: '#fbbf24',
-                background: 'rgba(251,191,36,0.09)',
-                border: '1px solid rgba(251,191,36,0.22)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-              }}
-            >
-              <span
-                className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"
-                style={{ boxShadow: locationReady ? '0 0 6px #34d399' : '0 0 6px #fbbf24' }}
-              />
-              {locationReady ? dt.gbpConnected : dt.apiPending}
-            </div>
+            locationReady ? (
+              <div
+                className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full"
+                style={{
+                  color: '#34d399',
+                  background: 'rgba(52,211,153,0.09)',
+                  border: '1px solid rgba(52,211,153,0.22)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  boxShadow: '0 0 12px rgba(52,211,153,0.12)',
+                }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" style={{ boxShadow: '0 0 6px #34d399' }} />
+                {dt.gbpConnected}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+                {/* Line 1: API Approval Pending */}
+                <div
+                  className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                  style={{
+                    color: '#fbbf24',
+                    background: 'rgba(251,191,36,0.09)',
+                    border: '1px solid rgba(251,191,36,0.22)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" style={{ boxShadow: '0 0 6px #fbbf24' }} />
+                  {dt.apiPending}
+                </div>
+                {/* Line 2: Manual Mode active */}
+                <div
+                  className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                  style={{
+                    color: '#4f8ef7',
+                    background: 'rgba(79,142,247,0.12)',
+                    border: '1px solid rgba(79,142,247,0.30)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    boxShadow: '0 0 8px rgba(79,142,247,0.18)',
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-current" style={{ boxShadow: '0 0 6px #4f8ef7' }} />
+                  Manual Mode · Active
+                </div>
+              </div>
+            )
           )}
           {!isGuest && <LogoutButton onClick={logout} />}
         </div>

@@ -106,13 +106,13 @@ export default function ManualTab({ isGuest }: Props) {
         <p style={{ fontSize: '0.8125rem', color: 'rgba(232,238,255,0.45)', lineHeight: 1.5 }}>{h.subtitle}</p>
       </div>
 
-      {/* Tool content — disabled for guests */}
-      <div style={{ opacity: isGuest ? 0.5 : 1, pointerEvents: isGuest ? 'none' : 'auto' }}>
-        {activeTab === 'post' && <WritePostTool />}
-        {activeTab === 'review' && <ReviewReplyTool />}
-        {activeTab === 'qa' && <QAAnswerTool />}
-        {activeTab === 'images' && <ImageProcessorTool />}
-        {activeTab === 'library' && <ContentLibrary />}
+      {/* Tool content */}
+      <div>
+        {activeTab === 'post' && <WritePostTool isGuest={isGuest} />}
+        {activeTab === 'review' && <ReviewReplyTool isGuest={isGuest} />}
+        {activeTab === 'qa' && <QAAnswerTool isGuest={isGuest} />}
+        {activeTab === 'images' && <ImageProcessorTool isGuest={isGuest} />}
+        {activeTab === 'library' && <ContentLibrary isGuest={isGuest} />}
       </div>
     </div>
   );
