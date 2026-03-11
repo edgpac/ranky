@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
 import sharp from 'sharp';
+import archiver from 'archiver';
 import { google } from 'googleapis';
 import Anthropic from '@anthropic-ai/sdk';
 import Stripe from 'stripe';
@@ -94,6 +95,10 @@ app.use('/auth/signup', authLimiter);
 app.use('/api/generate-post', aiLimiter);
 app.use('/api/reviews/generate-reply', aiLimiter);
 app.use('/api/photos/upload', aiLimiter);
+app.use('/api/manual/write-post', aiLimiter);
+app.use('/api/manual/write-reply', aiLimiter);
+app.use('/api/manual/write-answer', aiLimiter);
+app.use('/api/images/process', aiLimiter);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
@@ -208,6 +213,26 @@ async function initDB() {
       updated_at TIMESTAMPTZ DEFAULT NOW(),
       UNIQUE(client_id)
     )
+  `);
+  // ─── Manual Mode content library ──────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS manual_content (
+      id             SERIAL PRIMARY KEY,
+      client_id      INTEGER REFERENCES clients(id) ON DELETE CASCADE,
+      type           TEXT NOT NULL CHECK (type IN ('post','reply','answer','image')),
+      input_data     JSONB NOT NULL DEFAULT '{}',
+      generated_text TEXT,
+      quality_score  INTEGER,
+      quality_tips   JSONB DEFAULT '[]',
+      quality_strengths JSONB DEFAULT '[]',
+      filename       TEXT,
+      posted_at      TIMESTAMPTZ,
+      created_at     TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_manual_content_client_created
+    ON manual_content(client_id, created_at DESC)
   `);
   console.log('✅ DB ready');
 }
@@ -348,6 +373,100 @@ async function callClaude(systemPrompt, messages, maxTokens = 400, model = 'clau
     messages,
   });
   return response.content[0].text;
+}
+
+/** Score AI-generated content via Haiku. Returns { score, tips, strengths }. Never throws. */
+async function scoreContent(type, generatedText, client) {
+  const city = client.city || 'the local area';
+  const bizName = client.business_name || 'this business';
+  const criteria = {
+    post: `- Local keyword / city mention present (worth 20pts)
+- Strong CTA in closing line (worth 20pts)
+- Compelling hook in opening (worth 20pts)
+- Business name mentioned naturally (worth 15pts)
+- Length 150-220 words (worth 15pts)
+- No generic filler phrases (worth 10pts)`,
+    reply: `- Tone mirrors the review's sentiment (worth 25pts)
+- Specific service or item mentioned (worth 20pts)
+- Location reference included naturally (worth 20pts)
+- Length 40-90 words (worth 20pts)
+- No generic phrases like "We value your feedback" (worth 15pts)`,
+    answer: `- Directly answers the question asked (worth 30pts)
+- SEO keywords woven in naturally (worth 25pts)
+- Business-specific info included (worth 20pts)
+- Appropriate length for the style chosen (worth 15pts)
+- Professional but friendly tone (worth 10pts)`,
+  };
+  const prompt = `Score this Google Business Profile ${type} for a business called "${bizName}" in ${city}.
+
+Scoring criteria (total 100 points):
+${criteria[type] || criteria.post}
+
+Content to score:
+"""
+${generatedText.slice(0, 1500)}
+"""
+
+Return ONLY valid JSON with no explanation:
+{"score":<0-100>,"tips":["<tip1>","<tip2>","<tip3>"],"strengths":["<strength1>","<strength2>"]}
+Tips are improvements needed (max 3, short phrases). Strengths are what's working well (max 2, short phrases).`;
+
+  try {
+    const raw = await callClaude(
+      'You are a GBP content quality scorer. Return only valid JSON.',
+      [{ role: 'user', content: prompt }],
+      200,
+      'claude-haiku-4-5-20251001',
+    );
+    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    return {
+      score: Math.min(100, Math.max(0, parseInt(parsed.score, 10) || 70)),
+      tips: Array.isArray(parsed.tips) ? parsed.tips.slice(0, 3) : [],
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths.slice(0, 2) : [],
+    };
+  } catch {
+    return { score: 70, tips: [], strengths: [] };
+  }
+}
+
+/** Build system prompt for manual post generation */
+function buildManualPostSystemPrompt(client, businessMemory, postType) {
+  const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
+  const city = client.city || 'the local area';
+  const socialLinks = client.social_links || {};
+  const activeSocials = Object.entries(socialLinks)
+    .filter(([, url]) => url)
+    .map(([p]) => p.charAt(0).toUpperCase() + p.slice(1));
+
+  const postTypeNote = {
+    offer: 'This is an OFFER post. Include a clear promotional offer or limited-time deal. Make it feel urgent but genuine.',
+    event: 'This is an EVENT post. Frame around a specific date-relevant service, seasonal event, or local occasion.',
+    seasonal: 'This is a SEASONAL post. Tie the content to the current season or upcoming holiday naturally.',
+    standard: 'This is a standard UPDATE post. Focus on a service, recent job, or helpful tip.',
+  }[postType] || 'This is a standard UPDATE post.';
+
+  const memorySection = businessMemory ? `\n## Business Memory (reference)\n${businessMemory}\n` : '';
+  const socialNote = activeSocials.length > 0
+    ? `Active social platforms: ${activeSocials.join(', ')} — you may reference these in the CTA naturally.`
+    : '';
+
+  return `You are a local business marketing expert writing Google Business Profile posts for ${bizLabel}s in ${city}.
+${memorySection}
+Format every post exactly like this:
+1. Opening: single emoji + punchy hook targeting a specific customer pain point. No period.
+2. Body: 2-3 sentences about ${client.business_name}, what they do, and how they solve the problem.
+3. Bullet list (3 items) using ✅ for services/benefits.
+4. One sentence of key value or reassurance.
+5. Closing CTA: emoji + direct call to action. ${socialNote}
+
+Rules:
+- 150-220 words total
+- No hashtags
+- No fluff like "In today's world" or "Are you looking for"
+- Sound like a real local business owner, not a marketing robot
+- End with action, not a question
+
+Post type: ${postTypeNote}`;
 }
 
 /** Download a photo URL → base64 string + mimeType. Returns null on failure. */
@@ -1163,6 +1282,364 @@ app.post('/api/posts/generate-draft', requireOwner, async (req, res) => {
     res.status(500).json({ error: 'An internal error occurred' });
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MANUAL MODE — AI content creation tools (no GBP API required)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Manual: Write Post ───────────────────────────────────────────────────────
+app.post('/api/manual/write-post', requireAuth, upload.single('image'), async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const client = rows[0];
+    const VALID_TYPES = ['standard', 'offer', 'event', 'seasonal'];
+    const postType = VALID_TYPES.includes(req.body?.postType) ? req.body.postType : 'standard';
+    const seoKeyword = typeof req.body?.seoKeyword === 'string' ? req.body.seoKeyword.trim().slice(0, 60) : '';
+    const rawAnswers = req.body?.contextAnswers;
+    const contextAnswers = Array.isArray(rawAnswers) ? rawAnswers.slice(0, 3).map((a) => String(a).trim().slice(0, 500)) : [];
+
+    // 1. Vision caption if image uploaded
+    let aiCaption = '';
+    if (req.file) {
+      try {
+        const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
+        aiCaption = await describePhotoWithVision(req.file.buffer.toString('base64'), req.file.mimetype, client.business_name, bizLabel);
+      } catch (e) { console.warn('[manual/post] Vision failed:', e.message); }
+    }
+
+    // 2. Business memory
+    const businessMemory = await getBusinessMemory(client.id);
+
+    // 3. Build prompt
+    const systemPrompt = buildManualPostSystemPrompt(client, businessMemory, postType);
+    const city = client.city || 'the local area';
+    const contextBlock = contextAnswers.filter(Boolean).map((a, i) => `Context ${i + 1}: ${a}`).join('\n');
+    const seoLine = seoKeyword ? `\nTarget SEO keyword to weave in naturally: "${seoKeyword}"` : '';
+    const captionLine = aiCaption ? `\nPhoto context (what the image shows): ${aiCaption}` : '';
+    const userPrompt = `Write a GBP post for ${client.business_name} in ${city}.${captionLine}${seoLine}\n${contextBlock}`;
+
+    // 4. Generate text + score in parallel
+    const [generatedText, scoring] = await Promise.all([
+      callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 550),
+      Promise.resolve(), // placeholder — score after text
+    ]);
+    const { score, tips, strengths } = await scoreContent('post', generatedText, client);
+
+    // 5. Save to library
+    const { rows: saved } = await pool.query(
+      `INSERT INTO manual_content (client_id, type, input_data, generated_text, quality_score, quality_tips, quality_strengths)
+       VALUES ($1, 'post', $2, $3, $4, $5, $6) RETURNING id, created_at`,
+      [client.id, JSON.stringify({ postType, seoKeyword, contextAnswers, aiCaption }), generatedText, score, JSON.stringify(tips), JSON.stringify(strengths)],
+    );
+
+    // 6. Update memory non-blocking
+    if (businessMemory) setImmediate(() => updateMemoryAfterPost(client, { post_text: generatedText, search_query: seoKeyword }).catch(() => {}));
+
+    res.json({ id: saved[0].id, generatedText, qualityScore: score, tips, strengths, aiCaption, charCount: generatedText.length });
+  } catch (err) {
+    console.error('[manual/write-post]', err);
+    res.status(500).json({ error: 'Post generation failed' });
+  }
+});
+
+// ─── Manual: Write Review Reply ───────────────────────────────────────────────
+app.post('/api/manual/write-reply', requireAuth, async (req, res) => {
+  try {
+    const reviewText = typeof req.body?.reviewText === 'string' ? req.body.reviewText.trim().slice(0, 5000) : '';
+    const starRating = Math.min(5, Math.max(1, parseInt(req.body?.starRating, 10) || 3));
+    if (!reviewText) return res.status(400).json({ error: 'reviewText is required' });
+
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const client = rows[0];
+
+    // 1. Detect sentiment + key phrases via Haiku (fast, non-blocking on failure)
+    let detection = { sentiment: 'positive', keyPhrases: [], mentionedService: '' };
+    try {
+      const detectPrompt = `Analyze this ${starRating}-star review and return ONLY JSON:
+{"sentiment":"positive|neutral|negative|mixed","keyPhrases":["<phrase1>","<phrase2>","<phrase3>"],"mentionedService":"<service or empty string>"}
+Review: "${reviewText.slice(0, 1000)}"`;
+      const raw = await callClaude('Return only valid JSON, no explanation.', [{ role: 'user', content: detectPrompt }], 150, 'claude-haiku-4-5-20251001');
+      detection = { ...detection, ...JSON.parse(raw.replace(/```json|```/g, '').trim()) };
+    } catch (e) { console.warn('[manual/reply] Detection failed:', e.message); }
+
+    // 2. Build system prompt (reuses existing helper which already injects memory)
+    const systemPrompt = await buildReplySystemPrompt(client);
+
+    // 3. Generate reply
+    const userPrompt = `Write a reply to this ${starRating}-star review for ${client.business_name}.
+Detected tone: ${detection.sentiment}. Mirror this tone in your reply.
+${detection.mentionedService ? `Service mentioned: ${detection.mentionedService}` : ''}
+Review: "${reviewText}"
+Reply (40-90 words, no quotes, no preamble):`;
+
+    const [generatedText] = await Promise.all([
+      callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 200),
+    ]);
+    const { score, tips, strengths } = await scoreContent('reply', generatedText, client);
+
+    const { rows: saved } = await pool.query(
+      `INSERT INTO manual_content (client_id, type, input_data, generated_text, quality_score, quality_tips, quality_strengths)
+       VALUES ($1, 'reply', $2, $3, $4, $5, $6) RETURNING id, created_at`,
+      [client.id, JSON.stringify({ reviewText: reviewText.slice(0, 500), starRating, detection }), generatedText, score, JSON.stringify(tips), JSON.stringify(strengths)],
+    );
+
+    if (detection.sentiment) setImmediate(() => updateMemoryAfterReply(client, starRating, reviewText, generatedText).catch(() => {}));
+
+    res.json({ id: saved[0].id, generatedText, qualityScore: score, tips, strengths, detection });
+  } catch (err) {
+    console.error('[manual/write-reply]', err);
+    res.status(500).json({ error: 'Reply generation failed' });
+  }
+});
+
+// ─── Manual: Write Q&A Answer ─────────────────────────────────────────────────
+app.post('/api/manual/write-answer', requireAuth, async (req, res) => {
+  try {
+    const question = typeof req.body?.question === 'string' ? req.body.question.trim().slice(0, 2000) : '';
+    const VALID_STYLES = ['brief', 'detailed', 'conversational'];
+    const style = VALID_STYLES.includes(req.body?.style) ? req.body.style : 'brief';
+    const seoMode = req.body?.seoMode === true || req.body?.seoMode === 'true';
+    if (!question) return res.status(400).json({ error: 'question is required' });
+
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const client = rows[0];
+    const businessMemory = await getBusinessMemory(client.id);
+
+    const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
+    const city = client.city || 'the local area';
+    const styleInstr = {
+      brief: 'Answer in 2-3 sentences. Be direct and helpful.',
+      detailed: 'Answer in 1-2 paragraphs. Include specifics about hours, services, pricing ranges, or process.',
+      conversational: 'Answer in a warm, friendly conversational tone as if speaking directly to the customer. 2-4 sentences.',
+    }[style];
+    const seoInstr = seoMode ? `\nSEO mode: naturally weave in "${client.business_name}", "${city}", and a relevant service keyword. Do NOT make it feel stuffed.` : '';
+    const memorySection = businessMemory ? `\nBusiness context:\n${businessMemory.slice(0, 800)}` : '';
+
+    const systemPrompt = `You are answering a customer question on Google Business Profile for ${client.business_name}, a ${bizLabel} in ${city}.
+${memorySection}${seoInstr}
+${styleInstr}
+Rules: Never say "Great question", never add a preamble. Answer directly. Sound like the business owner.`;
+
+    const generatedText = await callClaude(systemPrompt, [{ role: 'user', content: `Customer question: "${question}"` }], 300);
+    const { score, tips, strengths } = await scoreContent('answer', generatedText, client);
+
+    const { rows: saved } = await pool.query(
+      `INSERT INTO manual_content (client_id, type, input_data, generated_text, quality_score, quality_tips, quality_strengths)
+       VALUES ($1, 'answer', $2, $3, $4, $5, $6) RETURNING id, created_at`,
+      [client.id, JSON.stringify({ question, style, seoMode }), generatedText, score, JSON.stringify(tips), JSON.stringify(strengths)],
+    );
+
+    setImmediate(() => updateMemoryAfterQA(client, question, generatedText).catch(() => {}));
+
+    res.json({ id: saved[0].id, generatedText, qualityScore: score, tips, strengths });
+  } catch (err) {
+    console.error('[manual/write-answer]', err);
+    res.status(500).json({ error: 'Answer generation failed' });
+  }
+});
+
+// ─── Manual: Batch process images (open to all users) ─────────────────────────
+app.post('/api/images/process', requireAuth, upload.array('photos', 10), async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const client = rows[0];
+    const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
+    geocodeClientIfNeeded(client);
+
+    const categories = Array.isArray(req.body?.categories) ? req.body.categories : [];
+    const captions = Array.isArray(req.body?.captions) ? req.body.captions : [];
+
+    if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
+
+    const lat = client.lat ? parseFloat(client.lat) : null;
+    const lng = client.lng ? parseFloat(client.lng) : null;
+    const gpsExif = (lat && lng) ? {
+      GPS: {
+        GPSLatitudeRef: lat >= 0 ? 'N' : 'S',
+        GPSLatitude: decimalToGpsRational(lat),
+        GPSLongitudeRef: lng >= 0 ? 'E' : 'W',
+        GPSLongitude: decimalToGpsRational(lng),
+        GPSVersionID: '2300',
+      },
+    } : {};
+
+    const backendUrl = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+    const results = [];
+
+    for (let i = 0; i < req.files.length; i++) {
+      const file = req.files[i];
+      const category = categories[i] || 'EXTERIOR';
+      const manualCaption = captions[i] || '';
+      try {
+        // Vision caption
+        let aiCaption = '';
+        try {
+          aiCaption = await describePhotoWithVision(file.buffer.toString('base64'), file.mimetype, client.business_name, bizLabel);
+        } catch (e) { console.warn(`[images/process] Vision failed for file ${i}:`, e.message); }
+        const finalCaption = manualCaption || aiCaption;
+
+        // SEO metadata
+        let meta = { title: `${client.business_name} - ${category.toLowerCase()}`, description: finalCaption || `${category} photo`, keywords: [client.business_name, bizLabel, category.toLowerCase()] };
+        try {
+          const metaPrompt = `Generate SEO metadata for a GBP photo.\nBusiness: ${client.business_name} (${bizLabel})\nCategory: ${category}\nCaption: "${finalCaption}"\nReturn ONLY JSON: {"title":"<60 chars","description":"<150 chars","keywords":["k1","k2","k3","k4","k5"]}`;
+          const raw = await callClaude('Return only valid JSON, no explanation.', [{ role: 'user', content: metaPrompt }], 300);
+          meta = { ...meta, ...JSON.parse(raw.replace(/```json|```/g, '').trim()) };
+        } catch (e) { console.warn(`[images/process] Meta gen failed for file ${i}:`, e.message); }
+
+        // Sharp processing
+        const filename = seoFilename(client.business_name, category);
+        const outputPath = join(UPLOADS_DIR, filename);
+        await sharp(file.buffer)
+          .jpeg({ quality: 92 })
+          .withMetadata({
+            exif: {
+              IFD0: {
+                ImageDescription: meta.description,
+                Artist: client.business_name,
+                Copyright: `© ${new Date().getFullYear()} ${client.business_name}`,
+                XPTitle: Buffer.from(meta.title + '\0', 'ucs2'),
+                XPComment: Buffer.from(meta.description + '\0', 'ucs2'),
+                XPKeywords: Buffer.from(meta.keywords.join(';') + '\0', 'ucs2'),
+              },
+              ...gpsExif,
+            },
+          })
+          .toFile(outputPath);
+
+        // Save to library
+        await pool.query(
+          `INSERT INTO manual_content (client_id, type, input_data, filename)
+           VALUES ($1, 'image', $2, $3)`,
+          [client.id, JSON.stringify({ category, aiCaption, meta }), filename],
+        );
+
+        results.push({ index: i, ok: true, filename, downloadUrl: `${backendUrl}/uploads/${filename}`, meta: { ...meta, aiCaption, category, gpsInjected: !!(lat && lng) } });
+      } catch (e) {
+        console.error(`[images/process] File ${i} failed:`, e.message);
+        results.push({ index: i, ok: false, error: e.message });
+      }
+    }
+
+    res.json({ results, gpsInjected: !!(lat && lng) });
+  } catch (err) {
+    console.error('[images/process]', err);
+    res.status(500).json({ error: 'Image processing failed' });
+  }
+});
+
+// ─── Manual: Download images as ZIP ───────────────────────────────────────────
+app.post('/api/images/download-zip', requireAuth, async (req, res) => {
+  try {
+    const filenames = Array.isArray(req.body?.filenames) ? req.body.filenames.slice(0, 10) : [];
+    if (!filenames.length) return res.status(400).json({ error: 'No filenames provided' });
+
+    // Validate all files belong to requesting client
+    const { rows } = await pool.query(
+      `SELECT filename FROM manual_content WHERE client_id = $1 AND filename = ANY($2)`,
+      [req.session.clientId, filenames],
+    );
+    const validFilenames = new Set(rows.map((r) => r.filename));
+    const toZip = filenames.filter((f) => validFilenames.has(f));
+    if (!toZip.length) return res.status(403).json({ error: 'No accessible files found' });
+
+    const zipName = `hayvista-photos-${Date.now()}.zip`;
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    archive.on('error', (err) => { console.error('[download-zip]', err); res.status(500).end(); });
+    archive.pipe(res);
+
+    for (const filename of toZip) {
+      const filePath = join(UPLOADS_DIR, filename);
+      archive.file(filePath, { name: filename });
+    }
+    await archive.finalize();
+  } catch (err) {
+    console.error('[download-zip]', err);
+    if (!res.headersSent) res.status(500).json({ error: 'ZIP creation failed' });
+  }
+});
+
+// ─── Manual: Content Library ───────────────────────────────────────────────────
+app.get('/api/manual/library', requireAuth, async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const offset = (page - 1) * limit;
+    const typeFilter = ['post', 'reply', 'answer', 'image'].includes(req.query.type) ? req.query.type : null;
+    const search = typeof req.query.search === 'string' ? req.query.search.trim().slice(0, 100) : '';
+
+    let whereClause = 'WHERE client_id = $1';
+    const params = [req.session.clientId];
+    if (typeFilter) { params.push(typeFilter); whereClause += ` AND type = $${params.length}`; }
+    if (search) { params.push(`%${search}%`); whereClause += ` AND generated_text ILIKE $${params.length}`; }
+
+    const countRes = await pool.query(`SELECT COUNT(*) FROM manual_content ${whereClause}`, params);
+    const total = parseInt(countRes.rows[0].count, 10);
+
+    params.push(limit, offset);
+    const { rows } = await pool.query(
+      `SELECT id, type, input_data, generated_text, quality_score, quality_tips, quality_strengths, filename, posted_at, created_at
+       FROM manual_content ${whereClause}
+       ORDER BY created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`,
+      params,
+    );
+
+    const backendUrl = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+    const items = rows.map((r) => ({
+      ...r,
+      quality_tips: r.quality_tips || [],
+      quality_strengths: r.quality_strengths || [],
+      downloadUrl: r.filename ? `${backendUrl}/uploads/${r.filename}` : null,
+    }));
+
+    res.json({ items, total, page, limit, pages: Math.ceil(total / limit) });
+  } catch (err) {
+    console.error('[manual/library]', err);
+    res.status(500).json({ error: 'Failed to load library' });
+  }
+});
+
+app.patch('/api/manual/library/:id/posted', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE manual_content SET posted_at = NOW() WHERE id = $1 AND client_id = $2 AND posted_at IS NULL RETURNING *`,
+      [req.params.id, req.session.clientId],
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Not found or already posted' });
+
+    const row = rows[0];
+    const { rows: clientRows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.session.clientId]);
+    const client = clientRows[0];
+
+    // Trigger memory updates non-blocking
+    setImmediate(async () => {
+      try {
+        if (row.type === 'post') await updateMemoryAfterPost(client, { post_text: row.generated_text, search_query: row.input_data?.seoKeyword || '' });
+        else if (row.type === 'reply') await updateMemoryAfterReply(client, row.input_data?.starRating || 3, row.input_data?.reviewText || '', row.generated_text);
+        else if (row.type === 'answer') await updateMemoryAfterQA(client, row.input_data?.question || '', row.generated_text);
+      } catch (e) { console.warn('[library/posted] Memory update failed:', e.message); }
+    });
+
+    res.json({ ok: true, postedAt: row.posted_at });
+  } catch (err) {
+    console.error('[manual/library/posted]', err);
+    res.status(500).json({ error: 'Failed to mark as posted' });
+  }
+});
+
+app.delete('/api/manual/library/:id', requireAuth, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM manual_content WHERE id = $1 AND client_id = $2', [req.params.id, req.session.clientId]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[manual/library/delete]', err);
+    res.status(500).json({ error: 'Delete failed' });
+  }
+});
+
+// ─── End Manual Mode routes ────────────────────────────────────────────────────
 
 // Rotate post type: Mon=OFFER, Wed=STANDARD, Fri=EVENT
 function resolvePostType() {

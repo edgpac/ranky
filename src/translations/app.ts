@@ -58,6 +58,7 @@ export const app = {
         bookings:   'Messaging',
         getreviews: 'Get Reviews',
         memory:     'AI Memory',
+        manual:     'AI Tools',
         owner:      'Owner Studio',
       },
       // Category options
@@ -525,6 +526,7 @@ export const app = {
         bookings:   'Mensajería',
         getreviews: 'Obtener Reseñas',
         memory:     'Memoria IA',
+        manual:     'Herramientas IA',
         owner:      'Owner Studio',
       },
       categories: {
