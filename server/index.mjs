@@ -1533,22 +1533,30 @@ app.post('/api/images/process', requireAuth, upload.array('photos', 10), async (
           meta = { ...meta, ...JSON.parse(raw.replace(/```json|```/g, '').trim()) };
         } catch (e) { console.warn(`[images/process] Meta gen failed for file ${i}:`, e.message); }
 
-        // Sharp processing
+        // Sharp processing — try with EXIF/GPS, fall back to plain JPEG if metadata fails
+        console.log(`[images/process] file ${i}: category=${category} caption="${manualCaption}" uploads_dir=${UPLOADS_DIR}`);
         const filename = seoFilename(client.business_name, category);
         const outputPath = join(UPLOADS_DIR, filename);
-        await sharp(file.buffer)
-          .jpeg({ quality: 92 })
-          .withMetadata({
-            exif: {
-              IFD0: {
-                ImageDescription: meta.description,
-                Artist: client.business_name,
-                Copyright: `© ${new Date().getFullYear()} ${client.business_name}`,
+        let gpsInjected = false;
+        try {
+          await sharp(file.buffer)
+            .jpeg({ quality: 92 })
+            .withMetadata({
+              exif: {
+                IFD0: {
+                  ImageDescription: meta.description,
+                  Artist: client.business_name,
+                  Copyright: `© ${new Date().getFullYear()} ${client.business_name}`,
+                },
+                ...gpsExif,
               },
-              ...gpsExif,
-            },
-          })
-          .toFile(outputPath);
+            })
+            .toFile(outputPath);
+          gpsInjected = !!(lat && lng);
+        } catch (sharpErr) {
+          console.warn(`[images/process] EXIF injection failed for file ${i}, falling back to plain JPEG:`, sharpErr.message);
+          await sharp(file.buffer).jpeg({ quality: 92 }).toFile(outputPath);
+        }
 
         // Save to library
         await pool.query(
@@ -1557,7 +1565,7 @@ app.post('/api/images/process', requireAuth, upload.array('photos', 10), async (
           [client.id, JSON.stringify({ category, aiCaption, meta }), filename],
         );
 
-        results.push({ index: i, ok: true, filename, downloadUrl: `${backendUrl}/uploads/${filename}`, meta: { ...meta, aiCaption, category, gpsInjected: !!(lat && lng) } });
+        results.push({ index: i, ok: true, filename, downloadUrl: `${backendUrl}/uploads/${filename}`, meta: { ...meta, aiCaption, category, gpsInjected } });
       } catch (e) {
         console.error(`[images/process] File ${i} failed:`, e.message);
         results.push({ index: i, ok: false, error: e.message });
