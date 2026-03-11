@@ -180,6 +180,13 @@ export default function LandingPage() {
                   </div>
                 </div>
 
+                {/* Manual Mode note */}
+                <div style={{ padding: '0.75rem 1rem', background: 'rgba(79,142,247,0.07)', borderRadius: '0.625rem', border: '1px solid rgba(79,142,247,0.18)' }}>
+                  <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.7)', lineHeight: 1.55 }}>
+                    {t.pricing.manualNote}
+                  </p>
+                </div>
+
                 {/* Cap note */}
                 <p className="text-[11px] leading-relaxed text-center" style={{ color: 'rgba(240,244,255,0.4)', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: '0.6rem 0' }}>
                   {t.pricing.cappedNote}
