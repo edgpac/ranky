@@ -3,9 +3,10 @@ import { useState } from 'react';
 interface Props {
   isOwner?: boolean;
   automatedUnlocked?: boolean;
+  onManualClick?: () => void;
 }
 
-export default function ModeToggle({ automatedUnlocked }: Props) {
+export default function ModeToggle({ automatedUnlocked, onManualClick }: Props) {
   const [showCard, setShowCard] = useState(false);
 
   if (automatedUnlocked) {
@@ -26,15 +27,19 @@ export default function ModeToggle({ automatedUnlocked }: Props) {
     <div style={{ position: 'relative' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
         {/* Active: Manual */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '0.375rem',
-          padding: '0.375rem 0.75rem', borderRadius: '2rem',
-          background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.3)',
-          fontSize: '0.75rem', fontWeight: 600, color: '#4f8ef7',
-        }}>
+        <button
+          onClick={onManualClick}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.375rem',
+            padding: '0.375rem 0.75rem', borderRadius: '2rem',
+            background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.3)',
+            fontSize: '0.75rem', fontWeight: 600, color: '#4f8ef7',
+            cursor: onManualClick ? 'pointer' : 'default',
+          }}
+        >
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4f8ef7', flexShrink: 0, boxShadow: '0 0 6px #4f8ef7' }} />
           Manual Mode
-        </div>
+        </button>
         {/* Locked: Automated */}
         <button
           onClick={() => setShowCard((v) => !v)}

@@ -544,7 +544,7 @@ export default function Dashboard() {
         </button>
 
         <div className="flex items-center gap-3">
-          <ModeToggle automatedUnlocked={false} />
+          <ModeToggle automatedUnlocked={false} onManualClick={() => setActiveTab('manual')} />
           {!isGuest && (
             <div
               className="flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-full"
