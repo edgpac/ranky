@@ -32,6 +32,12 @@ const CONTEXT_QUESTIONS = [
   'What do you want customers to do after reading? (call, book, visit…)',
 ];
 
+const CONTEXT_QUESTIONS_WITH_IMAGE = [
+  'Describe the image in your own words — what does it show?',
+  'What makes your business different or better here?',
+  'What do you want customers to do after reading? (call, book, visit…)',
+];
+
 const DRAFT_KEY = 'hv_post_draft';
 
 const card: React.CSSProperties = {
@@ -295,17 +301,17 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
       {/* Context questions */}
       <div style={card}>
         <span style={label}>
-          {imageFile ? 'Extra context (optional — add details to sharpen the post)' : 'Context — 3 quick questions'}
+          {imageFile ? 'Your perspective — Claude combines this with the photo' : 'Context — 3 quick questions'}
         </span>
         {imageFile && (
-          <p style={{ fontSize: '0.72rem', color: 'rgba(232,238,255,0.35)', marginBottom: '0.75rem', lineHeight: 1.4 }}>
-            Claude will base the post on your photo. Add any extra details you want included.
+          <p style={{ fontSize: '0.72rem', color: 'rgba(232,238,255,0.4)', marginBottom: '0.75rem', lineHeight: 1.4 }}>
+            Claude sees the photo <em>and</em> reads your answers — both shape the post equally.
           </p>
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-          {CONTEXT_QUESTIONS.map((q, i) => (
+          {(imageFile ? CONTEXT_QUESTIONS_WITH_IMAGE : CONTEXT_QUESTIONS).map((q, i) => (
             <div key={i}>
-              <p style={{ fontSize: '0.8rem', color: imageFile ? 'rgba(232,238,255,0.45)' : 'rgba(232,238,255,0.65)', marginBottom: '0.375rem' }}>
+              <p style={{ fontSize: '0.8rem', color: 'rgba(232,238,255,0.65)', marginBottom: '0.375rem' }}>
                 {i + 1}. {q}
               </p>
               <textarea
@@ -313,7 +319,7 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
                 onChange={(e) => setAnswer(i, e.target.value)}
                 rows={2}
                 placeholder={imageFile ? 'Optional…' : 'Your answer…'}
-                style={{ ...inputStyle, resize: 'vertical', minHeight: 60, opacity: imageFile && !answers[i] ? 0.6 : 1 }}
+                style={{ ...inputStyle, resize: 'vertical', minHeight: 60 }}
               />
             </div>
           ))}

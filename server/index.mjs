@@ -500,21 +500,6 @@ async function describePhotoWithVision(base64, mimeType, businessName, bizLabel)
   return response.content[0].text.trim();
 }
 
-/** Richer Vision description for post generation (~2-3 sentences). */
-async function describePhotoForPost(base64, mimeType, businessName, bizLabel) {
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 200,
-    messages: [{
-      role: 'user',
-      content: [
-        { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
-        { type: 'text', text: `You are analyzing a photo uploaded by ${businessName}, a ${bizLabel}, to write a Google Business Profile post about it.\n\nDescribe the photo in 2-3 sentences covering: what work or service is shown, any visible quality details or materials, and the setting or location context. Be specific — mention colors, conditions, equipment, or results visible. This description will be used to write a post, so focus on what would impress a potential customer. No intro phrase, start directly with what you see.` },
-      ],
-    }],
-  });
-  return response.content[0].text.trim();
-}
 
 /**
  * Background job: label up to `limit` unlabeled photos for a client using Claude Vision.
@@ -1314,40 +1299,53 @@ app.post('/api/manual/write-post', requireAuth, upload.single('image'), async (r
     const rawAnswers = req.body?.contextAnswers;
     const contextAnswers = Array.isArray(rawAnswers) ? rawAnswers.slice(0, 3).map((a) => String(a).trim().slice(0, 500)) : [];
 
-    // 1. Vision caption if image uploaded (richer description for post generation)
-    let aiCaption = '';
-    if (req.file) {
-      try {
-        const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
-        aiCaption = await describePhotoForPost(req.file.buffer.toString('base64'), req.file.mimetype, client.business_name, bizLabel);
-      } catch (e) { console.warn('[manual/post] Vision failed:', e.message); }
-    }
-
-    // 2. Business memory
+    // 1. Business memory
     const businessMemory = await getBusinessMemory(client.id);
 
-    // 3. Build prompt — image drives the post when present, questions add context
+    // 2. Build system prompt
     const systemPrompt = buildManualPostSystemPrompt(client, businessMemory, postType);
     const city = client.city || 'the local area';
     const contextAnswersFilled = contextAnswers.filter(Boolean);
     const seoLine = seoKeyword ? `\nTarget SEO keyword to weave in naturally: "${seoKeyword}"` : '';
 
-    let userPrompt;
-    if (aiCaption) {
-      const extraContext = contextAnswersFilled.length > 0
-        ? `\nAdditional context from the business owner:\n${contextAnswersFilled.map((a, i) => `${i + 1}. ${a}`).join('\n')}`
-        : '';
-      userPrompt = `Write a GBP post for ${client.business_name} in ${city}.\n\nThis post is based on a photo the business owner uploaded. Write it about what is shown in the photo:\n${aiCaption}${seoLine}${extraContext}`;
+    // 3. Generate post — multimodal (image → post) or text-only
+    let generatedText;
+    let aiCaption = '';
+
+    if (req.file) {
+      // Image path: pass image directly to Sonnet so it writes the post while looking at the photo.
+      // Simultaneously get a short Haiku caption for the "AI saw:" UI display.
+      const base64 = req.file.buffer.toString('base64');
+      const mimeType = req.file.mimetype || 'image/jpeg';
+      const ownerContext = contextAnswersFilled.length > 0
+        ? `\n\nThe business owner also provided their perspective:\n${contextAnswersFilled.map((a, i) => `${i + 1}. ${a}`).join('\n')}\n\nUse both the photo and the owner's description equally — the image shows what happened, the owner's words give you their angle and intent.`
+        : '\n\nWrite the post based on what you see in the photo.';
+      const userText = `Write a GBP post for ${client.business_name} in ${city}.${seoLine}${ownerContext}`;
+
+      const [postResponse, captionText] = await Promise.all([
+        anthropic.messages.create({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 600,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: [
+            { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+            { type: 'text', text: userText },
+          ]}],
+        }),
+        describePhotoWithVision(base64, mimeType, client.business_name,
+          BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business'
+        ).catch(() => ''),
+      ]);
+      generatedText = postResponse.content[0].text.trim();
+      aiCaption = captionText;
     } else {
+      // Text-only path
       const contextBlock = contextAnswersFilled.map((a, i) => `Context ${i + 1}: ${a}`).join('\n');
-      userPrompt = `Write a GBP post for ${client.business_name} in ${city}.${seoLine}\n${contextBlock}`;
+      const userPrompt = `Write a GBP post for ${client.business_name} in ${city}.${seoLine}\n${contextBlock}`;
+      generatedText = await callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 550);
     }
 
-    // 4. Generate text + score in parallel
-    const [generatedText, scoring] = await Promise.all([
-      callClaude(systemPrompt, [{ role: 'user', content: userPrompt }], 550),
-      Promise.resolve(), // placeholder — score after text
-    ]);
+    // 4. Score
     const { score, tips, strengths } = await scoreContent('post', generatedText, client);
 
     // 5. Save to library
