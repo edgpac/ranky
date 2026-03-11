@@ -274,6 +274,8 @@ export default function ImageProcessorTool({ isGuest }: { isGuest?: boolean }) {
                   {img.result.meta.gpsInjected && <p>📍 GPS embedded</p>}
                   {img.result.meta.aiCaption && <p style={{ marginTop: '0.125rem', fontStyle: 'italic' }}>"{img.result.meta.aiCaption}"</p>}
                 </div>
+              ) : img.error ? (
+                <p style={{ fontSize: '0.68rem', color: '#f87171', marginTop: '0.25rem', wordBreak: 'break-word' }}>{img.error}</p>
               ) : null}
             </div>
 
