@@ -430,7 +430,7 @@ Tips are improvements needed (max 3, short phrases). Strengths are what's workin
 }
 
 /** Build system prompt for manual post generation */
-function buildManualPostSystemPrompt(client, businessMemory, postType, targetName, targetCity) {
+function buildManualPostSystemPrompt(client, businessMemory, postType, targetName, targetCity, lang = 'en') {
   const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
   const city = targetCity || client.city || 'the local area';
   const bizName = targetName || client.business_name || 'the business';
@@ -477,6 +477,7 @@ ${memorySection}
 - End with action, not a question
 - NEVER use brackets or placeholders of any kind
 - Write exactly 190-220 words — do not stop short
+- Language: write entirely in ${lang === 'es' ? 'Spanish' : 'English'}
 
 Post type: ${postTypeNote}`;
 }
@@ -550,7 +551,8 @@ Hard rules:
 - Under 80 words.
 - Tone: ${client.tone}.
 - No hashtags, no emojis.
-- Never be defensive, never argue, never dismiss.${memorySection}`;
+- Never be defensive, never argue, never dismiss.
+- Language: reply in the same language the reviewer wrote in. If the review is in Spanish, reply entirely in Spanish.${memorySection}`;
 }
 
 // ─── Auto-draft pending replies for unreplied reviews (background) ─────────────
@@ -1308,6 +1310,7 @@ app.post('/api/manual/write-post', requireAuth, upload.single('image'), async (r
     const VALID_TYPES = ['standard', 'offer', 'event', 'seasonal'];
     const postType = VALID_TYPES.includes(req.body?.postType) ? req.body.postType : 'standard';
     const seoKeyword = typeof req.body?.seoKeyword === 'string' ? req.body.seoKeyword.trim().slice(0, 60) : '';
+    const lang = req.body?.lang === 'es' ? 'es' : 'en';
     const rawAnswers = req.body?.contextAnswers;
     const contextAnswers = Array.isArray(rawAnswers) ? rawAnswers.slice(0, 5).map((a) => String(a).trim().slice(0, 500)) : [];
 
@@ -1318,8 +1321,8 @@ app.post('/api/manual/write-post', requireAuth, upload.single('image'), async (r
     const targetCity = contextAnswers[3] || client.city || 'the local area';
     const targetName = contextAnswers[4] || client.business_name;
 
-    // 2. Build system prompt — pass targetName + targetCity so rubric references exact values
-    const systemPrompt = buildManualPostSystemPrompt(client, businessMemory, postType, targetName, targetCity);
+    // 2. Build system prompt — pass targetName + targetCity + lang so rubric references exact values
+    const systemPrompt = buildManualPostSystemPrompt(client, businessMemory, postType, targetName, targetCity, lang);
     const city = targetCity;
     // Build context block from Q1–Q3 only (city + name are used directly in prompt)
     const contextAnswersFilled = contextAnswers.slice(0, 3).filter(Boolean);
@@ -1458,7 +1461,7 @@ app.post('/api/manual/write-answer', requireAuth, async (req, res) => {
     const systemPrompt = `You are answering a customer question on Google Business Profile for ${client.business_name}, a ${bizLabel} in ${city}.
 ${memorySection}${seoInstr}
 ${styleInstr}
-Rules: Never say "Great question", never add a preamble. Answer directly. Sound like the business owner.`;
+Rules: Never say "Great question", never add a preamble. Answer directly. Sound like the business owner. Reply in the same language as the question — if the question is in Spanish, answer entirely in Spanish.`;
 
     const generatedText = await callClaude(systemPrompt, [{ role: 'user', content: `Customer question: "${question}"` }], 300);
     const { score, tips, strengths } = await scoreContent('answer', generatedText, client);
@@ -2716,7 +2719,7 @@ app.post('/api/qa/generate-answer', requireAuth, async (req, res) => {
     const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
     const qaMemory = await getBusinessMemory(client.id);
     const qaMemoryNote = qaMemory ? `\n\nContext about this business:\n${qaMemory.split('\n').slice(0, 20).join('\n')}` : '';
-    const systemPrompt = `You are a helpful, professional customer service representative for ${client.business_name}, a ${bizLabel}. Write a concise, friendly answer to a customer question posted on Google. Tone: ${client.tone}. Keep it under 100 words. No hashtags.${qaMemoryNote}`;
+    const systemPrompt = `You are a helpful, professional customer service representative for ${client.business_name}, a ${bizLabel}. Write a concise, friendly answer to a customer question posted on Google. Tone: ${client.tone}. Keep it under 100 words. No hashtags. Reply in the same language as the question — if the question is in Spanish, answer entirely in Spanish.${qaMemoryNote}`;
     const answerText = await callClaude(systemPrompt, [{ role: 'user', content: `Customer question: "${qa.question_text}"\n\nWrite a helpful answer.` }], 150);
 
     const { rows: [updated] } = await pool.query(
@@ -3153,7 +3156,7 @@ cron.schedule('0 */6 * * *', async () => {
             const bizLabel = BUSINESS_TYPE_LABELS[client.business_type || 'general'] || 'local business';
             const cronQaMemory = await getBusinessMemory(client.id);
             const cronQaNote = cronQaMemory ? `\n\nContext about this business:\n${cronQaMemory.split('\n').slice(0, 20).join('\n')}` : '';
-            const sysP = `You are a helpful customer service rep for ${client.business_name}, a ${bizLabel}. Write a concise, professional answer in under 80 words. No hashtags.${cronQaNote}`;
+            const sysP = `You are a helpful customer service rep for ${client.business_name}, a ${bizLabel}. Write a concise, professional answer in under 80 words. No hashtags. Reply in the same language as the question — if the question is in Spanish, answer entirely in Spanish.${cronQaNote}`;
             const answerText = await callClaude(sysP, [{ role: 'user', content: `Question: "${row.question_text}"` }], 120);
             await pool.query(
               `UPDATE qa_answers SET answer_text = $1, status = 'draft', auto_approve_at = NOW() + INTERVAL '24 hours'

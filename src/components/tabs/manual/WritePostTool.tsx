@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLanguage } from '../../../contexts/LanguageContext';
 import QualityScoreRing from '../../QualityScoreRing';
 import CopyButton from '../../CopyButton';
 
@@ -85,6 +86,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 export default function WritePostTool({ businessName, isGuest }: Props) {
+  const { language } = useLanguage();
   const [postType, setPostType] = useState<PostType>('standard');
   const [answers, setAnswers] = useState(['', '', '', '', '']);
   const [seoKeyword, setSeoKeyword] = useState('');
@@ -208,6 +210,7 @@ export default function WritePostTool({ businessName, isGuest }: Props) {
 
     const form = new FormData();
     form.append('postType', postType);
+    form.append('lang', language);
     answers.forEach((a) => form.append('contextAnswers', a));
     if (seoKeyword) form.append('seoKeyword', seoKeyword);
     if (imageFile) form.append('image', imageFile);
