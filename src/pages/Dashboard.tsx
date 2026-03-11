@@ -631,7 +631,7 @@ export default function Dashboard() {
         }}
       >
         <div
-          className="flex items-end gap-0.5 px-5 pt-2"
+          className="flex items-center gap-0.5 px-5 pt-2"
           style={{ overflowX: 'auto', scrollbarWidth: 'none' }}
         >
           {(isGuest ? SECTIONS_BY_CATEGORY[demoCategory] ?? TABS.map(tab => tab.id) : TABS.map(tab => tab.id).filter(id => id !== 'owner' || client?.isOwner)).map((tabId) => {
@@ -640,7 +640,7 @@ export default function Dashboard() {
               <button
                 key={tabId}
                 onClick={() => setActiveTab(tabId as TabId)}
-                className="flex items-center gap-1.5 px-3.5 pb-2.5 pt-2 text-[13px] font-medium rounded-t-lg whitespace-nowrap -mb-px"
+                className="flex items-center gap-1.5 h-10 px-3.5 py-2 text-[13px] font-medium rounded-t-lg whitespace-nowrap -mb-px"
                 style={{
                   color: isActive ? '#4f8ef7' : 'rgba(232,238,255,0.45)',
                   borderBottom: isActive ? '2px solid #4f8ef7' : '2px solid transparent',

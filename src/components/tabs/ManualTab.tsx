@@ -86,6 +86,8 @@ export default function ManualTab({ isGuest }: Props) {
             style={{
               padding: '0.5rem 1rem', borderRadius: '2rem', fontSize: '0.8rem', fontWeight: 600,
               whiteSpace: 'nowrap', cursor: 'pointer', transition: 'all 0.15s',
+              minWidth: 100, justifyContent: 'center',
+              display: 'flex', alignItems: 'center', gap: '0.3rem',
               border: activeTab === id ? '1px solid #4f8ef7' : '1px solid rgba(255,255,255,0.1)',
               background: activeTab === id ? 'rgba(79,142,247,0.15)' : 'rgba(255,255,255,0.03)',
               color: activeTab === id ? '#4f8ef7' : 'rgba(232,238,255,0.55)',

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import QualityScoreRing from '../../QualityScoreRing';
 import CopyButton from '../../CopyButton';
 
@@ -14,6 +14,10 @@ interface Result {
   charCount: number;
 }
 
+interface Props {
+  businessName?: string;
+}
+
 const POST_TYPES: { value: PostType; label: string; emoji: string }[] = [
   { value: 'standard', label: 'Update', emoji: '📢' },
   { value: 'offer', label: 'Offer', emoji: '🎁' },
@@ -26,6 +30,8 @@ const CONTEXT_QUESTIONS = [
   'What makes your business different or better here?',
   'What do you want customers to do after reading? (call, book, visit…)',
 ];
+
+const DRAFT_KEY = 'hv_post_draft';
 
 const card: React.CSSProperties = {
   background: 'rgba(255,255,255,0.035)',
@@ -44,7 +50,7 @@ const label: React.CSSProperties = {
   display: 'block',
 };
 
-const input: React.CSSProperties = {
+const inputStyle: React.CSSProperties = {
   width: '100%',
   background: 'rgba(255,255,255,0.04)',
   border: '1px solid rgba(255,255,255,0.1)',
@@ -56,17 +62,60 @@ const input: React.CSSProperties = {
   boxSizing: 'border-box',
 };
 
-export default function WritePostTool() {
+export default function WritePostTool({ businessName }: Props) {
   const [postType, setPostType] = useState<PostType>('standard');
   const [answers, setAnswers] = useState(['', '', '']);
   const [seoKeyword, setSeoKeyword] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [editedText, setEditedText] = useState('');
   const [error, setError] = useState('');
+  const [dragActive, setDragActive] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Load draft on mount
+  useEffect(() => {
+    try {
+      const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
+      if (d.answers) setAnswers(d.answers);
+      if (d.seoKeyword) setSeoKeyword(d.seoKeyword);
+      if (d.postType) setPostType(d.postType);
+    } catch {
+      // ignore malformed draft
+    }
+  }, []);
+
+  // Auto-save draft with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ answers, seoKeyword, postType }));
+      } catch {
+        // ignore storage errors
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [answers, seoKeyword, postType]);
+
+  // Window-level paste handler
+  useEffect(() => {
+    const handler = (e: ClipboardEvent) => {
+      const item = e.clipboardData?.items?.[0];
+      if (item?.type.startsWith('image/')) {
+        const f = item.getAsFile();
+        if (f) {
+          setImageFile(f);
+          setImagePreview(URL.createObjectURL(f));
+        }
+      }
+    };
+    window.addEventListener('paste', handler);
+    return () => window.removeEventListener('paste', handler);
+  }, []);
 
   function onImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -75,18 +124,64 @@ export default function WritePostTool() {
     setImagePreview(URL.createObjectURL(file));
   }
 
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  }
+
+  function onDragEnter(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  }
+
+  function onDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  }
+
   function setAnswer(i: number, val: string) {
     setAnswers((prev) => prev.map((a, idx) => idx === i ? val : a));
   }
 
-  async function generate() {
+  function clearForm() {
+    setPostType('standard');
+    setAnswers(['', '', '']);
+    setSeoKeyword('');
+    setImageFile(null);
+    setImagePreview('');
+    setResult(null);
+    setEditedText('');
+    setError('');
+    setShowPreview(false);
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+  }
+
+  async function generate(isRegen = false) {
     if (!answers[0].trim() && !imageFile) {
       setError('Tell us what the post is about (question 1) or upload an image.');
       return;
     }
-    setGenerating(true);
+    if (isRegen) {
+      setRegenerating(true);
+    } else {
+      setGenerating(true);
+      setResult(null);
+    }
     setError('');
-    setResult(null);
 
     const form = new FormData();
     form.append('postType', postType);
@@ -100,15 +195,19 @@ export default function WritePostTool() {
       const data: Result = await res.json();
       setResult(data);
       setEditedText(data.generatedText);
+      setShowPreview(false);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
     } finally {
       setGenerating(false);
+      setRegenerating(false);
     }
   }
 
   const charCount = editedText.length;
+  const wordCount = editedText.trim() ? editedText.trim().split(/\s+/).length : 0;
   const charColor = charCount > 1500 ? '#f87171' : charCount > 1200 ? '#fbbf24' : 'rgba(232,238,255,0.4)';
+  const displayName = businessName || 'Your Business';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -140,7 +239,7 @@ export default function WritePostTool() {
 
       {/* Image upload */}
       <div style={card}>
-        <span style={label}>Photo (optional — Claude reads it for context)</span>
+        <span style={label}>Photo (optional — Claude reads it for context · drag & drop or paste)</span>
         {imagePreview ? (
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
             <img src={imagePreview} alt="" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: '0.5rem' }} />
@@ -156,17 +255,29 @@ export default function WritePostTool() {
             </div>
           </div>
         ) : (
-          <button
+          <div
+            onDragOver={onDragOver}
+            onDragEnter={onDragEnter}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
             onClick={() => fileRef.current?.click()}
             style={{
-              width: '100%', padding: '1.5rem', border: '2px dashed rgba(255,255,255,0.12)',
-              borderRadius: '0.75rem', background: 'transparent', color: 'rgba(232,238,255,0.45)',
-              cursor: 'pointer', fontSize: '0.8125rem', textAlign: 'center',
+              width: '100%',
+              padding: '1.5rem',
+              border: dragActive ? '2px dashed #4f8ef7' : '2px dashed rgba(255,255,255,0.12)',
+              borderRadius: '0.75rem',
+              background: dragActive ? 'rgba(79,142,247,0.07)' : 'transparent',
+              color: dragActive ? '#4f8ef7' : 'rgba(232,238,255,0.45)',
+              cursor: 'pointer',
+              fontSize: '0.8125rem',
+              textAlign: 'center',
+              transition: 'all 0.15s',
+              boxSizing: 'border-box',
             }}
           >
-            <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>📸</div>
-            Click to upload a photo
-          </button>
+            <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{dragActive ? '⬇️' : '📸'}</div>
+            {dragActive ? 'Drop photo here' : 'Click to upload · drag & drop · or paste from clipboard'}
+          </div>
         )}
         <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onImagePick} />
       </div>
@@ -185,7 +296,7 @@ export default function WritePostTool() {
                 onChange={(e) => setAnswer(i, e.target.value)}
                 rows={2}
                 placeholder="Your answer…"
-                style={{ ...input, resize: 'vertical', minHeight: 60 }}
+                style={{ ...inputStyle, resize: 'vertical', minHeight: 60 }}
               />
             </div>
           ))}
@@ -200,44 +311,93 @@ export default function WritePostTool() {
           value={seoKeyword}
           onChange={(e) => setSeoKeyword(e.target.value.slice(0, 60))}
           placeholder="e.g. kitchen remodel Los Cabos"
-          style={input}
+          style={inputStyle}
         />
         <p style={{ fontSize: '0.7rem', color: 'rgba(232,238,255,0.3)', marginTop: '0.375rem' }}>Claude weaves this in naturally — no keyword stuffing.</p>
       </div>
 
-      {/* Generate button */}
+      {/* Generate button + clear */}
       {error && <p style={{ fontSize: '0.8rem', color: '#f87171', padding: '0 0.25rem' }}>{error}</p>}
-      <button
-        onClick={generate}
-        disabled={generating}
-        style={{
-          padding: '0.75rem 1.5rem', borderRadius: '0.625rem', border: 'none',
-          background: generating ? 'rgba(79,142,247,0.4)' : '#4f8ef7',
-          color: '#fff', fontWeight: 700, fontSize: '0.875rem',
-          cursor: generating ? 'not-allowed' : 'pointer', transition: 'background 0.2s',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-        }}
-      >
-        {generating ? (
-          <>
-            <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
-            Writing your post…
-          </>
-        ) : '✍️ Generate Post'}
-      </button>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '0.5rem' }}>
+        <button
+          onClick={() => generate(false)}
+          disabled={generating}
+          style={{
+            padding: '0.75rem 1.5rem', borderRadius: '0.625rem', border: 'none',
+            background: generating ? 'rgba(79,142,247,0.4)' : '#4f8ef7',
+            color: '#fff', fontWeight: 700, fontSize: '0.875rem',
+            cursor: generating ? 'not-allowed' : 'pointer', transition: 'background 0.2s',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+          }}
+        >
+          {generating ? (
+            <>
+              <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+              Writing your post…
+            </>
+          ) : '✍️ Generate Post'}
+        </button>
+        <button
+          onClick={clearForm}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: '0.75rem', color: 'rgba(232,238,255,0.3)',
+            textAlign: 'center', textDecoration: 'underline', padding: '0.25rem',
+          }}
+        >
+          Clear form
+        </button>
+      </div>
 
       {/* Result */}
       {result && (
         <div style={{ ...card, border: '1px solid rgba(79,142,247,0.2)' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem', gap: '1rem' }}>
+          {/* Top row: score + business name + controls */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem', gap: '0.75rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <QualityScoreRing score={result.qualityScore} />
               <div>
-                <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(232,238,255,0.9)' }}>Quality Score</p>
-                <p style={{ fontSize: '0.7rem', color: 'rgba(232,238,255,0.4)' }}>out of 100</p>
+                <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'rgba(232,238,255,0.9)' }}>{displayName}</p>
+                <p style={{ fontSize: '0.7rem', color: 'rgba(232,238,255,0.4)' }}>Quality score: {result.qualityScore}/100</p>
               </div>
             </div>
-            <CopyButton text={editedText} label="Copy Post" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {/* Preview toggle */}
+              <button
+                onClick={() => setShowPreview((v) => !v)}
+                style={{
+                  padding: '0.375rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.75rem', fontWeight: 600,
+                  cursor: 'pointer', border: showPreview ? '1px solid #7c5af7' : '1px solid rgba(255,255,255,0.12)',
+                  background: showPreview ? 'rgba(124,90,247,0.15)' : 'rgba(255,255,255,0.04)',
+                  color: showPreview ? '#a78bfa' : 'rgba(232,238,255,0.6)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {showPreview ? '✏️ Edit' : '👁 Preview'}
+              </button>
+              {/* Regenerate */}
+              <button
+                onClick={() => generate(true)}
+                disabled={regenerating}
+                style={{
+                  padding: '0.375rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.75rem', fontWeight: 600,
+                  cursor: regenerating ? 'not-allowed' : 'pointer',
+                  border: '1px solid rgba(251,191,36,0.25)',
+                  background: 'rgba(251,191,36,0.08)',
+                  color: regenerating ? 'rgba(251,191,36,0.4)' : '#fbbf24',
+                  display: 'flex', alignItems: 'center', gap: '0.375rem',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {regenerating ? (
+                  <>
+                    <span style={{ width: 10, height: 10, border: '1.5px solid rgba(251,191,36,0.3)', borderTopColor: '#fbbf24', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                    Rewriting…
+                  </>
+                ) : '🔄 Try different version'}
+              </button>
+              <CopyButton text={editedText} label="Copy Post" />
+            </div>
           </div>
 
           {/* Strengths */}
@@ -262,15 +422,39 @@ export default function WritePostTool() {
             </div>
           )}
 
-          {/* Editable text */}
-          <textarea
-            value={editedText}
-            onChange={(e) => setEditedText(e.target.value)}
-            rows={10}
-            style={{ ...input, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6, marginBottom: '0.5rem' }}
-          />
+          {/* Textarea OR Preview card */}
+          {showPreview ? (
+            /* GBP-style preview card */
+            <div style={{
+              background: '#fff', borderRadius: '0.75rem',
+              boxShadow: '0 2px 12px rgba(0,0,0,0.15)', overflow: 'hidden',
+              marginBottom: '0.5rem',
+            }}>
+              {imagePreview && (
+                <img src={imagePreview} alt="" style={{ width: '100%', height: 150, objectFit: 'cover', display: 'block' }} />
+              )}
+              <div style={{ padding: '0.875rem 1rem' }}>
+                <p style={{ fontSize: '0.6875rem', color: '#70757a', marginBottom: '0.25rem' }}>Google Business</p>
+                <p style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#202124', marginBottom: '0.5rem' }}>{displayName}</p>
+                <p style={{ fontSize: '0.8125rem', color: '#3c4043', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{editedText}</p>
+                <p style={{ fontSize: '0.8125rem', color: '#1a73e8', marginTop: '0.75rem', fontWeight: 500 }}>Learn more</p>
+              </div>
+            </div>
+          ) : (
+            <textarea
+              value={editedText}
+              onChange={(e) => setEditedText(e.target.value)}
+              rows={10}
+              style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.6, marginBottom: '0.5rem' }}
+            />
+          )}
+
+          {/* Word + char counts */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.7rem', color: charColor }}>{charCount}/1500 characters</span>
+            <div style={{ display: 'flex', gap: '0.875rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.7rem', color: charColor }}>{charCount}/1500 characters</span>
+              <span style={{ fontSize: '0.7rem', color: 'rgba(232,238,255,0.3)' }}>{wordCount} words</span>
+            </div>
             <span style={{ fontSize: '0.7rem', color: 'rgba(232,238,255,0.3)' }}>Edit freely — then copy to GBP</span>
           </div>
         </div>

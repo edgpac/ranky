@@ -1,4 +1,4 @@
-import { useReducer, useRef, useState } from 'react';
+import { useReducer, useRef, useState, useCallback } from 'react';
 import CopyButton from '../../CopyButton';
 
 const CATEGORIES = ['EXTERIOR', 'INTERIOR', 'PRODUCT', 'AT_WORK', 'FOOD_AND_DRINK', 'MENU', 'COMMON_AREA', 'ROOMS', 'TEAMS', 'ADDITIONAL'];
@@ -67,6 +67,7 @@ export default function ImageProcessorTool() {
   const [images, dispatch] = useReducer(reducer, []);
   const [processing, setProcessing] = useState(false);
   const [zipping, setZipping] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function onFilePick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -74,6 +75,32 @@ export default function ImageProcessorTool() {
     if (files.length) dispatch({ type: 'ADD', files });
     e.target.value = '';
   }
+
+  const onDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  }, []);
+
+  const onDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  }, []);
+
+  const onDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  }, []);
+
+  const onDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    const files = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith('image/'));
+    if (files.length) dispatch({ type: 'ADD', files });
+  }, []);
 
   async function processAll() {
     if (!images.length) return;
@@ -143,18 +170,28 @@ export default function ImageProcessorTool() {
           <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(232,238,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.75rem' }}>
             Upload photos ({images.length}/10)
           </p>
-          <button
+          <div
+            onDragOver={onDragOver}
+            onDragEnter={onDragEnter}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
             onClick={() => fileRef.current?.click()}
             style={{
-              width: '100%', padding: '2rem', border: '2px dashed rgba(255,255,255,0.12)',
-              borderRadius: '0.75rem', background: 'transparent', color: 'rgba(232,238,255,0.45)',
+              width: '100%', padding: '2rem',
+              border: dragActive ? '2px dashed #4f8ef7' : '2px dashed rgba(255,255,255,0.12)',
+              borderRadius: '0.75rem',
+              background: dragActive ? 'rgba(79,142,247,0.07)' : 'transparent',
+              color: dragActive ? '#4f8ef7' : 'rgba(232,238,255,0.45)',
               cursor: 'pointer', fontSize: '0.8125rem', textAlign: 'center',
+              transition: 'all 0.15s', boxSizing: 'border-box',
             }}
           >
-            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🖼️</div>
-            Click to select photos (up to {10 - images.length} more)
-            <p style={{ fontSize: '0.7rem', marginTop: '0.25rem', opacity: 0.6 }}>Claude Vision auto-captions each photo · GPS + EXIF injected automatically</p>
-          </button>
+            <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{dragActive ? '⬇️' : '🖼️'}</div>
+            {dragActive
+              ? 'Drop photos here'
+              : `Click to select photos (up to ${10 - images.length} more)`}
+            <p style={{ fontSize: '0.7rem', marginTop: '0.25rem', opacity: 0.6 }}>Drag & drop · click to browse · Claude Vision auto-captions · GPS + EXIF injected</p>
+          </div>
           <input ref={fileRef} type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={onFilePick} />
         </div>
       )}

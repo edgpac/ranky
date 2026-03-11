@@ -12,7 +12,7 @@ export default function ModeToggle({ automatedUnlocked }: Props) {
     return (
       <div style={{
         display: 'flex', alignItems: 'center', gap: '0.375rem',
-        padding: '0.3rem 0.75rem', borderRadius: '2rem',
+        padding: '0.375rem 0.75rem', borderRadius: '2rem',
         background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.25)',
         fontSize: '0.75rem', fontWeight: 600, color: '#34d399',
       }}>
@@ -28,7 +28,7 @@ export default function ModeToggle({ automatedUnlocked }: Props) {
         {/* Active: Manual */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: '0.375rem',
-          padding: '0.3rem 0.75rem', borderRadius: '2rem',
+          padding: '0.375rem 0.75rem', borderRadius: '2rem',
           background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.3)',
           fontSize: '0.75rem', fontWeight: 600, color: '#4f8ef7',
         }}>
@@ -40,7 +40,7 @@ export default function ModeToggle({ automatedUnlocked }: Props) {
           onClick={() => setShowCard((v) => !v)}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.375rem',
-            padding: '0.3rem 0.75rem', borderRadius: '2rem',
+            padding: '0.375rem 0.75rem', borderRadius: '2rem',
             background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
             fontSize: '0.75rem', fontWeight: 600, color: 'rgba(232,238,255,0.35)',
             cursor: 'pointer',
