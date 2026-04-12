@@ -456,7 +456,7 @@ function UploadPanel({ onClose, onUploaded }: { onClose: () => void; onUploaded:
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [caption, setCaption] = useState('');
+  const [description, setDescription] = useState('');
   const [category, setCategory] = useState('AT_WORK');
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{ meta: { title: string; description: string; keywords: string[] } } | null>(null);
@@ -468,6 +468,7 @@ function UploadPanel({ onClose, onUploaded }: { onClose: () => void; onUploaded:
     setPreview(URL.createObjectURL(f));
     setUploadResult(null);
     setUploadError('');
+    setDescription('');
   };
 
   const handleUpload = async () => {
@@ -475,14 +476,14 @@ function UploadPanel({ onClose, onUploaded }: { onClose: () => void; onUploaded:
     setUploading(true); setUploadError(''); setUploadResult(null);
     const form = new FormData();
     form.append('photo', file);
-    form.append('caption', caption);
+    form.append('caption', description);
     form.append('category', category);
     try {
       const res = await fetch('/api/photos/upload', { method: 'POST', credentials: 'include', body: form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setUploadResult(data);
-      setFile(null); setPreview(null); setCaption('');
+      setFile(null); setPreview(null); setDescription('');
       if (fileRef.current) fileRef.current.value = '';
       // Re-fetch to get the new photo in the grid
       const photosRes = await fetch('/api/photos', { credentials: 'include' });
@@ -520,10 +521,14 @@ function UploadPanel({ onClose, onUploaded }: { onClose: () => void; onUploaded:
       </p>
 
       {uploadResult && (
-        <div style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)', borderRadius: '0.625rem', padding: '0.75rem' }}>
-          <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#34d399', marginBottom: '0.25rem' }}>{tp.uploadSuccess}</p>
-          <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.65)' }}><strong>Title:</strong> {uploadResult.meta.title}</p>
-          <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.65)', marginTop: '0.2rem' }}><strong>{tp.uploadSuccessKw}</strong> {uploadResult.meta.keywords?.join(', ')}</p>
+        <div style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.25)', borderRadius: '0.625rem', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+          <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#34d399' }}>{tp.uploadSuccess}</p>
+          <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.65)' }}>
+            <strong style={{ color: 'rgba(240,244,255,0.85)' }}>{tp.uploadSuccessDesc}</strong> {uploadResult.meta.description}
+          </p>
+          <p style={{ fontSize: '0.75rem', color: 'rgba(240,244,255,0.45)' }}>
+            <strong>{tp.uploadSuccessKw}</strong> {uploadResult.meta.keywords?.join(', ')}
+          </p>
         </div>
       )}
 
@@ -561,16 +566,34 @@ function UploadPanel({ onClose, onUploaded }: { onClose: () => void; onUploaded:
         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleFile} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem' }}>
-        <input style={inputStyle} placeholder={tp.captionPlaceholder} value={caption} onChange={(e) => setCaption(e.target.value)} />
-        <select
-          style={{ ...inputStyle, cursor: 'pointer', appearance: 'none' as const, background: 'rgba(255,255,255,0.06)' }}
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-        >
-          {CATEGORIES.map((c) => <option key={c.value} value={c.value} style={{ background: '#080d1a' }}>{c.label}</option>)}
-        </select>
+      {/* Description field */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+        <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'rgba(240,244,255,0.55)', letterSpacing: '0.01em' }}>
+          {tp.descriptionLabel}
+        </label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder={tp.descriptionPlaceholder}
+          rows={3}
+          style={{
+            ...inputStyle,
+            height: 'auto',
+            padding: '0.5rem 0.75rem',
+            resize: 'vertical' as const,
+            lineHeight: 1.5,
+          }}
+        />
       </div>
+
+      {/* Category */}
+      <select
+        style={{ ...inputStyle, cursor: 'pointer', appearance: 'none' as const, background: 'rgba(255,255,255,0.06)' }}
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+      >
+        {CATEGORIES.map((c) => <option key={c.value} value={c.value} style={{ background: '#080d1a' }}>{c.label}</option>)}
+      </select>
 
       <button
         style={{
